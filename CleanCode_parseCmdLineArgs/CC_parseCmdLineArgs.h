@@ -1,4 +1,5 @@
-
+//[FROM] <<Clean Code>> by Robert C. Martin (Chapter 14: Successive Refinement)
+// Code written by EnigmaWU
 typedef enum {
   CC_SUCCESS = 0,
   CC_FAIL    = 1,
