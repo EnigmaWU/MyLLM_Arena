@@ -1,9 +1,15 @@
 //[FROM] <<Clean Code>> by Robert C. Martin (Chapter 14: Successive Refinement)
 // Code written by EnigmaWU
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   CC_SUCCESS = 0,
   CC_FAIL    = 1,
 } CC_Result_T;
+
+#include <stdbool.h>  // Include the necessary header file for the bool type
 
 typedef struct {
   bool IsLoggingEnabled;  //-l
@@ -20,3 +26,7 @@ typedef struct {
  * @return CC_SUCCESS if successful, CC_FAIL otherwise in CC_Result_T
  */
 CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLineArgs);
+
+#ifdef __cplusplus
+}
+#endif
