@@ -10,6 +10,11 @@ find_library(GTEST_LIB_DIR gtest)
 #Find gtest_main's *.a file saved in GTEST_MAIN_LIB_DIR
 find_library(GTEST_MAIN_LIB_DIR gtest_main)
 
+#Enable testing
+if(CONFIG_BUILD_UNIT_TESTING)
+    enable_testing()
+endif()
+
 #Each *.cxx file in the test directory is UT and built into an executable with gtest named "UT_<filename>.bin"
 file(GLOB TEST_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cxx)
 foreach(TEST_FILE ${TEST_FILES})
