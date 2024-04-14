@@ -3,7 +3,8 @@
 #include "CC_parseCmdLineArgs.h"
 
 // Chat with Copilot, Q by EnigmaWU:
-// #file:CC_parseCmdLineArgs.c #file:CC_parseCmdLineArgsTest_byCopilot.cxx what UT already written and what UT is missed?
+// #file:CC_parseCmdLineArgs.c #file:CC_parseCmdLineArgsTest_byCopilot.cxx
+//      what UT already written and what UT is missed?
 // A from Copilot:
 /**
 The unit tests that are already written for the CC_parseCmdLineArgs function in the CC_parseCmdLineArgsTest_byCopilot.cxx file
