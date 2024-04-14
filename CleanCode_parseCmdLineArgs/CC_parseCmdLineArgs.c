@@ -5,6 +5,11 @@
 
 // ImplV1: Use Copilot to generate code to pass the test in CC_parseCmdLineArgsTest_byCopilot.cxx
 CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLineArgs) {
+  // If pCmdLineArgs is null, return fail
+  if (pCmdLineArgs == NULL) {
+    return CC_FAIL;
+  }
+
   // Initialize to default values
   pCmdLineArgs->IsLoggingEnabled = false;
   pCmdLineArgs->RecvPort         = 0;
