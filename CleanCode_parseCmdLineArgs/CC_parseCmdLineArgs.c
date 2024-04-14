@@ -5,6 +5,11 @@
 
 // ImplV1: Use Copilot to generate code to pass the test in CC_parseCmdLineArgsTest_byCopilot.cxx
 CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLineArgs) {
+  // If argc is 0 or argv is null, return fail
+  if (argc == 0 || argv == NULL) {
+    return CC_FAIL;
+  }
+
   // If pCmdLineArgs is null, return fail
   if (pCmdLineArgs == NULL) {
     return CC_FAIL;
@@ -18,11 +23,6 @@ CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLi
   // If there are no arguments (except for the program name), return success
   if (argc == 1) {
     return CC_SUCCESS;
-  }
-
-  // If there are not enough arguments, return fail
-  if (argc < 7) {
-    return CC_FAIL;
   }
 
   // Parse the arguments
