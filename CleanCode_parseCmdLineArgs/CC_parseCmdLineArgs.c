@@ -32,7 +32,12 @@ CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLi
         break;
       case 'p':
         if (i + 1 < argc) {
-          pCmdLineArgs->RecvPort = atoi(argv[i + 1]);
+          char *end;
+          long port = strtol(argv[i + 1], &end, 10);
+          if (end == argv[i + 1] || *end != '\0' || port <= 0 || port > 65535) {
+            return CC_FAIL;
+          }
+          pCmdLineArgs->RecvPort = (int)port;
           i++;
         } else {
           return CC_FAIL;
