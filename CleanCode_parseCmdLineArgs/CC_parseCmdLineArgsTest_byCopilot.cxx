@@ -52,7 +52,7 @@ TEST(CC_parseCmdLineArgs, LogSavingDir) {
 TEST(CC_parseCmdLineArgs, AllArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
   char *argv[] = {(char *)"test", (char *)"-l", (char *)"-p", (char *)"1234", (char *)"-d", (char *)"/tmp"};
-  EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(7, argv, &CmdLineArgs));
+  EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(6, argv, &CmdLineArgs));
   EXPECT_TRUE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(1234, CmdLineArgs.RecvPort);
   EXPECT_STREQ("/tmp", CmdLineArgs.pLogSavingDir);
