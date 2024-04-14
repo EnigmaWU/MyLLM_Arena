@@ -15,4 +15,7 @@ foreach(TEST_FILE ${TEST_FILES})
     add_executable(UT_${TEST_NAME}.bin ${TEST_FILE})
     target_include_directories(UT_${TEST_NAME}.bin PRIVATE ${GTEST_INCLUDE_DIR})
     target_link_libraries(UT_${TEST_NAME}.bin CC_parseCmdLineArgs ${GTEST_LIB_DIR})
+
+    #Add test to CMake
+    add_test(NAME UT_${TEST_NAME} COMMAND UT_${TEST_NAME}.bin)
 endforeach(TEST_FILE)
