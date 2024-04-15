@@ -17,6 +17,8 @@ LoggingEnabled: Tests the function with the logging enabled argument -l.
 RecvPort: Tests the function with the receive port argument -p and a value.
 LogSavingDir: Tests the function with the log saving directory argument -d and a value.
 AllArgs: Tests the function with all possible arguments.
+
+
 The unit tests that are missing could be:
 
 InvalidArgs: Tests the function with invalid arguments that do not start with -.
@@ -29,14 +31,14 @@ ArgsInDifferentOrder: Tests the function with all possible arguments in a differ
 
 // Q by EnigmaWU: generate could missing ut code for me
 // A from Copilot:
-TEST(CC_parseCmdLineArgs, LogSavingDir) {
-  CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-d", (char *)"/path/to/log"};
-  EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
-  EXPECT_FALSE(CmdLineArgs.IsLoggingEnabled);
-  EXPECT_EQ(0, CmdLineArgs.RecvPort);
-  EXPECT_STREQ("/path/to/log", CmdLineArgs.pLogSavingDir);
-}
+// TEST(CC_parseCmdLineArgs, LogSavingDir) {
+//   CC_CmdLineArgs_T CmdLineArgs;
+//   char *argv[] = {(char *)"test", (char *)"-d", (char *)"/path/to/log"};
+//   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
+//   EXPECT_FALSE(CmdLineArgs.IsLoggingEnabled);
+//   EXPECT_EQ(0, CmdLineArgs.RecvPort);
+//   EXPECT_STREQ("/path/to/log", CmdLineArgs.pLogSavingDir);
+// }
 
 TEST(CC_parseCmdLineArgs, InvalidArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
