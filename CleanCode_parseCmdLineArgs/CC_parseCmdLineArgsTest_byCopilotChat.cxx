@@ -7,8 +7,8 @@
 //      what UT already written and what UT is missed?
 // A from Copilot:
 /**
-The unit tests that are already written for the CC_parseCmdLineArgs function in the CC_parseCmdLineArgsTest_byCopilot.cxx file
-are:
+The unit tests that are already written for the CC_parseCmdLineArgs function
+    in the CC_parseCmdLineArgsTest_byCopilot.cxx file are:
 
 NullCmdLineArgs: Tests the function with argc as 0 and argv as NULL.
 NullCmdLineArgsPtr: Tests the function with argc as 0, argv as NULL, and pCmdLineArgs as NULL.
