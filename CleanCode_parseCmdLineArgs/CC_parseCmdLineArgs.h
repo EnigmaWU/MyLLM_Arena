@@ -14,7 +14,7 @@ typedef enum {
 typedef struct {
   bool IsLoggingEnabled;  //-l
   int RecvPort;           //-p <port>
-  char *pLogSavingDir;    //-d <dir>
+  const char *pLogSavingDir;  //-d <dir>
 } CC_CmdLineArgs_T;
 
 /**
@@ -25,7 +25,7 @@ typedef struct {
  * @param pCmdLineArgs pointer to CC_CmdLineArgs_T
  * @return CC_SUCCESS if successful, CC_FAIL otherwise in CC_Result_T
  */
-CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLineArgs);
+CC_Result_T CC_parseCmdLineArgs(int argc, const char *argv[], CC_CmdLineArgs_T *pCmdLineArgs);
 
 #ifdef __cplusplus
 }

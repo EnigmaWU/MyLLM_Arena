@@ -42,38 +42,38 @@ ArgsInDifferentOrder: Tests the function with all possible arguments in a differ
 
 TEST(CC_parseCmdLineArgs, InvalidArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"invalid"};
+  const char *argv[] = {(char *)"test", (char *)"invalid"};
   EXPECT_EQ(CC_FAIL, CC_parseCmdLineArgs(2, argv, &CmdLineArgs));
 }
 
 TEST(CC_parseCmdLineArgs, MissingValueForPort) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-p"};
+  const char *argv[] = {(char *)"test", (char *)"-p"};
   EXPECT_EQ(CC_FAIL, CC_parseCmdLineArgs(2, argv, &CmdLineArgs));
 }
 
 TEST(CC_parseCmdLineArgs, MissingValueForDir) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-d"};
+  const char *argv[] = {(char *)"test", (char *)"-d"};
   EXPECT_EQ(CC_FAIL, CC_parseCmdLineArgs(2, argv, &CmdLineArgs));
 }
 
 TEST(CC_parseCmdLineArgs, NonNumericPort) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-p", (char *)"nonnumeric"};
+  const char *argv[] = {(char *)"test", (char *)"-p", (char *)"nonnumeric"};
   EXPECT_EQ(CC_FAIL, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
 }
 
 TEST(CC_parseCmdLineArgs, MultipleSameArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-l", (char *)"-l"};
+  const char *argv[] = {(char *)"test", (char *)"-l", (char *)"-l"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
   EXPECT_TRUE(CmdLineArgs.IsLoggingEnabled);
 }
 
 TEST(CC_parseCmdLineArgs, ArgsInDifferentOrder) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-p", (char *)"1234", (char *)"-l", (char *)"-d", (char *)"/path/to/log"};
+  const char *argv[] = {(char *)"test", (char *)"-p", (char *)"1234", (char *)"-l", (char *)"-d", (char *)"/path/to/log"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(6, argv, &CmdLineArgs));
   EXPECT_TRUE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(1234, CmdLineArgs.RecvPort);

@@ -15,7 +15,7 @@ TEST(CC_parseCmdLineArgs, NullCmdLineArgsPtr) { EXPECT_EQ(CC_FAIL, CC_parseCmdLi
 
 TEST(CC_parseCmdLineArgs, NoArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test"};
+  const char *argv[] = {(char *)"test"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(1, argv, &CmdLineArgs));
   EXPECT_FALSE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(0, CmdLineArgs.RecvPort);
@@ -24,7 +24,7 @@ TEST(CC_parseCmdLineArgs, NoArgs) {
 
 TEST(CC_parseCmdLineArgs, LoggingEnabled) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-l"};
+  const char *argv[] = {(char *)"test", (char *)"-l"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(2, argv, &CmdLineArgs));
   EXPECT_TRUE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(0, CmdLineArgs.RecvPort);
@@ -33,7 +33,7 @@ TEST(CC_parseCmdLineArgs, LoggingEnabled) {
 
 TEST(CC_parseCmdLineArgs, RecvPort) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-p", (char *)"1234"};
+  const char *argv[] = {(char *)"test", (char *)"-p", (char *)"1234"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
   EXPECT_FALSE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(1234, CmdLineArgs.RecvPort);
@@ -42,7 +42,7 @@ TEST(CC_parseCmdLineArgs, RecvPort) {
 
 TEST(CC_parseCmdLineArgs, LogSavingDir) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-d", (char *)"/tmp"};
+  const char *argv[] = {(char *)"test", (char *)"-d", (char *)"/tmp"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(3, argv, &CmdLineArgs));
   EXPECT_FALSE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(0, CmdLineArgs.RecvPort);
@@ -51,7 +51,7 @@ TEST(CC_parseCmdLineArgs, LogSavingDir) {
 
 TEST(CC_parseCmdLineArgs, AllArgs) {
   CC_CmdLineArgs_T CmdLineArgs;
-  char *argv[] = {(char *)"test", (char *)"-l", (char *)"-p", (char *)"1234", (char *)"-d", (char *)"/tmp"};
+  const char *argv[] = {(char *)"test", (char *)"-l", (char *)"-p", (char *)"1234", (char *)"-d", (char *)"/tmp"};
   EXPECT_EQ(CC_SUCCESS, CC_parseCmdLineArgs(6, argv, &CmdLineArgs));
   EXPECT_TRUE(CmdLineArgs.IsLoggingEnabled);
   EXPECT_EQ(1234, CmdLineArgs.RecvPort);

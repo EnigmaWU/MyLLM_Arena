@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 // ImplV1: Use Copilot to generate code to pass the test in CC_parseCmdLineArgsTest_byCopilot.cxx
-CC_Result_T CC_parseCmdLineArgs(int argc, char *argv[], CC_CmdLineArgs_T *pCmdLineArgs) {
+CC_Result_T CC_parseCmdLineArgs(int argc, const char *argv[], CC_CmdLineArgs_T *pCmdLineArgs) {
   // If argc is 0 or argv is null, return fail
   if (argc == 0 || argv == NULL) {
     return CC_FAIL;
