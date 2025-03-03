@@ -11,6 +11,7 @@ import sys
 import os
 from utils.pdf_parser import extract_text_from_pdf
 from utils.concept_analyzer import analyze_concept
+from utils.url_parser import download_pdf_from_url
 
 VERSION = "0.1.0"
 
@@ -66,9 +67,31 @@ def process_pdf(pdf_path, concept_name, depth, debug=False):
     return True
 
 def process_url(url, concept_name, depth, debug=False):
-    """处理URL并追溯概念（未实现）"""
-    print("URL支持尚未实现")
-    return False
+    """处理URL并追溯概念"""
+    if debug:
+        print(f"Debug: 处理URL '{url}'")
+        print(f"Debug: 追溯概念 '{concept_name}', 深度: {depth}")
+    
+    # 从URL下载PDF
+    pdf_path = download_pdf_from_url(url, debug=debug)
+    if not pdf_path:
+        print(f"错误: 无法从URL '{url}' 下载PDF")
+        return False
+    
+    if debug:
+        print(f"Debug: PDF已下载到 '{pdf_path}'")
+    
+    # 使用现有的PDF处理函数处理下载的PDF
+    success = process_pdf(pdf_path, concept_name, depth, debug)
+    
+    # 清理临时文件（可选）
+    # import tempfile
+    # if pdf_path.startswith(tempfile.gettempdir()):
+    #     if debug:
+    #         print(f"Debug: 删除临时PDF文件 '{pdf_path}'")
+    #     os.remove(pdf_path)
+    
+    return success
 
 def main():
     """主函数"""
@@ -83,10 +106,3 @@ def main():
     elif args.URL:
         success = process_url(args.URL, args.ConceptName, args.Depth, args.Debug)
     else:
-        print("错误: 必须提供PDF文件路径或URL")
-        return 1
-    
-    return 0 if success else 1
-
-if __name__ == "__main__":
-    sys.exit(main())
