@@ -106,3 +106,10 @@ def main():
     elif args.URL:
         success = process_url(args.URL, args.ConceptName, args.Depth, args.Debug)
     else:
+        print("错误: 必须提供PDF文件路径或URL")
+        return 1
+    
+    return 0 if success else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
