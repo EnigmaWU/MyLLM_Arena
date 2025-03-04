@@ -113,7 +113,7 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
         logger.debug(f"PPT路径: {absolute_ppt_path}")
         logger.debug(f"输出路径: {absolute_output_path}")
         
-        # 使用直接的AppleScript而不是通过Python库
+        # 使用系统"打印到PDF"功能，这是macOS上最可靠的方法
         import subprocess
         
         if split:
@@ -121,14 +121,27 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             temp_pdf = tempfile.mktemp(suffix='.pdf')
             logger.debug(f"导出到临时PDF: {temp_pdf}")
             
-            # 简化的AppleScript，修复语法错误
+            # 使用打印命令导出为PDF
             script = f'''
             tell application "Microsoft PowerPoint"
+                activate
                 open "{absolute_ppt_path}"
+                delay 1
                 set pptDocument to active presentation
                 
                 if pptDocument is not missing value then
-                    save pptDocument in "{temp_pdf}" as PDF
+                    tell application "System Events"
+                        tell process "Microsoft PowerPoint"
+                            keystroke "p" using command down
+                            delay 1
+                            keystroke "p" using {{command down, shift down}}
+                            delay 1
+                            keystroke "{temp_pdf}"
+                            delay 1
+                            keystroke return
+                            delay 2
+                        end tell
+                    end tell
                     close pptDocument saving no
                 end if
                 quit
@@ -183,14 +196,27 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
                     os.unlink(temp_pdf)
                 return False
         else:
-            # 非分页模式，直接导出为单个PDF，使用简化的语法
+            # 非分页模式，直接导出为单个PDF
             script = f'''
             tell application "Microsoft PowerPoint"
+                activate
                 open "{absolute_ppt_path}"
+                delay 1
                 set pptDocument to active presentation
                 
                 if pptDocument is not missing value then
-                    save pptDocument in "{absolute_output_path}" as PDF
+                    tell application "System Events"
+                        tell process "Microsoft PowerPoint"
+                            keystroke "p" using command down
+                            delay 1
+                            keystroke "p" using {{command down, shift down}}
+                            delay 1
+                            keystroke "{absolute_output_path}"
+                            delay 1
+                            keystroke return
+                            delay 2
+                        end tell
+                    end tell
                     close pptDocument saving no
                 end if
                 quit
