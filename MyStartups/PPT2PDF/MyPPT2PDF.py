@@ -98,56 +98,135 @@ def convert_ppt_to_pdf_windows(ppt_path, output_path, split=False):
         return False
 
 def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
-    """在Mac平台使用AppleScript将PPT转换为PDF"""
+    """在Mac平台使用py-appscript将PPT转换为PDF"""
     try:
         # 检查PowerPoint是否已安装
         if not os.path.exists("/Applications/Microsoft PowerPoint.app"):
             logger.error("未找到Microsoft PowerPoint")
             return False
-            
-        import subprocess
         
-        logger.debug("使用Mac AppleScript转换PPT")
+        # 使用原始的文件路径
+        absolute_ppt_path = os.path.abspath(ppt_path)
+        absolute_output_path = os.path.abspath(output_path)
+        
+        # 如果是分页模式，获取输出基本路径
+        base_name = os.path.splitext(absolute_output_path)[0]
+        
+        logger.debug("使用Python子进程方式转换PPT")
         
         if split:
-            # 获取输出文件的基本名称和目录
-            base_name = os.path.splitext(output_path)[0]
+            # 创建临时文件用于合并输出
+            temp_pdf = tempfile.mktemp(suffix='.pdf')
             
-            # AppleScript脚本 - 分页导出 (再次修复语法)
-            script = f'''
-            tell application "Microsoft PowerPoint"
-                open "{ppt_path}"
-                set pres to active presentation
-                set slide_count to count of slides of pres
-                repeat with i from 1 to slide_count
-                    set page_path to "{base_name}_" & i & ".pdf"
-                    tell slide i of pres
-                        export to file page_path as "PDF"
-                    end tell
-                end repeat
-                close pres saving no
-                quit
-            end tell
+            # 首先将PPT转为单个PDF
+            convert_script = f'''
+            import sys
+            import os
+            try:
+                from appscript import app, k
+                
+                # 打开PowerPoint
+                powerpoint = app('Microsoft PowerPoint')
+                
+                # 打开文件
+                pres = powerpoint.open('{absolute_ppt_path}')
+                
+                # 另存为PDF
+                pres.save_as(in_='{temp_pdf}', as_=k.PDF)
+                
+                # 关闭文件
+                pres.close(saving=k.no)
+                
+                print("转换成功")
+                sys.exit(0)
+            except Exception as e:
+                print(f"错误: {{str(e)}}")
+                sys.exit(1)
             '''
+            
+            # 创建临时Python脚本
+            fd, temp_script = tempfile.mkstemp(suffix='.py')
+            with os.fdopen(fd, 'w') as f:
+                f.write(convert_script)
+            
+            # 执行脚本
+            import subprocess
+            result = subprocess.run([sys.executable, temp_script], capture_output=True, text=True)
+            
+            # 清理临时脚本
+            os.unlink(temp_script)
+            
+            if result.returncode != 0:
+                logger.error(f"Python执行失败: {result.stderr}")
+                return False
+            
+            # 现在分割PDF
+            try:
+                # 使用PyPDF2分割PDF
+                from PyPDF2 import PdfReader, PdfWriter
+                
+                reader = PdfReader(temp_pdf)
+                total_pages = len(reader.pages)
+                
+                for i in range(total_pages):
+                    writer = PdfWriter()
+                    writer.add_page(reader.pages[i])
+                    
+                    output_file = f"{base_name}_{i+1}.pdf"
+                    with open(output_file, 'wb') as f:
+                        writer.write(f)
+                
+                # 删除临时PDF
+                os.unlink(temp_pdf)
+                return True
+            
+            except ImportError:
+                logger.error("未安装PyPDF2。请使用pip install PyPDF2安装。")
+                return False
         else:
-            # AppleScript脚本 - 合并导出 (再次修复语法)
-            script = f'''
-            tell application "Microsoft PowerPoint"
-                open "{ppt_path}"
-                set pres to active presentation
-                save pres in "{output_path}" as PDF format
-                close pres saving no
-                quit
-            end tell
+            # 非分页模式，直接转换为单个PDF
+            convert_script = f'''
+            import sys
+            try:
+                from appscript import app, k
+                
+                # 打开PowerPoint
+                powerpoint = app('Microsoft PowerPoint')
+                
+                # 打开文件
+                pres = powerpoint.open('{absolute_ppt_path}')
+                
+                # 另存为PDF
+                pres.save_as(in_='{absolute_output_path}', as_=k.PDF)
+                
+                # 关闭文件
+                pres.close(saving=k.no)
+                
+                print("转换成功")
+                sys.exit(0)
+            except Exception as e:
+                print(f"错误: {{str(e)}}")
+                sys.exit(1)
             '''
-        
-        result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            logger.error(f"AppleScript执行失败: {result.stderr}")
-            return False
             
-        return True
+            # 创建临时Python脚本
+            fd, temp_script = tempfile.mkstemp(suffix='.py')
+            with os.fdopen(fd, 'w') as f:
+                f.write(convert_script)
+            
+            # 执行脚本
+            import subprocess
+            result = subprocess.run([sys.executable, temp_script], capture_output=True, text=True)
+            
+            # 清理临时脚本
+            os.unlink(temp_script)
+            
+            if result.returncode != 0:
+                logger.error(f"Python执行失败: {result.stderr}")
+                return False
+            
+            return True
+            
     except Exception as e:
         logger.error(f"Mac转换失败: {str(e)}")
         return False
