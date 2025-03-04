@@ -14,6 +14,7 @@ import platform
 import tempfile
 import shutil
 from pathlib import Path
+import textwrap  # 导入textwrap用于处理多行字符串缩进
 
 __version__ = "1.0.0"
 
@@ -118,31 +119,31 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             # 创建临时文件用于合并输出
             temp_pdf = tempfile.mktemp(suffix='.pdf')
             
-            # 首先将PPT转为单个PDF
-            convert_script = f'''
-            import sys
-            import os
-            try:
-                from appscript import app, k
-                
-                # 打开PowerPoint
-                powerpoint = app('Microsoft PowerPoint')
-                
-                # 打开文件
-                pres = powerpoint.open('{absolute_ppt_path}')
-                
-                # 另存为PDF
-                pres.save_as(in_='{temp_pdf}', as_=k.PDF)
-                
-                # 关闭文件
-                pres.close(saving=k.no)
-                
-                print("转换成功")
-                sys.exit(0)
-            except Exception as e:
-                print(f"错误: {{str(e)}}")
-                sys.exit(1)
-            '''
+            # 首先将PPT转为单个PDF (使用textwrap.dedent移除多余缩进)
+            convert_script = textwrap.dedent('''
+                import sys
+                import os
+                try:
+                    from appscript import app, k
+                    
+                    # 打开PowerPoint
+                    powerpoint = app('Microsoft PowerPoint')
+                    
+                    # 打开文件
+                    pres = powerpoint.open('{ppt_path}')
+                    
+                    # 另存为PDF
+                    pres.save_as(in_='{temp_pdf}', as_=k.PDF)
+                    
+                    # 关闭文件
+                    pres.close(saving=k.no)
+                    
+                    print("转换成功")
+                    sys.exit(0)
+                except Exception as e:
+                    print(f"错误: {{str(e)}}")
+                    sys.exit(1)
+            ''').format(ppt_path=absolute_ppt_path, temp_pdf=temp_pdf)
             
             # 创建临时Python脚本
             fd, temp_script = tempfile.mkstemp(suffix='.py')
@@ -184,30 +185,30 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
                 logger.error("未安装PyPDF2。请使用pip install PyPDF2安装。")
                 return False
         else:
-            # 非分页模式，直接转换为单个PDF
-            convert_script = f'''
-            import sys
-            try:
-                from appscript import app, k
-                
-                # 打开PowerPoint
-                powerpoint = app('Microsoft PowerPoint')
-                
-                # 打开文件
-                pres = powerpoint.open('{absolute_ppt_path}')
-                
-                # 另存为PDF
-                pres.save_as(in_='{absolute_output_path}', as_=k.PDF)
-                
-                # 关闭文件
-                pres.close(saving=k.no)
-                
-                print("转换成功")
-                sys.exit(0)
-            except Exception as e:
-                print(f"错误: {{str(e)}}")
-                sys.exit(1)
-            '''
+            # 非分页模式，直接转换为单个PDF (使用textwrap.dedent移除多余缩进)
+            convert_script = textwrap.dedent('''
+                import sys
+                try:
+                    from appscript import app, k
+                    
+                    # 打开PowerPoint
+                    powerpoint = app('Microsoft PowerPoint')
+                    
+                    # 打开文件
+                    pres = powerpoint.open('{ppt_path}')
+                    
+                    # 另存为PDF
+                    pres.save_as(in_='{output_path}', as_=k.PDF)
+                    
+                    # 关闭文件
+                    pres.close(saving=k.no)
+                    
+                    print("转换成功")
+                    sys.exit(0)
+                except Exception as e:
+                    print(f"错误: {{str(e)}}")
+                    sys.exit(1)
+            ''').format(ppt_path=absolute_ppt_path, output_path=absolute_output_path)
             
             # 创建临时Python脚本
             fd, temp_script = tempfile.mkstemp(suffix='.py')
