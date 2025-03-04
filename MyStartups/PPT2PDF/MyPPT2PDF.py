@@ -99,24 +99,11 @@ def convert_ppt_to_pdf_windows(ppt_path, output_path, split=False):
         return False
 
 def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
-    """在Mac平台使用py-appscript将PPT转换为PDF"""
+    """在Mac平台使用AppleScript将PPT转换为PDF"""
     try:
         # 检查PowerPoint是否已安装
         if not os.path.exists("/Applications/Microsoft PowerPoint.app"):
             logger.error("未找到Microsoft PowerPoint")
-            return False
-        
-        # 检查是否安装了必要的依赖
-        try:
-            import appscript
-        except ImportError:
-            logger.error("未安装appscript模块。请执行: pip install appscript PyPDF2")
-            return False
-            
-        try:
-            from PyPDF2 import PdfReader, PdfWriter
-        except ImportError:
-            logger.error("未安装PyPDF2模块。请执行: pip install PyPDF2")
             return False
         
         # 使用原始的文件路径
@@ -126,36 +113,48 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
         logger.debug(f"PPT路径: {absolute_ppt_path}")
         logger.debug(f"输出路径: {absolute_output_path}")
         
-        # 直接使用appscript，而不是通过子进程
-        from appscript import app, k
-        
-        # 启动PowerPoint
-        logger.debug("启动Microsoft PowerPoint...")
-        powerpoint = app('Microsoft PowerPoint')
-        
-        # 打开PPT文件
-        logger.debug(f"打开文件: {absolute_ppt_path}")
-        try:
-            pres = powerpoint.open(absolute_ppt_path)
-        except Exception as e:
-            logger.error(f"无法打开PPT文件: {str(e)}")
-            return False
+        # 使用直接的AppleScript而不是通过Python库
+        import subprocess
         
         if split:
-            # 如果是分页模式，先导出为单个PDF，然后分割
+            # 创建临时文件用于合并输出
             temp_pdf = tempfile.mktemp(suffix='.pdf')
             logger.debug(f"导出到临时PDF: {temp_pdf}")
             
+            # AppleScript直接导出为单个PDF
+            script = f'''
+            tell application "Microsoft PowerPoint"
+                set visible to true
+                open "{absolute_ppt_path}"
+                set activeDoc to active presentation
+                if activeDoc is not missing value then
+                    set theFolder to (POSIX file "{os.path.dirname(temp_pdf)}")
+                    set theFilename to (POSIX file "{temp_pdf}")
+                    tell activeDoc to save as filename theFilename file format PDF format
+                    close activeDoc saving no
+                end if
+                quit
+            end tell
+            '''
+            
+            # 运行AppleScript
+            process = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
+            
+            if process.returncode != 0:
+                logger.error(f"AppleScript错误: {process.stderr}")
+                return False
+            
+            # 检查PDF是否生成
+            if not os.path.exists(temp_pdf):
+                logger.error(f"PDF导出失败，无法找到: {temp_pdf}")
+                return False
+                
+            logger.debug("PDF已导出，准备分割")
+            
+            # 现在分割PDF
             try:
-                # 保存为PDF
-                pres.save_as(in_=temp_pdf, as_=k.PDF)
-                
-                # 关闭演示文稿
-                pres.close(saving=k.no)
-                
-                # 分割PDF文件
-                base_name = os.path.splitext(absolute_output_path)[0]
-                logger.debug(f"分割PDF，基本名称: {base_name}")
+                # 使用PyPDF2分割PDF
+                from PyPDF2 import PdfReader, PdfWriter
                 
                 reader = PdfReader(temp_pdf)
                 total_pages = len(reader.pages)
@@ -165,31 +164,57 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
                     writer = PdfWriter()
                     writer.add_page(reader.pages[i])
                     
-                    output_file = f"{base_name}_{i+1}.pdf"
+                    output_file = f"{os.path.splitext(absolute_output_path)[0]}_{i+1}.pdf"
                     logger.debug(f"写入页面 {i+1} 到 {output_file}")
                     with open(output_file, 'wb') as f:
                         writer.write(f)
                 
                 # 删除临时PDF
                 os.unlink(temp_pdf)
+                logger.debug("分割完成，临时文件已删除")
                 return True
                 
+            except ImportError:
+                logger.error("未安装PyPDF2。请使用pip install PyPDF2安装。")
+                if os.path.exists(temp_pdf):
+                    os.unlink(temp_pdf)
+                return False
             except Exception as e:
-                logger.error(f"PDF处理过程中出错: {str(e)}")
-                # 如果临时文件存在，尝试删除它
+                logger.error(f"PDF分割过程中出错: {str(e)}")
                 if os.path.exists(temp_pdf):
                     os.unlink(temp_pdf)
                 return False
         else:
-            # 非分页模式，直接保存为PDF
-            try:
-                logger.debug("保存为单个PDF...")
-                pres.save_as(in_=absolute_output_path, as_=k.PDF)
-                pres.close(saving=k.no)
-                return True
-            except Exception as e:
-                logger.error(f"保存PDF时出错: {str(e)}")
+            # 非分页模式，直接导出为单个PDF
+            script = f'''
+            tell application "Microsoft PowerPoint"
+                set visible to true
+                open "{absolute_ppt_path}"
+                set activeDoc to active presentation
+                if activeDoc is not missing value then
+                    set theFolder to (POSIX file "{os.path.dirname(absolute_output_path)}")
+                    set theFilename to (POSIX file "{absolute_output_path}")
+                    tell activeDoc to save as filename theFilename file format PDF format
+                    close activeDoc saving no
+                end if
+                quit
+            end tell
+            '''
+            
+            # 运行AppleScript
+            process = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
+            
+            if process.returncode != 0:
+                logger.error(f"AppleScript错误: {process.stderr}")
                 return False
+            
+            # 检查PDF是否生成
+            if not os.path.exists(absolute_output_path):
+                logger.error(f"PDF导出失败，无法找到: {absolute_output_path}")
+                return False
+            
+            logger.debug("PDF已成功导出")
+            return True
                 
     except Exception as e:
         logger.error(f"Mac转换失败: {str(e)}")
