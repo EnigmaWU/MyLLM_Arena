@@ -106,128 +106,91 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             logger.error("未找到Microsoft PowerPoint")
             return False
         
+        # 检查是否安装了必要的依赖
+        try:
+            import appscript
+        except ImportError:
+            logger.error("未安装appscript模块。请执行: pip install appscript PyPDF2")
+            return False
+            
+        try:
+            from PyPDF2 import PdfReader, PdfWriter
+        except ImportError:
+            logger.error("未安装PyPDF2模块。请执行: pip install PyPDF2")
+            return False
+        
         # 使用原始的文件路径
         absolute_ppt_path = os.path.abspath(ppt_path)
         absolute_output_path = os.path.abspath(output_path)
         
-        # 如果是分页模式，获取输出基本路径
-        base_name = os.path.splitext(absolute_output_path)[0]
+        logger.debug(f"PPT路径: {absolute_ppt_path}")
+        logger.debug(f"输出路径: {absolute_output_path}")
         
-        logger.debug("使用Python子进程方式转换PPT")
+        # 直接使用appscript，而不是通过子进程
+        from appscript import app, k
+        
+        # 启动PowerPoint
+        logger.debug("启动Microsoft PowerPoint...")
+        powerpoint = app('Microsoft PowerPoint')
+        
+        # 打开PPT文件
+        logger.debug(f"打开文件: {absolute_ppt_path}")
+        try:
+            pres = powerpoint.open(absolute_ppt_path)
+        except Exception as e:
+            logger.error(f"无法打开PPT文件: {str(e)}")
+            return False
         
         if split:
-            # 创建临时文件用于合并输出
+            # 如果是分页模式，先导出为单个PDF，然后分割
             temp_pdf = tempfile.mktemp(suffix='.pdf')
+            logger.debug(f"导出到临时PDF: {temp_pdf}")
             
-            # 首先将PPT转为单个PDF (使用textwrap.dedent移除多余缩进)
-            convert_script = textwrap.dedent('''
-                import sys
-                import os
-                try:
-                    from appscript import app, k
-                    
-                    # 打开PowerPoint
-                    powerpoint = app('Microsoft PowerPoint')
-                    
-                    # 打开文件
-                    pres = powerpoint.open('{ppt_path}')
-                    
-                    # 另存为PDF
-                    pres.save_as(in_='{temp_pdf}', as_=k.PDF)
-                    
-                    # 关闭文件
-                    pres.close(saving=k.no)
-                    
-                    print("转换成功")
-                    sys.exit(0)
-                except Exception as e:
-                    print(f"错误: {{str(e)}}")
-                    sys.exit(1)
-            ''').format(ppt_path=absolute_ppt_path, temp_pdf=temp_pdf)
-            
-            # 创建临时Python脚本
-            fd, temp_script = tempfile.mkstemp(suffix='.py')
-            with os.fdopen(fd, 'w') as f:
-                f.write(convert_script)
-            
-            # 执行脚本
-            import subprocess
-            result = subprocess.run([sys.executable, temp_script], capture_output=True, text=True)
-            
-            # 清理临时脚本
-            os.unlink(temp_script)
-            
-            if result.returncode != 0:
-                logger.error(f"Python执行失败: {result.stderr}")
-                return False
-            
-            # 现在分割PDF
             try:
-                # 使用PyPDF2分割PDF
-                from PyPDF2 import PdfReader, PdfWriter
+                # 保存为PDF
+                pres.save_as(in_=temp_pdf, as_=k.PDF)
+                
+                # 关闭演示文稿
+                pres.close(saving=k.no)
+                
+                # 分割PDF文件
+                base_name = os.path.splitext(absolute_output_path)[0]
+                logger.debug(f"分割PDF，基本名称: {base_name}")
                 
                 reader = PdfReader(temp_pdf)
                 total_pages = len(reader.pages)
+                logger.debug(f"PDF共有 {total_pages} 页")
                 
                 for i in range(total_pages):
                     writer = PdfWriter()
                     writer.add_page(reader.pages[i])
                     
                     output_file = f"{base_name}_{i+1}.pdf"
+                    logger.debug(f"写入页面 {i+1} 到 {output_file}")
                     with open(output_file, 'wb') as f:
                         writer.write(f)
                 
                 # 删除临时PDF
                 os.unlink(temp_pdf)
                 return True
-            
-            except ImportError:
-                logger.error("未安装PyPDF2。请使用pip install PyPDF2安装。")
+                
+            except Exception as e:
+                logger.error(f"PDF处理过程中出错: {str(e)}")
+                # 如果临时文件存在，尝试删除它
+                if os.path.exists(temp_pdf):
+                    os.unlink(temp_pdf)
                 return False
         else:
-            # 非分页模式，直接转换为单个PDF (使用textwrap.dedent移除多余缩进)
-            convert_script = textwrap.dedent('''
-                import sys
-                try:
-                    from appscript import app, k
-                    
-                    # 打开PowerPoint
-                    powerpoint = app('Microsoft PowerPoint')
-                    
-                    # 打开文件
-                    pres = powerpoint.open('{ppt_path}')
-                    
-                    # 另存为PDF
-                    pres.save_as(in_='{output_path}', as_=k.PDF)
-                    
-                    # 关闭文件
-                    pres.close(saving=k.no)
-                    
-                    print("转换成功")
-                    sys.exit(0)
-                except Exception as e:
-                    print(f"错误: {{str(e)}}")
-                    sys.exit(1)
-            ''').format(ppt_path=absolute_ppt_path, output_path=absolute_output_path)
-            
-            # 创建临时Python脚本
-            fd, temp_script = tempfile.mkstemp(suffix='.py')
-            with os.fdopen(fd, 'w') as f:
-                f.write(convert_script)
-            
-            # 执行脚本
-            import subprocess
-            result = subprocess.run([sys.executable, temp_script], capture_output=True, text=True)
-            
-            # 清理临时脚本
-            os.unlink(temp_script)
-            
-            if result.returncode != 0:
-                logger.error(f"Python执行失败: {result.stderr}")
+            # 非分页模式，直接保存为PDF
+            try:
+                logger.debug("保存为单个PDF...")
+                pres.save_as(in_=absolute_output_path, as_=k.PDF)
+                pres.close(saving=k.no)
+                return True
+            except Exception as e:
+                logger.error(f"保存PDF时出错: {str(e)}")
                 return False
-            
-            return True
-            
+                
     except Exception as e:
         logger.error(f"Mac转换失败: {str(e)}")
         return False
