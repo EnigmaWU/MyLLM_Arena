@@ -121,17 +121,15 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             temp_pdf = tempfile.mktemp(suffix='.pdf')
             logger.debug(f"导出到临时PDF: {temp_pdf}")
             
-            # AppleScript直接导出为单个PDF
+            # 简化的AppleScript，修复语法错误
             script = f'''
             tell application "Microsoft PowerPoint"
-                set visible to true
                 open "{absolute_ppt_path}"
-                set activeDoc to active presentation
-                if activeDoc is not missing value then
-                    set theFolder to (POSIX file "{os.path.dirname(temp_pdf)}")
-                    set theFilename to (POSIX file "{temp_pdf}")
-                    tell activeDoc to save as filename theFilename file format PDF format
-                    close activeDoc saving no
+                set pptDocument to active presentation
+                
+                if pptDocument is not missing value then
+                    save pptDocument in "{temp_pdf}" as PDF
+                    close pptDocument saving no
                 end if
                 quit
             end tell
@@ -185,17 +183,15 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
                     os.unlink(temp_pdf)
                 return False
         else:
-            # 非分页模式，直接导出为单个PDF
+            # 非分页模式，直接导出为单个PDF，使用简化的语法
             script = f'''
             tell application "Microsoft PowerPoint"
-                set visible to true
                 open "{absolute_ppt_path}"
-                set activeDoc to active presentation
-                if activeDoc is not missing value then
-                    set theFolder to (POSIX file "{os.path.dirname(absolute_output_path)}")
-                    set theFilename to (POSIX file "{absolute_output_path}")
-                    tell activeDoc to save as filename theFilename file format PDF format
-                    close activeDoc saving no
+                set pptDocument to active presentation
+                
+                if pptDocument is not missing value then
+                    save pptDocument in "{absolute_output_path}" as PDF
+                    close pptDocument saving no
                 end if
                 quit
             end tell
