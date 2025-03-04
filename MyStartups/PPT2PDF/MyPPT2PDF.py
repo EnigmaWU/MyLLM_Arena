@@ -113,7 +113,7 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             # 获取输出文件的基本名称和目录
             base_name = os.path.splitext(output_path)[0]
             
-            # AppleScript脚本 - 分页导出 (修复语法)
+            # AppleScript脚本 - 分页导出 (再次修复语法)
             script = f'''
             tell application "Microsoft PowerPoint"
                 open "{ppt_path}"
@@ -122,7 +122,7 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
                 repeat with i from 1 to slide_count
                     set page_path to "{base_name}_" & i & ".pdf"
                     tell slide i of pres
-                        export to file page_path as PDF
+                        export to file page_path as "PDF"
                     end tell
                 end repeat
                 close pres saving no
@@ -130,12 +130,12 @@ def convert_ppt_to_pdf_mac(ppt_path, output_path, split=False):
             end tell
             '''
         else:
-            # AppleScript脚本 - 合并导出 (修复语法)
+            # AppleScript脚本 - 合并导出 (再次修复语法)
             script = f'''
             tell application "Microsoft PowerPoint"
                 open "{ppt_path}"
                 set pres to active presentation
-                save pres in "{output_path}" as save as PDF
+                save pres in "{output_path}" as PDF format
                 close pres saving no
                 quit
             end tell
