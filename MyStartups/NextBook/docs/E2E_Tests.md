@@ -18,7 +18,7 @@
 - 数据持久性和一致性
 - 系统在不同负载下的性能
 - 系统架构各层级的交互效率
-- 安全性和数据隐私
+- 安全性和数据隐私Kv
 
 ## 2. 测试环境
 
@@ -52,6 +52,163 @@
 - 用户配置文件：包含不同阅读习惯和偏好的用户
 - 阅读历史和笔记：模拟用户的使用数据
 - 书籍元数据：用于验证数据解析的准确性
+
+### 2.5 测试环境部署视图
+
+以下部署视图描述了测试环境的架构和组件部署方式。测试环境应尽可能模拟生产环境的架构，以确保测试结果的有效性。
+
+```mermaid
+graph TD
+    subgraph "开发工作站"
+        subgraph "开发工具集"
+            IDE["代码编辑器"]
+            Git["版本控制"]
+            Debug["调试工具"]
+        end
+        subgraph "本地测试环境"
+            Docker["Docker桌面版"]
+        end
+    end
+    
+    subgraph "测试服务器集群"
+        subgraph "前端服务器"
+            subgraph "Web服务"
+                WebServer["Nginx"]
+                StaticFiles["静态资源"]
+            end
+        end
+        
+        subgraph "应用服务器"
+            subgraph "API服务"
+                APIApp["FastAPI应用"]
+                AppServer["Gunicorn/Uvicorn"]
+            end
+            subgraph "异步任务处理"
+                CeleryWorker["Celery Worker"]
+                MessageQueue["Redis"]
+            end
+        end
+        
+        subgraph "AI服务器"
+            subgraph "AI处理服务"
+                ModelInference["模型推理服务"]
+                Vectorizer["向量化服务"]
+            end
+        end
+        
+        subgraph "数据服务器"
+            PSQL[(PostgreSQL)]
+            VectorDB[(向量数据库)]
+            subgraph "对象存储"
+                ObjectStorage["MinIO"]
+            end
+        end
+        
+        subgraph "监控服务器"
+            subgraph "监控工具"
+                Prometheus["Prometheus"]
+                Grafana["Grafana"]
+            end
+            subgraph "日志收集"
+                ELK["ELK Stack"]
+            end
+        end
+    end
+    
+    subgraph "CI/CD服务"
+        subgraph "持续集成/部署"
+            CICD["Jenkins/GitHub Actions"]
+            TestScripts["测试自动化脚本"]
+        end
+    end
+    
+    subgraph "外部服务模拟"
+        subgraph "第三方服务模拟"
+            MockAPI["WireMock"]
+            MockAI["AI服务模拟"]
+        end
+    end
+    
+    Docker -->|本地开发| APIApp
+    IDE -->|代码提交| CICD
+    CICD -->|执行| TestScripts
+    TestScripts -->|测试| WebServer
+    TestScripts -->|测试| APIApp
+    WebServer -->|请求转发| APIApp
+    APIApp -->|数据操作| PSQL
+    APIApp -->|向量查询| VectorDB
+    APIApp -->|文件存储| ObjectStorage
+    APIApp -->|AI请求| ModelInference
+    APIApp -->|任务分发| CeleryWorker
+    CeleryWorker -->|消息队列| MessageQueue
+    CeleryWorker -->|结果保存| PSQL
+    ModelInference -->|生成嵌入| Vectorizer
+    Prometheus -->|指标收集| APIApp
+    Prometheus -->|指标收集| WebServer
+    Grafana -->|数据可视化| Prometheus
+    ELK -->|日志收集| APIApp
+    APIApp -->|集成测试| MockAPI
+    ModelInference -->|模拟响应| MockAI
+```
+
+#### 2.5.1 测试环境组件说明
+
+1. **开发工作站**
+   - 用于开发人员本地开发和初步测试
+   - 通过Docker容器化应用以确保环境一致性
+   - 安装必要的开发和调试工具
+
+2. **测试服务器集群**
+   - **前端服务器**：部署Web界面和静态资源
+   - **应用服务器**：运行核心业务逻辑和API服务
+   - **AI服务器**：专门用于AI模型推理和向量处理的高性能服务器
+   - **数据服务器**：部署各类数据存储系统
+   - **监控服务器**：收集系统指标和日志进行监控
+
+3. **CI/CD服务**
+   - 负责自动化构建、测试和部署
+   - 执行端到端测试套件
+   - 生成测试报告和覆盖率分析
+
+4. **外部服务模拟**
+   - 模拟第三方API响应以便进行隔离测试
+   - 提供可控的AI服务响应以测试边缘情况
+
+#### 2.5.2 网络配置
+
+1. **内部网络**
+   - 测试集群内部使用私有网络（10.x.x.x）
+   - 组件间通信使用内部DNS解析
+   - 微服务间通信通过服务发现机制
+
+2. **外部访问**
+   - 测试环境通过VPN或特定IP白名单访问
+   - 前端和API层通过反向代理暴露
+   - 限制对敏感组件的直接访问
+
+#### 2.5.3 测试数据管理
+
+1. **测试数据库**
+   - 使用生产数据的匿名化副本
+   - 每次测试运行前重置到已知状态
+   - 提供数据库快照恢复功能
+
+2. **测试账号**
+   - 维护不同权限级别的测试用户
+   - 测试账号密码在部署环境中安全存储
+   - 自动创建和管理测试数据
+
+#### 2.5.4 监控与日志
+
+1. **测试运行监控**
+   - 实时监控测试执行状态
+   - 收集性能指标以识别瓶颈
+   - 自动检测并报告异常行为
+
+2. **日志聚合**
+   - 中央化收集所有组件日志
+   - 实现结构化日志以便分析
+   - 支持按测试用例ID关联日志
 
 ## 3. 测试用例设计
 
