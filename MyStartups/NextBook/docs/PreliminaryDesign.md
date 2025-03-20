@@ -13,43 +13,338 @@ NextBook Agent是一款智能阅读助手应用，旨在通过AI技术帮助用�
 
 ## 2. 系统架构
 
-### 2.1 总体架构
+### 2.1 总体架构 - C4模型
 
+#### 2.1.1 上下文视图(Context View)
+
+```mermaid
+C4Context
+    title NextBook Agent系统上下文图
+    
+    Person(user, "用户", "阅读者、学习者")
+    System(nextbook, "NextBook Agent", "智能阅读管理与推荐系统")
+    System_Ext(bookSource, "电子书来源", "电子书商店、开放资源库")
+    System_Ext(aiService, "AI服务", "大型语言模型API")
+    
+    Rel(user, nextbook, "使用")
+    Rel(nextbook, bookSource, "获取图书")
+    Rel(nextbook, aiService, "分析内容和生成推荐")
+    UpdateRelStyle(user, nextbook, $textColor="blue", $lineColor="blue")
 ```
-┌─────────────────┐     ┌───────────────────┐     ┌───────────────────┐
-│                 │     │                   │     │                   │
-│   Web UI 界面   │◄────►│   Python 后端服务  │◄────►│     数据存储层     │
-│                 │     │                   │     │                   │
-└─────────────────┘     └─────────┬─────────┘     └───────────────────┘
-                                  │
-                        ┌─────────▼─────────┐
-                        │                   │
-                        │    AI 服务层      │
-                        │                   │
-                        └───────────────────┘
+
+#### 2.1.2 容器视图(Container View)
+
+```mermaid
+C4Container
+    title NextBook Agent系统容器图
+    
+    Person(user, "用户", "阅读者、学习者")
+    
+    System_Boundary(c1, "NextBook Agent") {
+        Container(webui, "Web前端", "Vue.js/React", "提供用户交互界面")
+        Container(backendapi, "后端API服务", "Python/FastAPI", "处理业务逻辑和数据")
+        Container(aiservice, "AI服务层", "Python/LLM", "内容理解和智能推荐")
+        ContainerDb(relationaldb, "关系型数据库", "PostgreSQL", "存储用户、书籍元数据")
+        ContainerDb(vectordb, "向量数据库", "Pinecone/Chroma", "存储内容嵌入向量")
+        ContainerDb(filestore, "文件存储", "S3/本地文件系统", "存储电子书文件")
+    }
+    
+    Rel(user, webui, "访问", "HTTPS")
+    Rel(webui, backendapi, "调用", "JSON/HTTPS")
+    Rel(backendapi, aiservice, "请求处理", "内部API")
+    Rel(backendapi, relationaldb, "读/写", "SQL")
+    Rel(backendapi, filestore, "读/写", "API")
+    Rel(aiservice, vectordb, "查询/存储", "API")
 ```
 
-### 2.2 组件说明
+#### 2.1.3 组件视图(Component View)
 
-#### 2.2.1 前端组件
+```mermaid
+C4Component
+    title NextBook Agent后端API服务组件图
+    
+    Container_Boundary(api, "后端API服务") {
+        Component(userMgmt, "用户管理模块", "Python", "处理用户注册、登录和权限")
+        Component(bookMgmt, "图书管理模块", "Python", "处理电子书上传和元数据")
+        Component(noteMgmt, "笔记管理模块", "Python", "处理用户笔记和划线")
+        Component(recEngine, "推荐引擎", "Python/ML", "生成个性化图书推荐")
+        Component(analyzer, "内容分析器", "Python/NLP", "分析文本内容")
+        Component(dataRpt, "数据报告生成器", "Python", "生成用户阅读报告")
+    }
+    
+    Container(webui, "Web前端", "Vue.js/React", "")
+    Container(aiservice, "AI服务层", "Python/LLM", "")
+    ContainerDb(relationaldb, "关系型数据库", "PostgreSQL", "")
+    ContainerDb(vectordb, "向量数据库", "Pinecone/Chroma", "")
+    
+    Rel(webui, userMgmt, "用户操作", "API")
+    Rel(webui, bookMgmt, "图书操作", "API")
+    Rel(webui, noteMgmt, "笔记操作", "API")
+    Rel(webui, recEngine, "获取推荐", "API")
+    Rel(webui, dataRpt, "获取报告", "API")
+    
+    Rel(bookMgmt, analyzer, "请求分析", "内部调用")
+    Rel(recEngine, aiservice, "请求智能推荐", "API")
+    Rel(analyzer, aiservice, "请求内容理解", "API")
+    
+    Rel(userMgmt, relationaldb, "读/写用户数据", "SQL")
+    Rel(bookMgmt, relationaldb, "读/写图书元数据", "SQL")
+    Rel(noteMgmt, relationaldb, "读/写笔记数据", "SQL")
+    Rel(analyzer, vectordb, "存储内容向量", "API")
+    Rel(recEngine, vectordb, "查询相似内容", "API")
+```
+
+### 2.2 4+1视图架构
+
+#### 2.2.1 逻辑视图(Logical View)
+
+```mermaid
+classDiagram
+    class User {
+        +id
+        +username
+        +email
+        +preferences
+        +register()
+        +login()
+        +updateProfile()
+    }
+    
+    class Book {
+        +id
+        +title
+        +author
+        +format
+        +metadata
+        +upload()
+        +parseContent()
+        +extractMetadata()
+    }
+    
+    class Note {
+        +id
+        +bookId
+        +content
+        +position
+        +tags
+        +create()
+        +update()
+        +delete()
+    }
+    
+    class ReadingSession {
+        +id
+        +userId
+        +bookId
+        +startTime
+        +endTime
+        +progress
+        +begin()
+        +end()
+        +updateProgress()
+    }
+    
+    class Recommendation {
+        +id
+        +userId
+        +books[]
+        +reason
+        +generate()
+        +feedback()
+    }
+    
+    class Report {
+        +id
+        +userId
+        +period
+        +statistics
+        +generate()
+        +export()
+    }
+    
+    User "1" -- "*" Book : reads
+    User "1" -- "*" Note : creates
+    User "1" -- "*" ReadingSession : has
+    User "1" -- "*" Recommendation : receives
+    User "1" -- "*" Report : views
+    Book "1" -- "*" Note : contains
+    Book "1" -- "*" ReadingSession : involved in
+```
+
+#### 2.2.2 进程视图(Process View)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebUI
+    participant APIBackend
+    participant AIService
+    participant Database
+
+    Note over User,Database: 图书上传与阅读流程
+    
+    User->>WebUI: 上传电子书
+    WebUI->>APIBackend: 发送文件
+    APIBackend->>Database: 存储文件
+    APIBackend->>AIService: 请求内容分析
+    AIService->>APIBackend: 返回分析结果
+    APIBackend->>Database: 存储元数据和分析结果
+    APIBackend->>WebUI: 确认上传成功
+    WebUI->>User: 显示图书已添加
+    
+    User->>WebUI: 打开图书阅读
+    WebUI->>APIBackend: 请求图书内容
+    APIBackend->>Database: 获取图书文件
+    Database->>APIBackend: 返回文件
+    APIBackend->>WebUI: 传送图书内容
+    WebUI->>User: 显示图书内容
+    
+    User->>WebUI: 创建笔记和划线
+    WebUI->>APIBackend: 保存笔记数据
+    APIBackend->>Database: 存储笔记信息
+    APIBackend->>AIService: 分析笔记内容
+    AIService->>Database: 存储分析结果
+    APIBackend->>WebUI: 确认保存成功
+    WebUI->>User: 显示笔记已保存
+```
+
+#### 2.2.3 物理视图(Physical View)
+
+```mermaid
+flowchart TD
+    subgraph "用户设备"
+        Browser[Web浏览器]
+    end
+    
+    subgraph "云服务器"
+        subgraph "应用服务器"
+            WebServer[Web服务器\nNginx]
+            AppServer[应用服务器\nPython/FastAPI]
+            AIServer[AI服务器\nPython]
+        end
+        
+        subgraph "数据服务器"
+            RDBMS[(关系型数据库\nPostgreSQL)]
+            VectorDB[(向量数据库\nPinecone/Chroma)]
+            ObjectStorage[(对象存储\nS3)]
+        end
+    end
+    
+    subgraph "第三方服务"
+        LLMProvider[LLM API提供商]
+    end
+    
+    Browser <--> WebServer
+    WebServer <--> AppServer
+    AppServer <--> AIServer
+    AppServer <--> RDBMS
+    AppServer <--> ObjectStorage
+    AIServer <--> VectorDB
+    AIServer <--> LLMProvider
+```
+
+#### 2.2.4 开发视图(Development View)
+
+```mermaid
+graph TD
+    subgraph "前端模块"
+        UI[UI组件]
+        State[状态管理]
+        API_Client[API客户端]
+        Reader[阅读器组件]
+        Visualizer[数据可视化]
+    end
+    
+    subgraph "后端模块"
+        API_Routes[API路由]
+        Services[业务服务]
+        DB_Access[数据访问层]
+        File_Handlers[文件处理]
+        Auth[认证与授权]
+    end
+    
+    subgraph "AI模块"
+        NLP[文本处理]
+        Embedding[嵌入生成]
+        LLM_Client[LLM客户端]
+        Recommendation[推荐算法]
+    end
+    
+    subgraph "数据模块"
+        Models[数据模型]
+        Migrations[数据迁移]
+        Seeds[初始数据]
+    end
+    
+    UI --> State
+    State --> API_Client
+    UI --> Reader
+    UI --> Visualizer
+    
+    API_Client --> API_Routes
+    API_Routes --> Auth
+    API_Routes --> Services
+    Services --> DB_Access
+    Services --> File_Handlers
+    Services --> NLP
+    
+    NLP --> LLM_Client
+    NLP --> Embedding
+    Embedding --> Recommendation
+    
+    DB_Access --> Models
+    Models --> Migrations
+    Models --> Seeds
+```
+
+#### 2.2.5 场景视图(Scenario View)
+
+```mermaid
+graph TB
+    subgraph "用户场景"
+        UC1[上传新书籍]
+        UC2[阅读与做笔记]
+        UC3[获取书籍推荐]
+        UC4[回顾知识]
+        UC5[查看阅读报告]
+    end
+    
+    subgraph "系统响应"
+        SR1[解析文件并提取元数据]
+        SR2[存储笔记并分析内容]
+        SR3[生成个性化推荐]
+        SR4[构建知识链接]
+        SR5[生成统计和可视化]
+    end
+    
+    UC1 --> SR1
+    UC2 --> SR2
+    UC3 --> SR3
+    UC4 --> SR4
+    UC5 --> SR5
+```
+
+### 2.3 组件说明
+
+#### 2.3.1 前端组件
 - **WebUI界面**：基于Web技术构建的用户界面
 - **阅读器组件**：支持PDF和EPUB格式的内容渲染
 - **笔记编辑器**：支持文本和图像笔记的创建和编辑
 - **数据可视化**：用于展示阅读报告和知识地图
 
-#### 2.2.2 后端组件
+#### 2.3.2 后端组件
 - **API服务**：提供RESTful接口供前端调用
 - **文件处理服务**：处理书籍文件的上传、存储和解析
 - **用户管理**：处理用户身份验证和权限控制
 - **推荐引擎**：基于用户历史和偏好生成推荐
 
-#### 2.2.3 AI组件
+#### 2.3.3 AI组件
 - **内容理解模块**：分析和理解书籍内容
 - **用户偏好模型**：学习用户阅读习惯和偏好
 - **知识图谱构建**：构建用户的个人知识图谱
 - **检索增强生成系统**：提高推荐和回忆功能的质量
 
-#### 2.2.4 数据存储
+#### 2.3.4 数据存储
 - **关系型数据库**：存储用户信息、书籍元数据等结构化数据
 - **向量数据库**：存储内容嵌入，用于相似性搜索
 - **文件存储**：存储书籍文件和用户上传的图像
