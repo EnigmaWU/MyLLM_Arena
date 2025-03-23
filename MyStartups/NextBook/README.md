@@ -19,8 +19,8 @@
   - [使用场景](#使用场景)
   - [技术架构](#技术架构)
     - [系统架构概述](#系统架构概述)
-    - [首版架构 (macOS POC版)](#首版架构-macos-poc版)
-    - [扩展架构 (多平台版)](#扩展架构-多平台版)
+    - [首版架构 (macOS Version\<for POC\>)](#首版架构-macos-versionfor-poc)
+    - [扩展架构 (multiOS Version)](#扩展架构-multios-version)
     - [数据流架构](#数据流架构)
       - [核心存储架构](#核心存储架构)
       - [内容获取流程 (SAVE)](#内容获取流程-save)
@@ -186,7 +186,7 @@ flowchart TD
     style Internet fill:#fff0d0,stroke:#ffb030
 ```
 
-### 首版架构 (macOS POC版)
+### 首版架构 (macOS Version\<for POC>)
 
 ```mermaid
 flowchart TD
@@ -259,7 +259,7 @@ flowchart TD
     class CloudAI,CloudLLM,CloudVectorDB cloudai
 ```
 
-### 扩展架构 (多平台版)
+### 扩展架构 (multiOS Version)
 
 ```mermaid
 flowchart TD
