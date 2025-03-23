@@ -18,6 +18,11 @@
     - [📊 REPORT - 数据报告](#-report---数据报告)
   - [使用场景](#使用场景)
   - [技术架构](#技术架构)
+    - [系统架构概述](#系统架构概述)
+    - [首版架构 (macOS POC版)](#首版架构-macos-poc版)
+    - [扩展架构 (多平台版)](#扩展架构-多平台版)
+    - [数据流架构](#数据流架构)
+    - [架构设计原则](#架构设计原则)
   - [快速上手](#快速上手)
   - [开发状态](#开发状态)
   - [未来计划](#未来计划)
@@ -81,14 +86,158 @@ NextBook Agent 是一个智能阅读助手，帮助用户管理阅读内容、�
 
 ## 技术架构
 
-* **前端**：基于WebUI的用户界面
-* **后端**：Python服务
-* **AI技术栈**：
-  * 大型语言模型(LLM)处理文本理解
-  * Agent系统进行任务协调
-  * 向量数据库(VectorDB)存储和检索内容
-  * 检索增强生成(RAG)提升推荐质量
-* **当前支持平台**：macOS
+### 系统架构概述
+
+```mermaid
+flowchart TD
+    User([用户]) --- Frontend
+    
+    subgraph Frontend["前端界面"]
+        UI[用户界面] --- Reader[阅读器]
+        UI --- Notes[笔记系统]
+        UI --- Recommend[推荐展示]
+    end
+    
+    subgraph Backend["后端服务"]
+        API[API服务] --- ContentProcessor[内容处理器]
+        API --- DataManager[数据管理]
+        API --- RecommendEngine[推荐引擎]
+    end
+    
+    subgraph AI["AI组件"]
+        LLM[大语言模型] --- RAG[检索增强生成]
+        RAG --- VectorDB[向量数据库]
+    end
+    
+    subgraph Storage["存储层"]
+        DB[(关系数据库)] --- FileSystem[(文件系统)]
+        VectorDB --- DB
+    end
+    
+    Frontend --- Backend
+    Backend --- AI
+    Backend --- Storage
+    
+    style Frontend fill:#d0e0ff,stroke:#3080ff
+    style Backend fill:#ffe0d0,stroke:#ff8030
+    style AI fill:#d0ffe0,stroke:#30ff80
+    style Storage fill:#e0d0ff,stroke:#8030ff
+```
+
+### 首版架构 (macOS POC版)
+
+```mermaid
+flowchart TD
+    subgraph "桌面应用"
+        A[Electron] --> B[React.js前端]
+        B --> C1[PDF.js]
+        B --> C2[EPUB.js]
+        B --> C3[TailwindCSS]
+    end
+    
+    subgraph "本地服务"
+        D[FastAPI] --> E[SQLite]
+        D --> F[Python处理工具]
+    end
+    
+    subgraph "AI处理"
+        G1[本地模式] --> H1[Ollama]
+        G1 --> H2[Chroma DB]
+        G2[云端模式] --> I1[OpenAI API]
+        G2 --> I2[Pinecone/Weaviate]
+    end
+    
+    B <--> D
+    D <--> G1
+    D <-.-> G2
+    
+    classDef local fill:#c4e3f3,stroke:#2980b9
+    classDef cloud fill:#f9e79f,stroke:#f39c12
+    classDef ui fill:#d5f5e3,stroke:#27ae60
+    
+    class A,B,C1,C2,C3,D,E,F,G1,H1,H2 local
+    class G2,I1,I2 cloud
+    class B,C1,C2,C3 ui
+```
+
+### 扩展架构 (多平台版)
+
+```mermaid
+flowchart TD
+    subgraph "多平台前端"
+        A1[Web应用] --> B1[React/Next.js]
+        A2[移动应用] --> B2[原生包装]
+        A3[桌面应用] --> B3[Electron]
+        B1 & B2 & B3 --> C[统一设计系统]
+    end
+    
+    subgraph "云端服务"
+        D[API网关] --> E1[用户服务]
+        D --> E2[内容服务]
+        D --> E3[推荐服务]
+        D --> E4[分析服务]
+    end
+    
+    subgraph "数据层"
+        F1[(PostgreSQL)] --- F2[(Redis)]
+        F1 --- F3[(分布式存储)]
+        F4[向量搜索] --- F1
+    end
+    
+    subgraph "AI引擎"
+        G1[模型训练] --> G2[推荐系统]
+        G1 --> G3[内容分析]
+        G4[用户画像] --> G2
+    end
+    
+    C <--> D
+    E1 & E2 & E3 & E4 <--> F1
+    E3 <--> G2
+    E4 <--> G3
+    E1 <--> G4
+    
+    classDef frontend fill:#d0e0ff,stroke:#3080ff
+    classDef backend fill:#ffe0d0,stroke:#ff8030
+    classDef data fill:#e0d0ff,stroke:#8030ff
+    classDef ai fill:#d0ffe0,stroke:#30ff80
+    
+    class A1,A2,A3,B1,B2,B3,C frontend
+    class D,E1,E2,E3,E4 backend
+    class F1,F2,F3,F4 data
+    class G1,G2,G3,G4 ai
+```
+
+### 数据流架构
+
+```mermaid
+flowchart LR
+    subgraph "内容获取流"
+        A1[用户上传/导入] --> A2[解析提取] --> A3[向量化存储] --> A4[本地索引]
+    end
+    
+    subgraph "推荐流程"
+        B1[用户历史] --> B2[偏好分析] --> B3[LLM生成候选] --> B4[排序筛选] --> B5[个性化展示]
+    end
+    
+    subgraph "回忆流程"
+        C1[检索查询] --> C2[混合检索] --> C3[相关性排序] --> C4[知识关联] --> C5[可视化展示]
+    end
+    
+    classDef flow1 fill:#ffe6cc,stroke:#d79b00
+    classDef flow2 fill:#d5e8d4,stroke:#82b366
+    classDef flow3 fill:#dae8fc,stroke:#6c8ebf
+    
+    class A1,A2,A3,A4 flow1
+    class B1,B2,B3,B4,B5 flow2
+    class C1,C2,C3,C4,C5 flow3
+```
+
+### 架构设计原则
+
+* **本地优先**：核心功能不依赖网络连接
+* **模块化设计**：组件可独立升级和替换
+* **渐进增强**：基础功能可在低配置环境运行，高级功能随资源扩展
+* **隐私保护**：敏感数据默认存储在本地，云同步为可选项
 
 ## 快速上手
 
