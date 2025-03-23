@@ -16,9 +16,9 @@
     - [📚 NEXT - 书籍推荐](#-next---书籍推荐)
     - [🔍 RECALL - 知识回忆](#-recall---知识回忆)
     - [📊 REPORT - 数据报告](#-report---数据报告)
-  - [快速开始](#快速开始)
-  - [技术架构](#技术架构)
   - [使用场景](#使用场景)
+  - [技术架构](#技术架构)
+  - [快速上手](#快速上手)
   - [开发状态](#开发状态)
   - [未来计划](#未来计划)
   - [贡献指南](#贡献指南)
@@ -68,19 +68,16 @@ NextBook Agent 是一个智能阅读助手，帮助用户管理阅读内容、�
 * **知识地图**：构建个人知识图谱
 * **进度追踪**：阅读目标完成度
 
-## 快速开始
+## 使用场景
 
-```bash
-# 克隆仓库
-git clone https://github.com/yourusername/nextbook-agent.git
-
-# 安装依赖
-cd nextbook-agent
-pip install -r requirements.txt
-
-# 启动应用
-python app.py
-```
+* **首版聚焦**：
+  * **个人桌面**：优先支持macBook用户，提供完整的桌面阅读体验
+  * **单设备部署**：本地化存储和处理，保护阅读隐私
+  
+* **未来扩展**：
+  * **多端使用**：将支持Win11、Ubuntu Linux、iPhone和Android平台
+  * **无缝同步**：在不同设备间保持阅读进度和笔记的同步
+  * **跨平台体验**：统一的UI和功能设计，适配不同设备特性
 
 ## 技术架构
 
@@ -93,16 +90,19 @@ python app.py
   * 检索增强生成(RAG)提升推荐质量
 * **当前支持平台**：macOS
 
-## 使用场景
+## 快速上手
 
-* **首版聚焦**：
-  * **个人桌面**：优先支持macBook用户，提供完整的桌面阅读体验
-  * **单设备部署**：本地化存储和处理，保护阅读隐私
-  
-* **未来扩展**：
-  * **多端使用**：将支持Win11、Ubuntu Linux、iPhone和Android平台
-  * **无缝同步**：在不同设备间保持阅读进度和笔记的同步
-  * **跨平台体验**：统一的UI和功能设计，适配不同设备特性
+```bash
+# 克隆仓库
+git clone https://github.com/yourusername/nextbook-agent.git
+
+# 安装依赖
+cd nextbook-agent
+pip install -r requirements.txt
+
+# 启动应用
+python app.py
+```
 
 ## 开发状态
 
