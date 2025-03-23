@@ -64,10 +64,14 @@ NextBook Agent 是一个智能阅读助手，帮助用户管理阅读内容、�
 * **展示**：封面 + 摘要 + 推荐理由
 * **获取**：预下载、立刻、后台，搜索可下载源，
   * **优先**：本地文件 > 在线资源，EPUB > PDF
+* **来源**：
+  * **实时互联网搜索**：获取最新出版信息、读者评价和购买链接
+  * **专业书评网站**：整合Goodreads、豆瓣读书等平台的评分和评论
+  * **学术数据库**：连接Google Scholar等获取学术著作推荐
 * **算法**：
   * 【AlgA】基于用户阅读历史、参考其笔记和备注
     * 结合：最新出版 + 领域经典 + 近期热门
-  * 【AlgB】（TODO）
+  * 【AlgB】实时搜索引擎整合，根据用户兴趣关键词爬取推荐
 
 ### 🔍 RECALL - 知识回忆
 
@@ -106,35 +110,64 @@ flowchart TD
     User([用户]) --- Frontend
     
     subgraph Frontend["前端界面"]
-        UI[用户界面] --- Reader[阅读器]
-        UI --- Notes[笔记系统]
-        UI --- Recommend[推荐展示]
+        UI[用户界面] --- SaveUI[SAVE界面]
+        UI --- NextUI[NEXT界面]
+        UI --- RecallUI[RECALL界面]
+        UI --- ReportUI[REPORT界面]
+        
+        SaveUI --- Reader[阅读器]
+        SaveUI --- Notes[笔记系统]
+        NextUI --- Recommend[推荐展示]
+        RecallUI --- KnowledgeMap[知识图谱]
+        ReportUI --- Dashboard[数据仪表盘]
     end
     
     subgraph Backend["后端服务"]
-        API[API服务] --- ContentProcessor[内容处理器]
-        API --- DataManager[数据管理]
-        API --- RecommendEngine[推荐引擎]
+        API[API服务] --- ContentService[内容服务]
+        API --- RecommendService[推荐服务]
+        API --- RecallService[回忆服务]
+        API --- AnalyticsService[分析服务]
+        
+        ContentService --- DocumentProcessor[文档处理器]
+        ContentService --- NoteManager[笔记管理器]
+        RecommendService --- RecommendEngine[推荐引擎]
+        RecommendService --- WebSearchEngine[网络搜索引擎]
+        RecallService --- SearchEngine[检索引擎]
+        AnalyticsService --- StatisticsEngine[统计引擎]
+    end
+    
+    subgraph Internet["互联网资源"]
+        BookAPI[图书API] --- ReviewSites[书评网站]
+        BookAPI --- BookStores[在线书店]
+        BookAPI --- AcademicDB[学术数据库]
     end
     
     subgraph AI["AI组件"]
         LLM[大语言模型] --- RAG[检索增强生成]
         RAG --- VectorDB[向量数据库]
+        LLM --- TopicExtractor[主题提取器]
+        LLM --- BookRecommender[图书推荐器]
+        LLM --- InsightGenerator[见解生成器]
     end
     
     subgraph Storage["存储层"]
         DB[(关系数据库)] --- FileSystem[(文件系统)]
         VectorDB --- DB
+        DB --- UserProfile[用户画像]
+        DB --- ReadingHistory[阅读历史]
+        DB --- SearchCache[搜索缓存]
     end
     
     Frontend --- Backend
     Backend --- AI
     Backend --- Storage
+    Backend --- Internet
     
     style Frontend fill:#d0e0ff,stroke:#3080ff
     style Backend fill:#ffe0d0,stroke:#ff8030
     style AI fill:#d0ffe0,stroke:#30ff80
     style Storage fill:#e0d0ff,stroke:#8030ff
+    style Internet fill:#fff0d0,stroke:#ffb030
 ```
 
 ### 首版架构 (macOS POC版)
@@ -229,7 +262,13 @@ flowchart LR
     end
     
     subgraph "推荐流程"
-        B1[用户历史] --> B2[偏好分析] --> B3[LLM生成候选] --> B4[排序筛选] --> B5[个性化展示]
+        B1[用户历史] --> B2[偏好分析] 
+        B2 --> B3[LLM生成候选]
+        B2 --> B6[网络搜索]
+        B6 --> B7[搜索结果处理]
+        B3 --> B4[排序筛选]
+        B7 --> B4
+        B4 --> B5[个性化展示]
     end
     
     subgraph "回忆流程"
@@ -241,7 +280,7 @@ flowchart LR
     classDef flow3 fill:#dae8fc,stroke:#6c8ebf
     
     class A1,A2,A3,A4 flow1
-    class B1,B2,B3,B4,B5 flow2
+    class B1,B2,B3,B4,B5,B6,B7 flow2
     class C1,C2,C3,C4,C5 flow3
 ```
 
