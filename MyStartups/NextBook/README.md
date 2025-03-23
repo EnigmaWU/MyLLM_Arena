@@ -23,6 +23,14 @@
     - [扩展架构 (多平台版)](#扩展架构-多平台版)
     - [数据流架构](#数据流架构)
     - [架构设计原则](#架构设计原则)
+  - [用户界面](#用户界面)
+    - [主界面设计](#主界面设计)
+    - [核心功能界面](#核心功能界面)
+      - [📥 SAVE - 内容保存](#-save---内容保存-1)
+      - [📚 NEXT - 书籍推荐](#-next---书籍推荐-1)
+      - [🔍 RECALL - 知识回忆](#-recall---知识回忆-1)
+      - [📊 REPORT - 数据报告](#-report---数据报告-1)
+    - [交互设计原则](#交互设计原则)
   - [快速上手](#快速上手)
   - [开发状态](#开发状态)
   - [未来计划](#未来计划)
@@ -238,6 +246,169 @@ flowchart LR
 * **模块化设计**：组件可独立升级和替换
 * **渐进增强**：基础功能可在低配置环境运行，高级功能随资源扩展
 * **隐私保护**：敏感数据默认存储在本地，云同步为可选项
+
+## 用户界面
+
+NextBook Agent采用简洁直观的界面设计，将四大核心功能无缝集成为统一的用户体验。
+
+### 主界面设计
+
+```mermaid
+graph TD
+    subgraph "NextBook主界面"
+        direction LR
+        
+        subgraph "侧边栏导航"
+            N1[📥 SAVE] -.-> N5[书库]
+            N2[📚 NEXT] -.-> N6[推荐]
+            N3[🔍 RECALL] -.-> N7[回忆]
+            N4[📊 REPORT] -.-> N8[报告]
+        end
+        
+        subgraph "主内容区"
+            C[视图切换区]
+        end
+        
+        subgraph "工具栏"
+            T1[导入] --- T2[搜索] --- T3[设置]
+        end
+    end
+    
+    classDef nav fill:#f9f9f9,stroke:#666
+    classDef content fill:#ffffff,stroke:#999
+    classDef tools fill:#f0f0f0,stroke:#666
+    
+    class N1,N2,N3,N4,N5,N6,N7,N8 nav
+    class C content
+    class T1,T2,T3 tools
+```
+
+### 核心功能界面
+
+#### 📥 SAVE - 内容保存
+
+```mermaid
+graph TD
+    subgraph "内容保存界面"
+        direction LR
+        
+        subgraph "书籍阅读器"
+            R1[文档查看器] --- R2[划线工具]
+            R1 --- R3[笔记面板]
+        end
+        
+        subgraph "内容管理"
+            M1[书籍列表] --- M2[分类管理]
+            M1 --- M3[标签系统]
+        end
+    end
+    
+    classDef reader fill:#e6f7ff,stroke:#1890ff
+    classDef manager fill:#f6ffed,stroke:#52c41a
+    
+    class R1,R2,R3 reader
+    class M1,M2,M3 manager
+```
+
+#### 📚 NEXT - 书籍推荐
+
+```mermaid
+graph LR
+    subgraph "智能推荐界面"
+        direction TB
+        
+        subgraph "个性化推荐"
+            P1[书籍A] --- P2[书籍B] --- P3[书籍C]
+            P4[个性化理由]
+        end
+        
+        subgraph "发现区"
+            D1[最新出版] --- D2[领域经典]
+            D2 --- D3[近期热门]
+        end
+        
+        subgraph "细节视图"
+            V1[书籍封面] --- V2[内容简介]
+            V2 --- V3[获取链接]
+        end
+    end
+    
+    classDef recommend fill:#fff2e8,stroke:#fa8c16
+    classDef discover fill:#f9f0ff,stroke:#722ed1
+    classDef detail fill:#e6fffb,stroke:#13c2c2
+    
+    class P1,P2,P3,P4 recommend
+    class D1,D2,D3 discover
+    class V1,V2,V3 detail
+```
+
+#### 🔍 RECALL - 知识回忆
+
+```mermaid
+graph TD
+    subgraph "知识回忆界面"
+        direction LR
+        
+        subgraph "时间线视图"
+            T1[月视图] --- T2[周视图] --- T3[日视图]
+        end
+        
+        subgraph "知识卡片"
+            K1[笔记卡片] --- K2[引用卡片]
+            K1 --- K3[思考卡片]
+        end
+        
+        subgraph "关联视图"
+            C1[知识图谱] --- C2[主题关联]
+        end
+    end
+    
+    classDef timeline fill:#f0f5ff,stroke:#2f54eb
+    classDef cards fill:#fff1f0,stroke:#f5222d
+    classDef connections fill:#fcffe6,stroke:#a0d911
+    
+    class T1,T2,T3 timeline
+    class K1,K2,K3 cards
+    class C1,C2 connections
+```
+
+#### 📊 REPORT - 数据报告
+
+```mermaid
+graph LR
+    subgraph "数据报告界面"
+        direction TB
+        
+        subgraph "阅读统计"
+            S1[年度总览] --- S2[月度趋势]
+            S2 --- S3[类别分布]
+        end
+        
+        subgraph "知识地图"
+            M1[主题地图] --- M2[关键词云]
+        end
+        
+        subgraph "目标追踪"
+            G1[阅读目标] --- G2[完成进度]
+        end
+    end
+    
+    classDef stats fill:#e6f7ff,stroke:#1890ff
+    classDef map fill:#fff7e6,stroke:#fa8c16
+    classDef goals fill:#f6ffed,stroke:#52c41a
+    
+    class S1,S2,S3 stats
+    class M1,M2 map
+    class G1,G2 goals
+```
+
+### 交互设计原则
+
+* **简洁直观**：界面清晰，减少视觉噪音，突出内容
+* **一致性**：各功能区保持一致的设计语言和交互模式
+* **响应式**：适应不同屏幕尺寸，优化macOS上的显示效果
+* **上下文感知**：界面根据用户当前活动智能调整，提供相关功能
+* **减少认知负担**：常用功能一键可达，复杂功能分层展示
 
 ## 快速上手
 
