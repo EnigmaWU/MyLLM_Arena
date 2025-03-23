@@ -252,47 +252,64 @@ flowchart TD
 
 ```mermaid
 flowchart TD
+    User([用户]) --- A1 & A2 & A3
+    
     subgraph "多平台前端"
         A1[Web应用] --> B1[React/Next.js]
-        A2[移动应用] --> B2[原生包装]
+        A2[移动应用] --> B2[React Native]
         A3[桌面应用] --> B3[Electron]
-        B1 & B2 & B3 --> C[统一设计系统]
+        
+        B1 & B2 & B3 --> C[统一UI组件库]
+        
+        C --> SaveUIMulti[SAVE模块]
+        C --> NextUIMulti[NEXT模块]
+        C --> RecallUIMulti[RECALL模块]
+        C --> ReportUIMulti[REPORT模块]
     end
     
-    subgraph "云端服务"
-        D[API网关] --> E1[用户服务]
-        D --> E2[内容服务]
-        D --> E3[推荐服务]
-        D --> E4[分析服务]
+    subgraph "云端服务层"
+        D[API网关/负载均衡] --> E1[用户认证服务]
+        D --> E2[内容管理服务]
+        D --> E3[推荐引擎服务]
+        D --> E4[知识检索服务]
+        D --> E5[分析报告服务]
+        D --> E6[同步服务]
     end
     
     subgraph "数据层"
-        F1[(PostgreSQL)] --- F2[(Redis)]
-        F1 --- F3[(分布式存储)]
-        F4[向量搜索] --- F1
+        F1[(PostgreSQL)] --- F2[(Redis缓存)]
+        F1 --- F3[(对象存储)]
+        F4[向量数据库] --- F1
+        F5[搜索引擎] --- F1
     end
     
-    subgraph "AI引擎"
-        G1[模型训练] --> G2[推荐系统]
-        G1 --> G3[内容分析]
-        G4[用户画像] --> G2
+    subgraph "AI引擎层"
+        G1[分布式AI集群] --> G2[用户偏好分析]
+        G1 --> G3[内容理解引擎]
+        G1 --> G4[推荐算法引擎]
+        G1 --> G5[知识关联引擎]
+        
+        G6[模型训练框架] --> G1
     end
     
-    C <--> D
-    E1 & E2 & E3 & E4 <--> F1
-    E3 <--> G2
-    E4 <--> G3
-    E1 <--> G4
+    SaveUIMulti & NextUIMulti & RecallUIMulti & ReportUIMulti <--> D
+    
+    E1 & E2 & E3 & E4 & E5 & E6 <--> F1
+    E1 & E2 & E3 & E4 & E5 & E6 <--> G1
+    
+    E2 --> F3
+    E4 --> F4
+    E4 --> F5
     
     classDef frontend fill:#d0e0ff,stroke:#3080ff
     classDef backend fill:#ffe0d0,stroke:#ff8030
     classDef data fill:#e0d0ff,stroke:#8030ff
     classDef ai fill:#d0ffe0,stroke:#30ff80
     
-    class A1,A2,A3,B1,B2,B3,C frontend
-    class D,E1,E2,E3,E4 backend
-    class F1,F2,F3,F4 data
-    class G1,G2,G3,G4 ai
+    class A1,A2,A3,B1,B2,B3,C,SaveUIMulti,NextUIMulti,RecallUIMulti,ReportUIMulti frontend
+    class D,E1,E2,E3,E4,E5,E6 backend
+    class F1,F2,F3,F4,F5 data
+    class G1,G2,G3,G4,G5,G6 ai
 ```
 
 ### 数据流架构
