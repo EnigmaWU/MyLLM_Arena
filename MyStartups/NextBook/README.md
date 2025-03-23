@@ -53,15 +53,16 @@
   * 注意：本助手不是阅读器，作为阅读助手，帮助用户更好地管理和挖掘曾经阅读过的内容。
 
 **主要价值**：
-- 📝 【通过】高效记录阅读内容和笔记
+- 📝 【通过】方便记录阅读内容和笔记
 - 🔍 【达到】智能推荐相关优质书籍
 - 🧠 【同时】构建个人知识库、建立`洞见链接`
 - 📊 【顺带】生成阅读统计与报告
 
-* 备注：
+* 何谓：
   * 洞见链接：即用户的个人见解与他人见解的关联
      * 他人：某位当代活跃的、历史著名的大神们
-     * 关联：指发掘出，自己的见解与他们相当、或更深刻
+     * 关联：指本助手发掘出，`我`的见解与他们相当、或更深刻
+       * 只为：告诉自己，洞见时刻，`我`并不孤单 
 
 ## 核心功能
 
@@ -143,7 +144,7 @@ flowchart TD
         UI --- RecallUI[RECALL界面]
         UI --- ReportUI[REPORT界面]
         
-        SaveUI --- Reader[阅读器]
+        SaveUI --- ContentViewer[内容预览器]
         SaveUI --- Notes[笔记系统]
         NextUI --- Recommend[推荐展示]
         RecallUI --- KnowledgeMap[知识图谱]
@@ -210,8 +211,8 @@ flowchart TD
         UI --> RecallUI[RECALL模块]
         UI --> ReportUI[REPORT模块]
         
-        SaveUI --> PDF[PDF.js]
-        SaveUI --> EPUB[EPUB.js]
+        SaveUI --> PDFViewer[PDF.js预览]
+        SaveUI --> EPUBViewer[EPUB.js预览]
         UI --> TW[TailwindCSS]
     end
     
@@ -264,7 +265,7 @@ flowchart TD
     classDef localai fill:#d0ffe0,stroke:#30ff80
     classDef cloudai fill:#f9e79f,stroke:#f39c12
     
-    class UI,SaveUI,NextUI,RecallUI,ReportUI,PDF,EPUB,TW frontend
+    class UI,SaveUI,NextUI,RecallUI,ReportUI,PDFViewer,EPUBViewer,TW frontend
     class API,DocProcess,RecommendEngine,SearchService,AnalyticsService backend
     class SQLite,VectorDB data
     class LocalAI,LocalLLM,LocalRAG localai
@@ -536,8 +537,8 @@ NextBook Agent采用简洁直观的界面设计，将四大核心功能无缝集
 
 ### 设计理念
 
-* **内容为王**：界面设计以内容展示为中心，最大化阅读区域
-* **减少干扰**：最小化不必要的视觉元素，让用户专注于阅读与思考
+* **内容为王**：界面设计以内容展示为中心，最大化内容查看区域
+* **减少干扰**：最小化不必要的视觉元素，让用户专注于内容与思考
 * **自然交互**：符合用户心智模型的操作方式，降低学习成本
 * **灵活布局**：支持用户根据需求自定义工作区布局
 * **暗黑模式**：全面支持系统级暗黑模式，保护用户视力
@@ -555,7 +556,7 @@ graph TD
     Mode --> Report[REPORT模式]
     
     Save --> S1[导入/上传书籍]
-    S1 --> S2[阅读与标记]
+    S1 --> S2[内容浏览]
     S2 --> S3[添加笔记]
     S3 --> S4[保存与分类]
     S4 --> Mode
@@ -602,12 +603,12 @@ graph TD
             N3[🔍 RECALL] -.-> N7[回忆]
             N4[📊 REPORT] -.-> N8[报告]
             N9[快速笔记区]
-            N10[最近阅读]
+            N10[最近导入]
         end
         
         subgraph "主内容区"
             C[视图切换区]
-            C1[阅读视图]
+            C1[内容视图]
             C2[笔记视图]
             C3[推荐视图]
             C4[报告视图]
@@ -619,8 +620,8 @@ graph TD
         end
         
         subgraph "状态栏"
-            S1[阅读进度] --- S2[同步状态]
-            S3[阅读时间] --- S4[AI助手]
+            S1[进度指示] --- S2[同步状态]
+            S3[统计信息] --- S4[AI助手]
         end
     end
     
@@ -641,26 +642,26 @@ graph TD
 
 **操作流程**:
 
-1. **内容导入** → 2. **阅读浏览** → 3. **内容标记** → 4. **添加笔记** → 5. **分类保存**
+1. **内容导入** → 2. **内容浏览** → 3. **内容标记** → 4. **添加笔记** → 5. **分类保存**
 
 ```mermaid
 sequenceDiagram
     actor 用户
     participant UI as 用户界面
-    participant Reader as 阅读器
+    participant Viewer as 内容查看器
     participant Notes as 笔记系统
     participant DB as 数据存储
     
     用户->>UI: 点击"导入"按钮
     UI->>用户: 显示文件选择器
     用户->>UI: 选择书籍文件
-    UI->>Reader: 打开文件
-    Reader->>用户: 显示内容
+    UI->>Viewer: 打开文件
+    Viewer->>用户: 显示内容
     
-    Note over 用户,Reader: 阅读阶段
+    Note over 用户,Viewer: 内容查看阶段
     
-    用户->>Reader: 选择文本
-    Reader->>UI: 显示标记选项
+    用户->>Viewer: 选择文本
+    Viewer->>UI: 显示标记选项
     用户->>UI: 选择"添加笔记"
     UI->>Notes: 创建新笔记
     Notes->>用户: 显示笔记编辑框
@@ -683,11 +684,11 @@ graph TD
     subgraph "内容保存界面"
         direction LR
         
-        subgraph "书籍阅读器"
-            R1[文档查看器] --- R2[划线工具]
+        subgraph "内容查看器"
+            R1[文档预览器] --- R2[划线工具]
             R1 --- R3[笔记面板]
             R4[目录导航] --- R5[书签管理]
-            R6[阅读进度条] --- R7[页面缩放]
+            R6[浏览进度条] --- R7[页面缩放]
         end
         
         subgraph "内容管理"
@@ -698,19 +699,19 @@ graph TD
         end
     end
     
-    classDef reader fill:#e6f7ff,stroke:#1890ff
+    classDef viewer fill:#e6f7ff,stroke:#1890ff
     classDef manager fill:#f6ffed,stroke:#52c41a
     
-    class R1,R2,R3,R4,R5,R6,R7 reader
+    class R1,R2,R3,R4,R5,R6,R7 viewer
     class M1,M2,M3,M4,M5,M6,M7 manager
 ```
 
 **特色设计与操作流程**:
 * **拖放导入**: 直接拖放文件到界面即可导入，无需多步操作
 * **一键标记**: 选中文本后直接出现标记选项，减少点击步骤
-* **上下文笔记**: 笔记始终与原文保持视觉关联，不丢失阅读上下文
+* **上下文笔记**: 笔记始终与原文保持视觉关联，不丢失内容上下文
 * **标签推荐**: 基于内容自动推荐标签，一键应用
-* **快速定位**: 通过目录或搜索快速跳转到特定章节，支持书签记忆
+* **快速导航**: 通过目录或搜索快速查找特定章节，支持书签定位
 
 #### 📚 NEXT - 书籍推荐
 
@@ -935,10 +936,10 @@ graph LR
     subgraph "数据报告界面"
         direction TB
         
-        subgraph "阅读统计"
+        subgraph "内容统计"
             S1[年度总览] --- S2[月度趋势]
             S2 --- S3[类别分布]
-            S4[时间投入] --- S5[速度分析]
+            S4[内容收集时间] --- S5[处理效率分析]
             S6[对比历史] --- S7[预测趋势]
         end
         
@@ -949,7 +950,7 @@ graph LR
         end
         
         subgraph "目标追踪"
-            G1[阅读目标] --- G2[完成进度]
+            G1[收集目标] --- G2[完成进度]
             G3[挑战设置] --- G4[奖励系统]
             G5[习惯培养] --- G6[社区排行]
         end
@@ -973,9 +974,9 @@ graph LR
 
 **特色设计与操作流程**:
 * **模板选择**: 提供多种报告模板，一键生成不同风格报告
-* **实时更新**: 报告数据实时更新，反映最新阅读活动
+* **实时更新**: 报告数据实时更新，反映最新内容收集活动
 * **交互式图表**: 支持点击、拖拽、缩放等操作探索数据细节
-* **目标调整**: 在报告界面直接调整阅读目标，系统即时反馈影响
+* **目标调整**: 在报告界面直接调整内容收集目标，系统即时反馈影响
 * **智能摘要**: 自动生成核心发现和建议，突出重要数据洞察
 
 ### 交互设计原则
