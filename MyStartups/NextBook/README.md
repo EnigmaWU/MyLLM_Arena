@@ -30,6 +30,8 @@
       - [数据报告流程 (REPORT)](#数据报告流程-report)
       - [跨流程数据交互](#跨流程数据交互)
   - [用户界面](#用户界面)
+    - [设计理念](#设计理念)
+    - [操作模型](#操作模型)
     - [主界面设计](#主界面设计)
     - [核心功能界面](#核心功能界面)
       - [📥 SAVE - 内容保存](#-save---内容保存-1)
@@ -37,6 +39,8 @@
       - [🔍 RECALL - 知识回忆](#-recall---知识回忆-1)
       - [📊 REPORT - 数据报告](#-report---数据报告-1)
     - [交互设计原则](#交互设计原则)
+    - [视觉风格](#视觉风格)
+    - [适配策略](#适配策略)
   - [快速上手](#快速上手)
   - [开发状态](#开发状态)
   - [未来计划](#未来计划)
@@ -529,6 +533,63 @@ flowchart LR
 
 NextBook Agent采用简洁直观的界面设计，将四大核心功能无缝集成为统一的用户体验。
 
+### 设计理念
+
+* **内容为王**：界面设计以内容展示为中心，最大化阅读区域
+* **减少干扰**：最小化不必要的视觉元素，让用户专注于阅读与思考
+* **自然交互**：符合用户心智模型的操作方式，降低学习成本
+* **灵活布局**：支持用户根据需求自定义工作区布局
+* **暗黑模式**：全面支持系统级暗黑模式，保护用户视力
+* **过程反馈**：每个操作都有明确的视觉反馈，让用户知道正在发生什么
+* **渐进式学习**：从简单到复杂，逐步引导用户了解高级功能
+
+### 操作模型
+
+NextBook采用"重点-内容-操作"的三层交互模型，确保用户在任意时刻都清楚自己在做什么以及接下来可以做什么。
+
+```mermaid
+graph TD
+    Start((开始)) --> Mode[选择功能模式]
+    Mode --> Save[SAVE模式]
+    Mode --> Next[NEXT模式]
+    Mode --> Recall[RECALL模式]
+    Mode --> Report[REPORT模式]
+    
+    Save --> S1[导入/上传书籍]
+    S1 --> S2[阅读与标记]
+    S2 --> S3[添加笔记]
+    S3 --> S4[保存与分类]
+    S4 --> Mode
+    
+    Next --> N1[浏览推荐列表]
+    N1 --> N2[查看书籍详情]
+    N2 --> N3[获取书籍]
+    N3 --> N4[提供反馈]
+    N4 --> Mode
+    
+    Recall --> R1[选择回忆方式]
+    R1 --> R2a[时间线浏览]
+    R1 --> R2b[主题浏览]
+    R1 --> R2c[关键词搜索]
+    R2a & R2b & R2c --> R3[查看内容]
+    R3 --> R4[添加新见解]
+    R4 --> Mode
+    
+    Report --> P1[选择报告类型]
+    P1 --> P2[设置报告参数]
+    P2 --> P3[生成报告]
+    P3 --> P4[导出/分享]
+    P4 --> Mode
+    
+    classDef start fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef mode fill:#d0e0ff,stroke:#3080ff,stroke-width:2px
+    classDef operation fill:#f5f5f5,stroke:#666
+    
+    class Start start
+    class Mode,Save,Next,Recall,Report mode
+    class S1,S2,S3,S4,N1,N2,N3,N4,R1,R2a,R2b,R2c,R3,R4,P1,P2,P3,P4 operation
+```
+
 ### 主界面设计
 
 ```mermaid
@@ -541,29 +602,82 @@ graph TD
             N2[📚 NEXT] -.-> N6[推荐]
             N3[🔍 RECALL] -.-> N7[回忆]
             N4[📊 REPORT] -.-> N8[报告]
+            N9[快速笔记区]
+            N10[最近阅读]
         end
         
         subgraph "主内容区"
             C[视图切换区]
+            C1[阅读视图]
+            C2[笔记视图]
+            C3[推荐视图]
+            C4[报告视图]
         end
         
         subgraph "工具栏"
             T1[导入] --- T2[搜索] --- T3[设置]
+            T4[视图切换] --- T5[分享] --- T6[同步]
+        end
+        
+        subgraph "状态栏"
+            S1[阅读进度] --- S2[同步状态]
+            S3[阅读时间] --- S4[AI助手]
         end
     end
     
     classDef nav fill:#f9f9f9,stroke:#666
     classDef content fill:#ffffff,stroke:#999
     classDef tools fill:#f0f0f0,stroke:#666
+    classDef status fill:#f6f6f6,stroke:#888
     
-    class N1,N2,N3,N4,N5,N6,N7,N8 nav
-    class C content
-    class T1,T2,T3 tools
+    class N1,N2,N3,N4,N5,N6,N7,N8,N9,N10 nav
+    class C,C1,C2,C3,C4 content
+    class T1,T2,T3,T4,T5,T6 tools
+    class S1,S2,S3,S4 status
 ```
 
 ### 核心功能界面
 
 #### 📥 SAVE - 内容保存
+
+**操作流程**:
+
+1. **内容导入** → 2. **阅读浏览** → 3. **内容标记** → 4. **添加笔记** → 5. **分类保存**
+
+```mermaid
+sequenceDiagram
+    actor 用户
+    participant UI as 用户界面
+    participant Reader as 阅读器
+    participant Notes as 笔记系统
+    participant DB as 数据存储
+    
+    用户->>UI: 点击"导入"按钮
+    UI->>用户: 显示文件选择器
+    用户->>UI: 选择书籍文件
+    UI->>Reader: 打开文件
+    Reader->>用户: 显示内容
+    
+    Note over 用户,Reader: 阅读阶段
+    
+    用户->>Reader: 选择文本
+    Reader->>UI: 显示标记选项
+    用户->>UI: 选择"添加笔记"
+    UI->>Notes: 创建新笔记
+    Notes->>用户: 显示笔记编辑框
+    
+    用户->>Notes: 输入笔记内容
+    Notes->>DB: 保存笔记
+    DB->>Notes: 确认保存
+    Notes->>用户: 显示保存成功
+    
+    用户->>UI: 选择分类标签
+    UI->>DB: 更新内容分类
+    DB->>UI: 确认更新
+    UI->>用户: 显示完成状态
+```
+
+界面设计:
 
 ```mermaid
 graph TD
@@ -573,22 +687,70 @@ graph TD
         subgraph "书籍阅读器"
             R1[文档查看器] --- R2[划线工具]
             R1 --- R3[笔记面板]
+            R4[目录导航] --- R5[书签管理]
+            R6[阅读进度条] --- R7[页面缩放]
         end
         
         subgraph "内容管理"
             M1[书籍列表] --- M2[分类管理]
             M1 --- M3[标签系统]
+            M4[导入向导] --- M5[批量操作]
+            M6[元数据编辑] --- M7[封面预览]
         end
     end
     
     classDef reader fill:#e6f7ff,stroke:#1890ff
     classDef manager fill:#f6ffed,stroke:#52c41a
     
-    class R1,R2,R3 reader
-    class M1,M2,M3 manager
+    class R1,R2,R3,R4,R5,R6,R7 reader
+    class M1,M2,M3,M4,M5,M6,M7 manager
 ```
 
+**特色设计与操作流程**:
+* **拖放导入**: 直接拖放文件到界面即可导入，无需多步操作
+* **一键标记**: 选中文本后直接出现标记选项，减少点击步骤
+* **上下文笔记**: 笔记始终与原文保持视觉关联，不丢失阅读上下文
+* **标签推荐**: 基于内容自动推荐标签，一键应用
+* **快速定位**: 通过目录或搜索快速跳转到特定章节，支持书签记忆
+
 #### 📚 NEXT - 书籍推荐
+
+**操作流程**:
+
+1. **进入推荐** → 2. **浏览推荐列表** → 3. **查看详情** → 4. **获取书籍** → 5. **提供反馈**
+
+```mermaid
+sequenceDiagram
+    actor 用户
+    participant UI as 推荐界面
+    participant Engine as 推荐引擎
+    participant Detail as 详情视图
+    participant Source as 书籍源
+    
+    用户->>UI: 进入推荐页面
+    UI->>Engine: 请求个性化推荐
+    Engine->>UI: 返回推荐列表
+    UI->>用户: 展示推荐书籍
+    
+    用户->>UI: 选择感兴趣的书籍
+    UI->>Detail: 请求详细信息
+    Detail->>用户: 显示书籍详情
+    
+    用户->>Detail: 点击"获取"按钮
+    Detail->>Source: 查询最佳来源
+    Source->>Detail: 返回获取选项
+    Detail->>用户: 展示获取方式
+    
+    用户->>Source: 选择获取方式
+    Source->>用户: 开始获取书籍
+    
+    用户->>UI: 提供反馈(喜欢/不喜欢)
+    UI->>Engine: 更新用户偏好
+    Engine->>UI: 确认更新
+    UI->>用户: 显示新的推荐
+```
+
+界面设计:
 
 ```mermaid
 graph LR
@@ -598,16 +760,22 @@ graph LR
         subgraph "个性化推荐"
             P1[书籍A] --- P2[书籍B] --- P3[书籍C]
             P4[个性化理由]
+            P5[兴趣标签] --- P6[调整偏好]
+            P7[刷新推荐] --- P8[收藏]
         end
         
         subgraph "发现区"
             D1[最新出版] --- D2[领域经典]
             D2 --- D3[近期热门]
+            D4[学术著作] --- D5[大众读物]
+            D6[主题筛选] --- D7[高级过滤]
         end
         
         subgraph "细节视图"
             V1[书籍封面] --- V2[内容简介]
             V2 --- V3[获取链接]
+            V4[评分星级] --- V5[类似书籍]
+            V6[作者信息] --- V7[出版信息]
         end
     end
     
@@ -615,12 +783,65 @@ graph LR
     classDef discover fill:#f9f0ff,stroke:#722ed1
     classDef detail fill:#e6fffb,stroke:#13c2c2
     
-    class P1,P2,P3,P4 recommend
-    class D1,D2,D3 discover
-    class V1,V2,V3 detail
+    class P1,P2,P3,P4,P5,P6,P7,P8 recommend
+    class D1,D2,D3,D4,D5,D6,D7 discover
+    class V1,V2,V3,V4,V5,V6,V7 detail
 ```
 
+**特色设计与操作流程**:
+* **渐进式展示**: 首先展示书籍封面和简短推荐理由，点击后逐步展开详情
+* **情境推荐**: 根据当前时间、最近阅读和用户习惯调整推荐内容
+* **即时预览**: 悬停在书籍上即可预览核心信息，减少页面切换
+* **一键获取**: 获取按钮自动选择最佳来源，简化获取过程
+* **推荐透明度**: 点击"为什么推荐"按钮，查看详细推荐原因和数据来源
+
 #### 🔍 RECALL - 知识回忆
+
+**操作流程**:
+
+1. **选择回忆方式** → 2. **浏览/搜索内容** → 3. **查看细节** → 4. **添加新见解** → 5. **关联探索**
+
+```mermaid
+sequenceDiagram
+    actor 用户
+    participant UI as 回忆界面
+    participant Search as 搜索系统
+    participant View as 内容视图
+    participant Graph as 关联图谱
+    
+    用户->>UI: 选择回忆方式(时间/主题/搜索)
+    
+    alt 时间线浏览
+        用户->>UI: 选择时间范围
+        UI->>View: 请求时间段内容
+    else 主题浏览
+        用户->>UI: 选择主题标签
+        UI->>View: 请求相关主题内容
+    else 关键词搜索
+        用户->>UI: 输入搜索词
+        UI->>Search: 执行搜索
+        Search->>View: 返回搜索结果
+    end
+    
+    View->>用户: 展示内容卡片
+    
+    用户->>View: 选择特定内容
+    View->>用户: 显示详细视图
+    
+    用户->>View: 添加新见解
+    View->>UI: 保存新内容
+    UI->>用户: 确认添加成功
+    
+    用户->>View: 探索相关内容
+    View->>Graph: 请求关联数据
+    Graph->>用户: 显示知识图谱
+    
+    用户->>Graph: 选择关联节点
+    Graph->>View: 跳转到相关内容
+    View->>用户: 展示关联内容
+```
+
+界面设计:
 
 ```mermaid
 graph TD
@@ -629,28 +850,86 @@ graph TD
         
         subgraph "时间线视图"
             T1[月视图] --- T2[周视图] --- T3[日视图]
+            T4[时间筛选器] --- T5[历史轴]
         end
         
         subgraph "知识卡片"
             K1[笔记卡片] --- K2[引用卡片]
             K1 --- K3[思考卡片]
+            K4[链接卡片] --- K5[图像卡片]
+            K6[卡片排序] --- K7[卡片过滤]
         end
         
         subgraph "关联视图"
             C1[知识图谱] --- C2[主题关联]
+            C3[人物网络] --- C4[概念地图]
+            C5[交互控制] --- C6[关联强度调节]
+        end
+        
+        subgraph "搜索系统"
+            S1[全文搜索] --- S2[标签搜索]
+            S3[语义搜索] --- S4[高级过滤]
         end
     end
     
     classDef timeline fill:#f0f5ff,stroke:#2f54eb
     classDef cards fill:#fff1f0,stroke:#f5222d
     classDef connections fill:#fcffe6,stroke:#a0d911
+    classDef search fill:#f4ffb8,stroke:#d48806
     
-    class T1,T2,T3 timeline
-    class K1,K2,K3 cards
-    class C1,C2 connections
+    class T1,T2,T3,T4,T5 timeline
+    class K1,K2,K3,K4,K5,K6,K7 cards
+    class C1,C2,C3,C4,C5,C6 connections
+    class S1,S2,S3,S4 search
 ```
 
+**特色设计与操作流程**:
+* **智能提示**: 根据当前查看内容自动提示可能相关的其他笔记和见解
+* **路径记忆**: 记录用户探索路径，支持随时回退或前进
+* **焦点缩放**: 在关联图谱中支持缩放操作，从全局概览到细节查看
+* **动态关系**: 关联强度可视化，连线粗细表示关联度
+* **无限画布**: 采用无限滚动设计，不限制内容展示空间，减少分页干扰
+
 #### 📊 REPORT - 数据报告
+
+**操作流程**:
+
+1. **选择报告类型** → 2. **设置参数** → 3. **生成报告** → 4. **交互探索** → 5. **导出分享**
+
+```mermaid
+sequenceDiagram
+    actor 用户
+    participant UI as 报告界面
+    participant Engine as 分析引擎
+    participant Vis as 可视化系统
+    participant Export as 导出系统
+    
+    用户->>UI: 选择报告类型
+    UI->>用户: 显示参数选项
+    
+    用户->>UI: 设置报告参数(时间范围/类型)
+    UI->>Engine: 请求分析数据
+    Engine->>UI: 返回处理结果
+    
+    UI->>Vis: 生成可视化图表
+    Vis->>用户: 展示报告内容
+    
+    loop 交互探索
+        用户->>Vis: 调整视图/过滤条件
+        Vis->>Engine: 请求新数据
+        Engine->>Vis: 返回更新数据
+        Vis->>用户: 更新显示
+    end
+    
+    用户->>UI: 点击导出按钮
+    UI->>Export: 准备导出内容
+    Export->>用户: 提供格式选项
+    
+    用户->>Export: 选择导出格式
+    Export->>用户: 完成导出/分享
+```
+
+界面设计:
 
 ```mermaid
 graph LR
@@ -660,33 +939,73 @@ graph LR
         subgraph "阅读统计"
             S1[年度总览] --- S2[月度趋势]
             S2 --- S3[类别分布]
+            S4[时间投入] --- S5[速度分析]
+            S6[对比历史] --- S7[预测趋势]
         end
         
         subgraph "知识地图"
             M1[主题地图] --- M2[关键词云]
+            M3[深度分析] --- M4[广度分析]
+            M5[知识增长曲线] --- M6[空白领域]
         end
         
         subgraph "目标追踪"
             G1[阅读目标] --- G2[完成进度]
+            G3[挑战设置] --- G4[奖励系统]
+            G5[习惯培养] --- G6[社区排行]
+        end
+        
+        subgraph "导出选项"
+            E1[PDF导出] --- E2[图表导出]
+            E3[数据导出] --- E4[分享报告]
         end
     end
     
     classDef stats fill:#e6f7ff,stroke:#1890ff
     classDef map fill:#fff7e6,stroke:#fa8c16
     classDef goals fill:#f6ffed,stroke:#52c41a
+    classDef export fill:#f9f0ff,stroke:#722ed1
     
-    class S1,S2,S3 stats
-    class M1,M2 map
-    class G1,G2 goals
+    class S1,S2,S3,S4,S5,S6,S7 stats
+    class M1,M2,M3,M4,M5,M6 map
+    class G1,G2,G3,G4,G5,G6 goals
+    class E1,E2,E3,E4 export
 ```
+
+**特色设计与操作流程**:
+* **模板选择**: 提供多种报告模板，一键生成不同风格报告
+* **实时更新**: 报告数据实时更新，反映最新阅读活动
+* **交互式图表**: 支持点击、拖拽、缩放等操作探索数据细节
+* **目标调整**: 在报告界面直接调整阅读目标，系统即时反馈影响
+* **智能摘要**: 自动生成核心发现和建议，突出重要数据洞察
 
 ### 交互设计原则
 
 * **简洁直观**：界面清晰，减少视觉噪音，突出内容
-* **一致性**：各功能区保持一致的设计语言和交互模式
-* **响应式**：适应不同屏幕尺寸，优化macOS上的显示效果
+* **操作连贯性**：相关操作放在一起，形成自然流程，减少跳转
+* **即时反馈**：每个操作都有明确的视觉反馈，让用户知道系统状态
+* **可逆操作**：允许用户撤销大多数操作，减少操作焦虑
 * **上下文感知**：界面根据用户当前活动智能调整，提供相关功能
-* **减少认知负担**：常用功能一键可达，复杂功能分层展示
+* **渐进引导**：新用户引导流程，帮助快速掌握核心功能
+* **快捷键支持**：全面的键盘快捷键支持，提高操作效率
+* **错误预防**：设计防止错误发生，而不只是处理错误
+* **操作一致性**：相似操作在不同功能中保持一致的交互方式
+* **状态可见性**：系统状态始终可见，用户知道正在发生什么
+
+### 视觉风格
+
+* **色彩系统**：采用自然、舒适的配色方案，减少眼部疲劳
+* **排版层级**：清晰的文字层级结构，提升可读性
+* **图标语言**：简洁统一的图标设计，增强直观性
+* **动效策略**：适度的过渡动画，提供流畅感但不过度装饰
+* **空间利用**：合理利用页面空间，避免过度拥挤或空白
+
+### 适配策略
+
+* **屏幕尺寸**：针对不同尺寸的MacBook屏幕优化布局
+* **输入方式**：同时优化触控板和鼠标操作体验
+* **系统集成**：与macOS原生交互模式保持一致
+* **外接显示**：支持外接显示器下的布局自动调整
 
 ## 快速上手
 
