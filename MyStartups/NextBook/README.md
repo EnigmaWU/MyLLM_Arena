@@ -179,36 +179,73 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph "桌面应用"
-        A[Electron] --> B[React.js前端]
-        B --> C1[PDF.js]
-        B --> C2[EPUB.js]
-        B --> C3[TailwindCSS]
+    User([用户]) --> UI[Electron+React应用]
+    
+    subgraph "前端层"
+        UI --> SaveUI[SAVE模块]
+        UI --> NextUI[NEXT模块]
+        UI --> RecallUI[RECALL模块]
+        UI --> ReportUI[REPORT模块]
+        
+        SaveUI --> PDF[PDF.js]
+        SaveUI --> EPUB[EPUB.js]
+        UI --> TW[TailwindCSS]
     end
     
-    subgraph "本地服务"
-        D[FastAPI] --> E[SQLite]
-        D --> F[Python处理工具]
+    subgraph "本地服务层"
+        API[FastAPI] --> DocProcess[文档处理服务]
+        API --> RecommendEngine[推荐引擎服务]
+        API --> SearchService[检索服务]
+        API --> AnalyticsService[分析服务]
     end
     
-    subgraph "AI处理"
-        G1[本地模式] --> H1[Ollama]
-        G1 --> H2[Chroma DB]
-        G2[云端模式] --> I1[OpenAI API]
-        G2 --> I2[Pinecone/Weaviate]
+    subgraph "数据层"
+        DocProcess --> SQLite[(SQLite)]
+        RecommendEngine --> SQLite
+        SearchService --> SQLite
+        AnalyticsService --> SQLite
+        SearchService --> VectorDB[(ChromaDB)]
     end
     
-    B <--> D
-    D <--> G1
-    D <-.-> G2
+    subgraph "AI层"
+        subgraph "本地AI"
+            LocalAI[Ollama] --> LocalLLM[开源LLM]
+            LocalAI --> LocalRAG[本地RAG]
+        end
+        
+        subgraph "云端AI"
+            style CloudAI fill:#f9e79f,stroke:#f39c12
+            CloudAI[OpenAI API] --> CloudLLM[GPT模型]
+            CloudAI --> CloudVectorDB[云端向量数据库]
+        end
+    end
     
-    classDef local fill:#c4e3f3,stroke:#2980b9
-    classDef cloud fill:#f9e79f,stroke:#f39c12
-    classDef ui fill:#d5f5e3,stroke:#27ae60
+    SaveUI <--> API
+    NextUI <--> API
+    RecallUI <--> API
+    ReportUI <--> API
     
-    class A,B,C1,C2,C3,D,E,F,G1,H1,H2 local
-    class G2,I1,I2 cloud
-    class B,C1,C2,C3 ui
+    DocProcess <--> LocalAI
+    RecommendEngine <--> LocalAI
+    SearchService <--> LocalAI
+    AnalyticsService <--> LocalAI
+    
+    DocProcess <-.-> CloudAI
+    RecommendEngine <-.-> CloudAI
+    SearchService <-.-> CloudAI
+    AnalyticsService <-.-> CloudAI
+    
+    classDef frontend fill:#d0e0ff,stroke:#3080ff
+    classDef backend fill:#ffe0d0,stroke:#ff8030
+    classDef data fill:#e0d0ff,stroke:#8030ff
+    classDef localai fill:#d0ffe0,stroke:#30ff80
+    classDef cloudai fill:#f9e79f,stroke:#f39c12
+    
+    class UI,SaveUI,NextUI,RecallUI,ReportUI,PDF,EPUB,TW frontend
+    class API,DocProcess,RecommendEngine,SearchService,AnalyticsService backend
+    class SQLite,VectorDB data
+    class LocalAI,LocalLLM,LocalRAG localai
+    class CloudAI,CloudLLM,CloudVectorDB cloudai
 ```
 
 ### 扩展架构 (多平台版)
