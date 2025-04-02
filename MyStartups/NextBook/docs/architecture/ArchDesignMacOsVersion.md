@@ -1,133 +1,114 @@
-# NextBook macOS版架构设计
+# NextBook Agent macOS版架构设计
 
-本文档描述了NextBook Agent在macOS平台上的实现架构，作为概念验证(POC)版本。
+## 概述
 
-## 首版架构 (macOS Version\<for POC\>)
+macOS版作为NextBook Agent的POC（概念验证）版本，采用单机架构设计，专注于提供核心功能和验证用户体验。本文档详细描述macOS版的技术架构、组件设计和实现方案。
+
+## 技术栈选择
+
+macOS版NextBook Agent采用以下技术栈：
+
+- **UI框架**: SwiftUI
+- **后端逻辑**: Python + Swift
+- **AI处理**: PyTorch/TensorFlow (轻量级模型)
+- **数据存储**: SQLite + Core Data
+- **文档处理**: PDFKit + EPUB解析库
+- **自然语言处理**: SpaCy + NLTK
+
+## 系统架构
+
+### 整体架构
+
+macOS版采用分层架构，从上到下依次为：
+
+1. **表现层** - SwiftUI界面组件
+2. **应用层** - 业务逻辑和功能协调
+3. **领域层** - 核心业务规则和领域模型
+4. **基础设施层** - 数据存储、AI服务和外部接口
+
+### 组件设计
 
 ```mermaid
 flowchart TD
-    User([用户]) --> UI[Electron+React应用]
+    UI[SwiftUI界面] --> AppCoordinator[应用协调器]
+    AppCoordinator --> ContentService[内容服务]
+    AppCoordinator --> RecommendationService[推荐服务]
+    AppCoordinator --> KnowledgeService[知识服务]
+    AppCoordinator --> AnalyticsService[分析服务]
     
-    subgraph "前端层"
-        UI --> SaveUI[SAVE模块]
-        UI --> NextUI[NEXT模块]
-        UI --> RecallUI[RECALL模块]
-        UI --> ReportUI[REPORT模块]
-        
-        SaveUI --> PDFViewer[PDF.js预览]
-        SaveUI --> EPUBViewer[EPUB.js预览]
-        UI --> TW[TailwindCSS]
-    end
+    ContentService --> DocumentParser[文档解析器]
+    ContentService --> ContentRepository[内容仓库]
     
-    subgraph "本地服务层"
-        API[FastAPI] --> DocProcess[文档处理服务]
-        API --> RecommendEngine[推荐引擎服务]
-        API --> SearchService[检索服务]
-        API --> AnalyticsService[分析服务]
-    end
+    RecommendationService --> RecommendationEngine[推荐引擎]
+    RecommendationService --> ExternalSourceAdapter[外部源适配器]
     
-    subgraph "数据层"
-        DocProcess --> SQLite[(SQLite)]
-        RecommendEngine --> SQLite
-        SearchService --> SQLite
-        AnalyticsService --> SQLite
-        SearchService --> VectorDB[(ChromaDB)]
-    end
+    KnowledgeService --> KnowledgeGraphBuilder[知识图谱构建器]
+    KnowledgeService --> NLPProcessor[NLP处理器]
     
-    subgraph "AI层"
-        subgraph "本地AI"
-            LocalAI[Ollama] --> LocalLLM[开源LLM]
-            LocalAI --> LocalRAG[本地RAG]
-        end
-        
-        subgraph "云端AI"
-            style CloudAI fill:#f9e79f,stroke:#f39c12
-            CloudAI[OpenAI API] --> CloudLLM[GPT模型]
-            CloudAI --> CloudVectorDB[云端向量数据库]
-        end
-    end
+    AnalyticsService --> StatisticsEngine[统计引擎]
+    AnalyticsService --> ReportGenerator[报告生成器]
     
-    SaveUI <--> API
-    NextUI <--> API
-    RecallUI <--> API
-    ReportUI <--> API
-    
-    DocProcess <--> LocalAI
-    RecommendEngine <--> LocalAI
-    SearchService <--> LocalAI
-    AnalyticsService <--> LocalAI
-    
-    DocProcess <-.-> CloudAI
-    RecommendEngine <-.-> CloudAI
-    SearchService <-.-> CloudAI
-    AnalyticsService <-.-> CloudAI
-    
-    classDef frontend fill:#d0e0ff,stroke:#3080ff
-    classDef backend fill:#ffe0d0,stroke:#ff8030
-    classDef data fill:#e0d0ff,stroke:#8030ff
-    classDef localai fill:#d0ffe0,stroke:#30ff80
-    classDef cloudai fill:#f9e79f,stroke:#f39c12
-    
-    class UI,SaveUI,NextUI,RecallUI,ReportUI,PDFViewer,EPUBViewer,TW frontend
-    class API,DocProcess,RecommendEngine,SearchService,AnalyticsService backend
-    class SQLite,VectorDB data
-    class LocalAI,LocalLLM,LocalRAG localai
-    class CloudAI,CloudLLM,CloudVectorDB cloudai
+    ContentRepository --> LocalStorage[(本地存储)]
+    RecommendationEngine --> AIModel[(AI模型)]
+    ExternalSourceAdapter -.-> Internet[(互联网)]
 ```
 
-## 技术栈说明
+## 数据流设计
 
-### 前端技术
+### SAVE功能数据流
 
-- **应用框架**: Electron (提供桌面原生能力)
-- **UI框架**: React + TailwindCSS
-- **文档查看器**: 
-  - PDF.js: 处理PDF文件显示
-  - EPUB.js: 处理EPUB电子书显示
-- **状态管理**: Redux或Context API
-- **数据可视化**: D3.js/Chart.js
+1. 用户选择文件或输入内容
+2. DocumentParser解析内容结构和元数据
+3. ContentService处理内容分类和关联
+4. ContentRepository持久化存储内容和元数据
+5. UI更新显示保存结果和内容视图
 
-### 后端技术
+### NEXT功能数据流
 
-- **服务框架**: FastAPI (Python)
-- **数据存储**:
-  - SQLite: 轻量级关系数据库，存储结构化数据
-  - ChromaDB: 向量数据库，用于语义搜索
-  - 文件系统: 存储原始文档
-- **AI组件**:
-  - Ollama: 本地LLM引擎，支持多种开源模型
-  - LangChain: RAG实现
-  - OpenAI API: 可选的云端AI支持
+1. RecommendationService请求推荐内容
+2. RecommendationEngine基于用户历史和偏好生成推荐
+3. ExternalSourceAdapter获取推荐内容详情（可选）
+4. UI展示推荐结果和相关信息
+5. 用户交互结果反馈给推荐引擎优化未来推荐
 
-### 核心服务
+## 离线能力
 
-- **文档处理服务**: 负责文档解析、内容提取和索引
-- **推荐引擎服务**: 基于用户历史和内容相似度生成推荐
-- **检索服务**: 混合语义和关键词搜索，提供回忆功能
-- **分析服务**: 统计分析和报告生成
+macOS版本设计为主要依赖本地功能：
 
-## 技术选型考虑
+- **内容管理完全本地化** - 不需要网络即可使用
+- **内置基础推荐能力** - 基于本地数据的简单推荐
+- **选择性联网增强** - 联网时获得更丰富的推荐和元数据
 
-### 为什么选择Electron+React
+## 性能考量
 
-- **跨平台潜力**: 虽然首版是macOS专用，但Electron架构为未来多平台支持奠定基础
-- **丰富的UI生态**: React组件库提供丰富的UI选项
-- **性能考虑**: 对于文档处理这样的IO密集型应用，Electron的性能足够
+为确保在各种配置的macOS设备上流畅运行：
 
-### 为什么选择SQLite+ChromaDB
+- **延迟加载** - 大型内容按需加载
+- **后台处理** - AI分析和索引构建在后台线程执行
+- **资源监控** - 动态调整资源使用，避免过度消耗
+- **缓存策略** - 智能缓存常用数据减少处理时间
 
-- **轻量级部署**: 不需要安装独立数据库服务
-- **本地优先**: 符合架构设计原则，保护用户隐私
-- **语义搜索能力**: ChromaDB提供高效的向量搜索功能
+## 扩展性考虑
 
-### 为什么提供本地与云端AI双选项
+虽然macOS版是POC，但架构设计预留了扩展空间：
 
-- **灵活性**: 用户可根据隐私需求和性能期望选择AI服务方式
-- **性能平衡**: 本地AI提供基础能力，云端AI提供更强大的处理能力
-- **网络适应**: 离线环境下可使用本地AI保持核心功能
+- **模块化API** - 定义清晰的服务接口便于功能扩展
+- **数据迁移路径** - 为未来多平台版本设计数据结构
+- **插件机制准备** - 预留插件接口设计
 
-## 相关架构设计
+## 实现路线图
 
-- [返回README](../../README.md)
-- [通用架构设计原则](ArchDesignCommon.md)
-- [多平台版架构设计](ArchDesignMultiOsVersion.md)
+1. **最小可行产品(MVP)**
+   - 基础UI框架
+   - 文件导入和笔记功能
+   - 简单本地推荐
+
+2. **功能完善阶段**
+   - 高级内容管理
+   - 完整推荐系统
+   - 知识图谱构建
+
+3. **体验优化阶段**
+   - 性能优化
+   - UI/UX完善
+   - 本地AI能力增强

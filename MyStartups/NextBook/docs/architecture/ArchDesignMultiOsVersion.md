@@ -1,147 +1,177 @@
-# NextBook 多平台版架构设计
+# NextBook Agent 多平台版架构设计
 
-本文档描述了NextBook Agent的多平台版本架构设计，支持包括Web、移动和桌面在内的多种平台。
+## 概述
 
-## 扩展架构 (multiOS Version)
+NextBook Agent的多平台版是在单机版基础上的扩展，旨在提供跨设备、多平台的一致用户体验。本文档详细描述多平台版的架构设计、同步机制和平台适配策略。
+
+## 支持平台
+
+多平台版计划支持以下操作系统和设备类型：
+
+- **桌面平台**
+  - macOS (12.0+)
+  - Windows 11
+  - Ubuntu Linux (20.04+)
+  
+- **移动平台**
+  - iOS (16.0+)
+  - Android (12.0+)
+
+## 架构演进
+
+从单机版到多平台版，架构核心保持稳定，同时引入新组件以支持跨平台需求：
 
 ```mermaid
 flowchart TD
-    User([用户]) --- A1 & A2 & A3
-    
-    subgraph "多平台前端"
-        A1[Web应用] --> B1[React/Next.js]
-        A2[移动应用] --> B2[React Native]
-        A3[桌面应用] --> B3[Electron]
-        
-        B1 & B2 & B3 --> C[统一UI组件库]
-        
-        C --> SaveUIMulti[SAVE模块]
-        C --> NextUIMulti[NEXT模块]
-        C --> RecallUIMulti[RECALL模块]
-        C --> ReportUIMulti[REPORT模块]
+    subgraph "分层架构"
+        UI[用户界面层]
+        App[应用服务层]
+        Domain[领域服务层]
+        Infra[基础设施层]
     end
     
-    subgraph "云端服务层"
-        D[API网关/负载均衡] --> E1[用户认证服务]
-        D --> E2[内容管理服务]
-        D --> E3[推荐引擎服务]
-        D --> E4[知识检索服务]
-        D --> E5[分析报告服务]
-        D --> E6[同步服务]
+    subgraph "新增核心组件"
+        SyncService[同步服务]
+        CloudStorage[云存储适配器]
+        PlatformAdapter[平台适配层]
+        DeviceManager[设备管理器]
     end
     
-    subgraph "数据层"
-        F1[(PostgreSQL)] --- F2[(Redis缓存)]
-        F1 --- F3[(对象存储)]
-        F4[向量数据库] --- F1
-        F5[搜索引擎] --- F1
-    end
+    UI --> App
+    App --> Domain
+    Domain --> Infra
     
-    subgraph "AI引擎层"
-        G1[分布式AI集群] --> G2[用户偏好分析]
-        G1 --> G3[内容理解引擎]
-        G1 --> G4[推荐算法引擎]
-        G1 --> G5[知识关联引擎]
-        
-        G6[模型训练框架] --> G1
-    end
-    
-    SaveUIMulti & NextUIMulti & RecallUIMulti & ReportUIMulti <--> D
-    
-    E1 & E2 & E3 & E4 & E5 & E6 <--> F1
-    E1 & E2 & E3 & E4 & E5 & E6 <--> G1
-    
-    E2 --> F3
-    E4 --> F4
-    E4 --> F5
-    
-    classDef frontend fill:#d0e0ff,stroke:#3080ff
-    classDef backend fill:#ffe0d0,stroke:#ff8030
-    classDef data fill:#e0d0ff,stroke:#8030ff
-    classDef ai fill:#d0ffe0,stroke:#30ff80
-    
-    class A1,A2,A3,B1,B2,B3,C,SaveUIMulti,NextUIMulti,RecallUIMulti,ReportUIMulti frontend
-    class D,E1,E2,E3,E4,E5,E6 backend
-    class F1,F2,F3,F4,F5 data
-    class G1,G2,G3,G4,G5,G6 ai
+    SyncService --- App
+    SyncService --- Domain
+    CloudStorage --- Infra
+    PlatformAdapter --- UI
+    PlatformAdapter --- Infra
+    DeviceManager --- SyncService
 ```
 
-## 多平台支持策略
+## 技术选择
 
-### 前端统一策略
+多平台版采用以下技术栈实现跨平台支持：
 
-- **组件库共享**: 使用Storybook管理统一UI组件库，确保多平台视觉一致性
-- **状态管理共享**: 使用同一套状态管理逻辑，减少代码重复
-- **平台特性适配**: 针对不同平台的特性(如iOS的手势、Android的Material设计)进行适当适配
-- **响应式设计**: 所有界面采用响应式设计，适应从手机到大屏幕的多种尺寸
+### 跨平台框架
 
-### 云服务架构
+- **UI层**: Flutter / React Native (待定)
+- **应用层**: 平台原生 + 共享逻辑库
+- **领域层**: 跨平台核心库 (C++/Rust)
+- **基础设施层**: 平台原生 + 抽象接口
 
-- **微服务架构**: 按功能域划分微服务，支持独立扩展
-- **无状态设计**: 服务层设计为无状态，便于水平扩展
-- **容器化部署**: 使用Docker和Kubernetes实现云服务的容器化管理
-- **API网关**: 统一接口管理，处理认证、限流和日志
+### 数据同步技术
 
-### 数据同步机制
+- **同步协议**: CRDTs (无冲突复制数据类型)
+- **传输层**: gRPC / WebSockets
+- **安全层**: E2EE (端到端加密)
 
-- **多设备同步**: 通过同步服务和消息队列实现多设备数据一致性
-- **冲突解决**: 实现乐观锁和版本控制机制解决并发编辑冲突
-- **增量同步**: 只同步变更数据，减少带宽消耗
-- **离线支持**: 支持离线操作，网络恢复后自动同步
+### 存储技术
 
-### 安全与隐私
+- **本地存储**: SQLite + 平台原生文件系统
+- **云存储**: 支持多种提供商 (AWS S3, Azure Blob, Google Cloud Storage)
 
-- **端到端加密**: 敏感数据在传输和存储过程中加密
-- **数据分区**: 用户数据严格隔离
-- **权限模型**: 细粒度的访问控制
-- **合规设计**: 符合GDPR、CCPA等隐私法规要求
+## 同步架构
 
-## 技术栈选型
+### 同步模型
 
-### 前端技术
+NextBook Agent采用"本地优先"的同步模型：
 
-- **Web**: React + Next.js + TailwindCSS
-- **移动**: React Native + Native模块
-- **桌面**: Electron + 优化的本地功能
+1. **本地操作优先** - 所有操作首先在本地完成并存储
+2. **后台同步** - 系统自动在后台同步数据变更
+3. **冲突解决** - 使用CRDTs自动解决大多数冲突，必要时请求用户决策
 
-### 后端技术
+### 同步流程
 
-- **API**: GraphQL + REST
-- **服务**: Node.js(TS) + Python
-- **数据库**: PostgreSQL + Redis
-- **搜索**: Elasticsearch + Pinecone/Weaviate(向量搜索)
-- **消息队列**: Kafka/RabbitMQ
-- **对象存储**: S3兼容存储
+```mermaid
+sequenceDiagram
+    participant 设备A
+    participant 同步服务
+    participant 设备B
+    
+    设备A->>设备A: 本地修改
+    设备A->>同步服务: 上传变更
+    同步服务->>同步服务: 合并变更
+    同步服务->>设备B: 推送通知
+    设备B->>同步服务: 请求变更
+    同步服务->>设备B: 发送变更
+    设备B->>设备B: 应用变更
+```
 
-### AI技术
+### 同步范围
 
-- **模型服务**: TorchServe/TensorRT
-- **分布式训练**: Kubernetes + Ray
-- **特征工程**: Feature Store
-- **监控与分析**: Prometheus + Grafana
+用户可以控制同步的内容范围：
 
-## 架构演进计划
+- **全同步** - 所有内容和设置
+- **选择性同步** - 指定书籍/笔记集合
+- **设置同步** - 仅同步用户设置和偏好
+- **离线模式** - 完全禁用同步
 
-### 第一阶段: 单体云服务
+## 平台适配策略
 
-- 从macOS版的本地应用架构演进到单体云服务
-- 增加用户认证和基础同步功能
-- 部署Web版本作为多平台战略的首步
+### UI适配原则
 
-### 第二阶段: 服务拆分
+1. **平台感知** - 遵循各平台设计规范
+2. **功能一致** - 跨平台功能核心体验一致
+3. **优化交互** - 根据设备类型优化操作方式
+4. **响应式布局** - 适应不同屏幕尺寸和方向
 
-- 将单体服务拆分为多个微服务
-- 建立完整的DevOps流程
-- 添加移动平台支持
+### 平台特定功能
 
-### 第三阶段: 全平台覆盖与高级功能
+根据平台能力提供特定增强功能：
 
-- 实现所有平台的完整支持
-- 增强AI能力和社区功能
-- 优化性能和用户体验
+- **macOS**: 快捷键、拖放、菜单栏集成
+- **iOS**: 小组件、分享扩展、快捷指令
+- **Windows**: 开始菜单集成、通知中心
+- **Android**: 意图过滤器、通知通道自定义
+- **Linux**: 命令行工具、系统集成
 
-## 相关架构设计
+## 离线能力
 
-- [返回README](../../README.md)
-- [通用架构设计原则](ArchDesignCommon.md)
-- [macOS版架构设计](ArchDesignMacOsVersion.md)
+多平台版保持强大的离线能力：
+
+- **完整本地功能** - 所有核心功能可离线使用
+- **同步队列** - 离线操作排队等待联网后同步
+- **增量下载** - 优先下载元数据，按需下载全内容
+- **带宽感知** - 根据网络质量调整同步行为
+
+## 安全与隐私
+
+多平台版加强了数据安全措施：
+
+- **端到端加密** - 所有同步数据加密传输和存储
+- **本地密钥** - 加密密钥存储在用户设备
+- **设备授权** - 新设备需要现有设备授权
+- **远程抹除** - 支持远程移除设备访问权限
+- **数据主权** - 用户可随时导出所有数据
+
+## 资源优化
+
+针对多种设备的资源约束进行优化：
+
+- **渐进式图像和内容** - 按设备能力加载不同分辨率
+- **后台处理调度** - 考虑设备状态和电量
+- **存储策略** - 智能缓存和存储管理
+- **功能降级** - 在资源受限设备上优雅降级
+
+## 实施路线图
+
+1. **基础架构升级**
+   - 重构核心库支持跨平台
+   - 设计同步协议和数据模型
+
+2. **平台适配阶段**
+   - 桌面平台优先实现 (macOS, Windows, Linux)
+   - 移动平台后续实现 (iOS, Android)
+
+3. **同步服务构建**
+   - 部署云同步基础设施
+   - 实现端到端加密和授权机制
+
+4. **平台特定优化**
+   - 为各平台调整UI/UX
+   - 集成平台特有功能
+
+5. **统一发布准备**
+   - 跨平台测试和性能优化
+   - 准备多平台同步发布

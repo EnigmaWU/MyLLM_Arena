@@ -1,119 +1,188 @@
 # NextBook Agent 系统架构
 
-本文档详细描述了NextBook Agent的系统架构设计。
+## 完整架构概览
 
-## 完整架构图
+NextBook Agent采用现代化分层架构，结合本地优先和云服务增强的混合模式，实现高性能、安全且功能丰富的阅读助手系统。
+
+### 架构图
 
 ```mermaid
 flowchart TD
-    User([用户]) --- Frontend
-    
-    subgraph Frontend["前端界面"]
-        UI[用户界面] --- SaveUI[SAVE界面]
-        UI --- NextUI[NEXT界面]
-        UI --- RecallUI[RECALL界面]
-        UI --- ReportUI[REPORT界面]
-        
-        SaveUI --- ContentViewer[内容预览器]
-        SaveUI --- Notes[笔记系统]
-        NextUI --- Recommend[推荐展示]
-        RecallUI --- KnowledgeMap[知识图谱]
-        ReportUI --- Dashboard[数据仪表盘]
+    subgraph "用户界面层"
+        UI_SAVE[SAVE模块]
+        UI_NEXT[NEXT模块]
+        UI_RECALL[RECALL模块]
+        UI_REPORT[REPORT模块]
+        Settings[设置界面]
     end
     
-    subgraph Backend["后端服务"]
-        API[API服务] --- ContentService[内容服务]
-        API --- RecommendService[推荐服务]
-        API --- RecallService[回忆服务]
-        API --- AnalyticsService[分析服务]
-        
-        ContentService --- DocumentProcessor[文档处理器]
-        ContentService --- NoteManager[笔记管理器]
-        RecommendService --- RecommendEngine[推荐引擎]
-        RecommendService --- WebSearchEngine[网络搜索引擎]
-        RecallService --- SearchEngine[检索引擎]
-        AnalyticsService --- StatisticsEngine[统计引擎]
+    subgraph "应用服务层"
+        ContentManager[内容管理服务]
+        RecommendationManager[推荐管理服务]
+        KnowledgeManager[知识管理服务]
+        AnalyticsManager[分析报告服务]
+        UserProfileManager[用户配置管理]
     end
     
-    subgraph Internet["互联网资源"]
-        BookAPI[图书API] --- ReviewSites[书评网站]
-        BookAPI --- BookStores[在线书店]
-        BookAPI --- AcademicDB[学术数据库]
+    subgraph "领域服务层"
+        ContentService[内容服务]
+        RecommendationEngine[推荐引擎]
+        KnowledgeService[知识服务]
+        AnalyticsService[分析服务]
+        UserService[用户服务]
     end
     
-    subgraph AI["AI组件"]
-        LLM[大语言模型] --- RAG[检索增强生成]
-        RAG --- VectorDB[向量数据库]
-        LLM --- TopicExtractor[主题提取器]
-        LLM --- BookRecommender[图书推荐器]
-        LLM --- InsightGenerator[见解生成器]
+    subgraph "基础设施层"
+        ContentStorage[(内容存储)]
+        UserDataStorage[(用户数据)]
+        AIModels[(AI模型)]
+        SearchIndex[(搜索索引)]
+        DocumentParser[文档解析器]
+        NetworkClient[网络客户端]
     end
     
-    subgraph Storage["存储层"]
-        DB[(关系数据库)] --- FileSystem[(文件系统)]
-        VectorDB --- DB
-        DB --- UserProfile[用户画像]
-        DB --- ReadingHistory[阅读历史]
-        DB --- SearchCache[搜索缓存]
+    subgraph "外部资源"
+        BookMetadataAPI[图书元数据API]
+        RecommendationAPI[推荐服务API]
+        SearchEngine[搜索引擎]
+        FileSystem[本地文件系统]
     end
     
-    Frontend --- Backend
-    Backend --- AI
-    Backend --- Storage
-    Backend --- Internet
+    %% 用户界面到应用服务的连接
+    UI_SAVE --> ContentManager
+    UI_NEXT --> RecommendationManager
+    UI_RECALL --> KnowledgeManager
+    UI_REPORT --> AnalyticsManager
+    Settings --> UserProfileManager
     
-    style Frontend fill:#d0e0ff,stroke:#3080ff
-    style Backend fill:#ffe0d0,stroke:#ff8030
-    style AI fill:#d0ffe0,stroke:#30ff80
-    style Storage fill:#e0d0ff,stroke:#8030ff
-    style Internet fill:#fff0d0,stroke:#ffb030
+    %% 应用服务到领域服务的连接
+    ContentManager --> ContentService
+    RecommendationManager --> RecommendationEngine
+    KnowledgeManager --> KnowledgeService
+    AnalyticsManager --> AnalyticsService
+    UserProfileManager --> UserService
+    
+    %% 领域服务间的协作
+    ContentService <--> KnowledgeService
+    RecommendationEngine --> ContentService
+    AnalyticsService --> ContentService
+    AnalyticsService --> RecommendationEngine
+    
+    %% 领域服务到基础设施的连接
+    ContentService --> ContentStorage
+    ContentService --> DocumentParser
+    KnowledgeService --> SearchIndex
+    KnowledgeService --> AIModels
+    RecommendationEngine --> AIModels
+    RecommendationEngine --> NetworkClient
+    UserService --> UserDataStorage
+    
+    %% 基础设施到外部资源的连接
+    NetworkClient --> BookMetadataAPI
+    NetworkClient --> RecommendationAPI
+    NetworkClient --> SearchEngine
+    DocumentParser --> FileSystem
+    
+    %% 样式设置
+    style "用户界面层" fill:#d0e0ff,stroke:#3080ff
+    style "应用服务层" fill:#ffe0d0,stroke:#ff8030
+    style "领域服务层" fill:#ffd0e0,stroke:#ff3080
+    style "基础设施层" fill:#e0d0ff,stroke:#8030ff
+    style "外部资源" fill:#d0ffe0,stroke:#30ff80
 ```
 
-## 架构说明
+## 架构分层详解
 
-### 前端界面（Frontend）
+### 1. 用户界面层
 
-前端界面负责与用户交互，分为四大核心功能模块：
+用户界面层负责与用户的直接交互，包含四大核心功能模块和配置界面。
 
-1. **SAVE界面**：处理内容导入、预览和笔记管理
-2. **NEXT界面**：展示个性化推荐的书籍和内容
-3. **RECALL界面**：提供知识回忆和检索功能
-4. **REPORT界面**：生成阅读统计报告和可视化分析
+特点：
+- **响应式设计** - 使用声明式UI框架，确保界面快速响应
+- **状态管理** - 维护一致的UI状态，反映底层数据变化
+- **可访问性** - 支持辅助技术和键盘导航
+- **主题支持** - 适应系统明暗模式和用户自定义主题
 
-### 后端服务（Backend）
+### 2. 应用服务层
 
-后端服务层提供业务逻辑支持，包括以下主要服务：
+应用服务层协调用户操作和系统功能，实现业务用例和应用逻辑。
 
-1. **内容服务（ContentService）**：管理文档处理和笔记系统
-2. **推荐服务（RecommendService）**：提供个性化书籍推荐
-3. **回忆服务（RecallService）**：处理内容检索和知识关联
-4. **分析服务（AnalyticsService）**：生成统计数据和用户画像
+职责：
+- **功能编排** - 协调多个领域服务完成复杂业务流程
+- **会话管理** - 维护用户会话状态
+- **权限控制** - 确保操作符合用户权限
+- **事件处理** - 响应系统事件和用户交互事件
 
-### AI组件
+### 3. 领域服务层
 
-AI组件为系统提供智能功能支持：
+领域服务层包含核心业务逻辑，实现领域模型中定义的规则和流程。
 
-1. **大语言模型（LLM）**：提供自然语言处理能力
-2. **检索增强生成（RAG）**：结合向量数据库提高内容理解精度
-3. **主题提取器**：分析内容主题并进行分类
-4. **图书推荐器**：基于用户兴趣生成个性化推荐
-5. **见解生成器**：提取阅读内容中的关键见解
+组件：
+- **内容服务** - 管理书籍、笔记和其他内容
+- **推荐引擎** - 生成个性化内容推荐
+- **知识服务** - 构建和查询知识图谱
+- **分析服务** - 生成统计数据和见解
+- **用户服务** - 处理用户配置和偏好
 
-### 存储层（Storage）
+### 4. 基础设施层
 
-存储层负责数据持久化和管理：
+基础设施层负责技术实现细节，包括数据存储、AI能力和外部通信。
 
-1. **关系数据库**：存储结构化数据
-2. **文件系统**：管理书籍文件和资源
-3. **向量数据库**：支持语义搜索和内容关联
-4. **用户画像**：记录用户阅读偏好和行为模式
-5. **阅读历史**：跟踪用户阅读活动和进度
+模块：
+- **存储组件** - 本地数据库和文件管理
+- **AI模型** - 推荐、分类和内容理解模型
+- **索引引擎** - 全文搜索和内容索引
+- **解析器** - 处理不同格式的文档
+- **网络客户端** - 与外部API安全通信
 
-### 互联网资源（Internet）
+### 5. 外部资源
 
-系统选择性地连接外部资源：
+系统与多种外部资源交互，丰富功能和内容。
 
-1. **图书API**：获取最新图书信息
-2. **书评网站**：收集用户评价和专业评论
-3. **在线书店**：提供购买链接和价格信息
-4. **学术数据库**：获取专业学术著作推荐
+接口：
+- **图书元数据API** - 获取书籍信息和封面
+- **推荐服务** - 外部推荐引擎补充
+- **搜索引擎** - 获取公开内容和评价
+- **文件系统** - 访问本地文件
+
+## 数据流向
+
+### 主要数据流路径
+
+1. **内容导入流**
+   - 从文件系统读取文档 → 解析内容结构 → 提取元数据 → 存储至内容库 → 更新索引 → 更新UI
+
+2. **推荐生成流**
+   - 用户请求推荐 → 获取用户模型 → 本地推荐计算 → 增强外部数据(可选) → 结果排序 → 展示UI
+
+3. **知识回忆流**
+   - 查询请求 → 搜索索引 → 知识图谱匹配 → 相关内容检索 → 结果组织 → 展示UI
+
+4. **报告生成流**
+   - 分析请求 → 数据聚合 → 统计计算 → 洞见生成 → 可视化渲染 → 展示UI
+
+## 扩展性设计
+
+NextBook Agent的架构设计考虑了以下扩展点：
+
+1. **插件系统** - 预留插件接口，支持第三方功能扩展
+2. **多平台适配** - 界面层和应用层设计支持跨平台实现
+3. **云同步能力** - 数据模型设计考虑未来云同步需求
+4. **AI能力升级** - 模型接口标准化，支持替换和升级AI模型
+5. **数据源扩展** - 开放式适配器设计，支持新增内容和推荐源
+
+## 安全性考量
+
+1. **本地优先** - 敏感数据默认存储在本地
+2. **最小权限** - 只请求必要的系统权限
+3. **数据加密** - 支持内容和配置的加密存储
+4. **安全通信** - 使用TLS和API密钥保护网络通信
+5. **隐私控制** - 用户完全控制数据分享范围
+
+## 性能优化
+
+1. **异步处理** - 耗时操作在后台线程执行
+2. **增量索引** - 大型内容增量建立索引
+3. **智能缓存** - 多级缓存策略减少计算和网络请求
+4. **懒加载** - 按需加载内容和资源
+5. **资源限制** - 动态调整资源使用，避免过度消耗
