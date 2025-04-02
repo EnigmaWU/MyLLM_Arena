@@ -192,70 +192,30 @@ NextBook Agent采用模块化、本地优先的技术架构，确保用户数据
 
 ### 系统架构概述
 
+系统由四个主要部分组成，详细架构图请参见[完整架构图](docs/architecture/SystemArchitecture.md)。
+
 ```mermaid
 flowchart TD
-    User([用户]) --- Frontend
-    
-    subgraph Frontend["前端界面"]
-        UI[用户界面] --- SaveUI[SAVE界面]
-        UI --- NextUI[NEXT界面]
-        UI --- RecallUI[RECALL界面]
-        UI --- ReportUI[REPORT界面]
-        
-        SaveUI --- ContentViewer[内容预览器]
-        SaveUI --- Notes[笔记系统]
-        NextUI --- Recommend[推荐展示]
-        RecallUI --- KnowledgeMap[知识图谱]
-        ReportUI --- Dashboard[数据仪表盘]
-    end
-    
-    subgraph Backend["后端服务"]
-        API[API服务] --- ContentService[内容服务]
-        API --- RecommendService[推荐服务]
-        API --- RecallService[回忆服务]
-        API --- AnalyticsService[分析服务]
-        
-        ContentService --- DocumentProcessor[文档处理器]
-        ContentService --- NoteManager[笔记管理器]
-        RecommendService --- RecommendEngine[推荐引擎]
-        RecommendService --- WebSearchEngine[网络搜索引擎]
-        RecallService --- SearchEngine[检索引擎]
-        AnalyticsService --- StatisticsEngine[统计引擎]
-    end
-    
-    subgraph Internet["互联网资源"]
-        BookAPI[图书API] --- ReviewSites[书评网站]
-        BookAPI --- BookStores[在线书店]
-        BookAPI --- AcademicDB[学术数据库]
-    end
-    
-    subgraph AI["AI组件"]
-        LLM[大语言模型] --- RAG[检索增强生成]
-        RAG --- VectorDB[向量数据库]
-        LLM --- TopicExtractor[主题提取器]
-        LLM --- BookRecommender[图书推荐器]
-        LLM --- InsightGenerator[见解生成器]
-    end
-    
-    subgraph Storage["存储层"]
-        DB[(关系数据库)] --- FileSystem[(文件系统)]
-        VectorDB --- DB
-        DB --- UserProfile[用户画像]
-        DB --- ReadingHistory[阅读历史]
-        DB --- SearchCache[搜索缓存]
-    end
-    
-    Frontend --- Backend
-    Backend --- AI
-    Backend --- Storage
-    Backend --- Internet
+    User([用户]) --> Frontend[前端界面层]
+    Frontend --> Backend[后端服务层]
+    Backend --> Storage[存储层]
+    Backend --> AI[AI组件]
+    Backend -.-> Internet[互联网资源]
     
     style Frontend fill:#d0e0ff,stroke:#3080ff
     style Backend fill:#ffe0d0,stroke:#ff8030
-    style AI fill:#d0ffe0,stroke:#30ff80
     style Storage fill:#e0d0ff,stroke:#8030ff
+    style AI fill:#d0ffe0,stroke:#30ff80
     style Internet fill:#fff0d0,stroke:#ffb030
 ```
+
+#### 主要组件
+
+- **前端界面层**：用户交互界面，包含SAVE、NEXT、RECALL和REPORT四大功能模块
+- **后端服务层**：核心业务逻辑，处理内容管理、推荐、知识回忆和数据分析
+- **AI组件**：提供智能推荐、内容分析和知识图谱构建功能
+- **存储层**：管理用户数据、内容索引和搜索缓存
+- **互联网资源**：选择性连接外部资源获取最新图书信息和评价
 
 ### 架构设计文档
 
