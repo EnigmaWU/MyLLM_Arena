@@ -18,12 +18,7 @@
     - [📊 REPORT - 数据报告](#-report---数据报告)
   - [模型设计](#模型设计)
     - [领域模型概述](#领域模型概述)
-    - [核心领域与边界上下文](#核心领域与边界上下文)
-    - [聚合与聚合根](#聚合与聚合根)
-    - [领域事件](#领域事件)
-    - [领域服务](#领域服务)
-    - [值对象](#值对象)
-    - [DDD战略设计](#ddd战略设计)
+    - [模型设计文档](#模型设计文档)
   - [版本规划](#版本规划)
   - [技术架构](#技术架构)
     - [系统架构概述](#系统架构概述)
@@ -133,253 +128,58 @@ classDiagram
         +userId: String
         +preferenceProfile: PreferenceProfile
         +readingHistory: ReadingHistory
-        +createReadingRecord(content)
-        +addNote(content, noteContent)
-        +requestRecommendation()
     }
     
     class Content {
         +contentId: String
         +title: String
         +author: String
-        +format: ContentFormat
-        +metadata: Metadata
-        +path: String
-        +importDate: DateTime
-        +tags: List~Tag~
-        +categories: List~Category~
-    }
-    
-    class Book {
-        +isbn: String
-        +publisher: String
-        +publishDate: Date
-        +coverImage: Image
-        +summary: String
     }
     
     class ReadingRecord {
         +recordId: String
         +content: Content
-        +startTime: DateTime
-        +lastAccessTime: DateTime
-        +progress: Float
         +notes: List~Note~
-        +addNote(noteContent)
-        +updateProgress(newProgress)
     }
     
     class Note {
         +noteId: String
         +content: String
-        +creationTime: DateTime
-        +updateTime: DateTime
-        +tags: List~Tag~
         +relatedContent: Content
-        +relatedTextFragment: TextFragment
-        +attachments: List~Attachment~
-    }
-    
-    class Tag {
-        +name: String
-        +color: Color
-        +creationTime: DateTime
-    }
-    
-    class Category {
-        +name: String
-        +description: String
-        +parentCategory: Category
     }
     
     class RecommendationEngine {
         +generateRecommendations(user, count)
-        +refreshRecommendations(user)
-        +provideUserFeedback(recommendation, feedback)
     }
     
     class BookRecommendation {
         +recommendationId: String
         +book: Book
         +recommendationReason: String
-        +confidence: Float
-        +creationTime: DateTime
-        +userFeedback: Feedback
-        +sourceStrategy: RecommendationStrategy
     }
     
     class KnowledgeGraph {
         +entities: List~Entity~
         +relationships: List~Relationship~
-        +addEntity(entity)
-        +addRelationship(source, target, type)
-        +findRelatedEntities(entity, depth)
-    }
-    
-    class AnalyticsService {
-        +generateReadingReport(user, timeRange)
-        +generateTopicAnalysis(user)
-        +trackReadingGoals(user, goals)
-        +predictReadingTrends(user)
     }
     
     User "1" -- "many" ReadingRecord: maintains
     ReadingRecord "1" -- "1" Content: records
     ReadingRecord "1" -- "many" Note: contains
-    Content <|-- Book: extends
-    Note "many" -- "many" Tag: tagged with
-    Content "many" -- "many" Tag: tagged with
-    Content "many" -- "many" Category: categorized by
     User "1" -- "many" BookRecommendation: receives
-    RecommendationEngine -- BookRecommendation: generates
-    BookRecommendation "1" -- "1" Book: recommends
-    KnowledgeGraph -- Note: analyzes
-    KnowledgeGraph -- Content: analyzes
-    AnalyticsService -- User: analyzes data for
 ```
 
-### 核心领域与边界上下文
+### 模型设计文档
 
-1. **内容管理领域**：处理书籍、文章和笔记的导入、存储和分类
-2. **推荐领域**：负责基于用户阅读历史和偏好推荐新内容
-3. **知识构建领域**：处理知识图谱构建、关联发现和洞见链接
-4. **分析报告领域**：负责统计分析和报告生成
+查看详细模型设计文档：
 
-### 聚合与聚合根
-
-```mermaid
-graph TD
-    subgraph "用户聚合"
-        U[User<br>聚合根] --> UP[PreferenceProfile]
-        U --> UH[ReadingHistory]
-        U --> UG[ReadingGoals]
-    end
-    
-    subgraph "内容聚合"
-        C[Content<br>聚合根] --> CM[Metadata]
-        C --> CT[Tags]
-        C --> CC[Categories]
-        C --> CF[ContentFiles]
-    end
-    
-    subgraph "阅读记录聚合"
-        RR[ReadingRecord<br>聚合根] --> RN[Notes]
-        RR --> RP[Progress]
-        RN --> NA[Attachments]
-    end
-    
-    subgraph "推荐聚合"
-        RE[Recommendation<br>聚合根] --> RS[RecommendationSource]
-        RE --> RR2[RecommendationReason]
-        RE --> RF[UserFeedback]
-    end
-    
-    subgraph "知识图谱聚合"
-        KG[KnowledgeGraph<br>聚合根] --> KE[Entities]
-        KG --> KR[Relationships]
-        KG --> KI[Insights]
-    end
-    
-    style U fill:#f9d5e5,stroke:#333
-    style C fill:#d5e8d4,stroke:#333
-    style RR fill:#ffe6cc,stroke:#333
-    style RE fill:#e1d5e7,stroke:#333
-    style KG fill:#dae8fc,stroke:#333
-```
-
-### 领域事件
-
-NextBook Agent系统中的关键领域事件：
-
-| 事件名称                | 描述                 | 产生者       | 消费者                 |
-| ----------------------- | -------------------- | ------------ | ---------------------- |
-| ContentImported         | 新内容被导入系统     | 内容管理服务 | 推荐引擎、知识图谱服务 |
-| NoteAdded               | 用户添加了新笔记     | 笔记服务     | 知识图谱服务、分析服务 |
-| RecommendationGenerated | 生成了新推荐         | 推荐引擎     | 用户界面、分析服务     |
-| UserFeedbackProvided    | 用户对推荐提供了反馈 | 用户界面     | 推荐引擎               |
-| InsightDiscovered       | 发现了知识洞见       | 知识图谱服务 | 用户界面、分析服务     |
-| ReadingGoalAchieved     | 用户达成了阅读目标   | 分析服务     | 用户界面、通知服务     |
-
-### 领域服务
-
-```mermaid
-graph LR
-    subgraph "领域服务"
-        CS[内容管理服务] --> CI[内容导入服务]
-        CS --> CT[内容分类服务]
-        
-        RS[推荐服务] --> RP[个性化推荐服务]
-        RS --> RS2[搜索服务]
-        
-        KS[知识服务] --> KG[知识图谱服务]
-        KS --> KI[洞见发现服务]
-        
-        AS[分析服务] --> AR[报告生成服务]
-        AS --> AT[趋势分析服务]
-    end
-    
-    subgraph "应用服务"
-        UI[用户交互服务] --> CS
-        UI --> RS
-        UI --> KS
-        UI --> AS
-        
-        SS[同步服务] --> CS
-    end
-    
-    style CS fill:#d5e8d4,stroke:#82b366
-    style RS fill:#ffe6cc,stroke:#d79b00
-    style KS fill:#dae8fc,stroke:#6c8ebf
-    style AS fill:#e1d5e7,stroke:#9673a6
-    style UI fill:#f5f5f5,stroke:#666666
-    style SS fill:#f5f5f5,stroke:#666666
-```
-
-### 值对象
-
-| 值对象               | 属性                             | 用途               |
-| -------------------- | -------------------------------- | ------------------ |
-| ContentMetadata      | 标题、作者、出版信息、页数       | 描述内容基本信息   |
-| TextFragment         | 文本内容、页码、位置             | 记录笔记关联的原文 |
-| ReadingProgress      | 当前页、总页数、百分比、阅读时长 | 跟踪阅读进度       |
-| RecommendationReason | 推荐原因描述、关联内容、匹配度   | 解释推荐依据       |
-| InsightLink          | 关联内容、关联强度、发现时间     | 描述知识关联       |
-| ReadingStatistics    | 阅读量、阅读频率、主题分布       | 用于分析报告       |
-
-### DDD战略设计
-
-```mermaid
-graph TD
-    subgraph "核心域"
-        CC[内容收集] --> CA[内容分析]
-        CA --> KD[知识发现]
-        KD --> PR[个性化推荐]
-    end
-    
-    subgraph "支撑域"
-        DM[数据管理] --> SY[同步系统]
-        UI[用户界面] --> NF[通知服务]
-    end
-    
-    subgraph "通用域"
-        AU[认证授权] --> SE[搜索引擎]
-        SE --> FL[文件处理]
-    end
-    
-    style CC fill:#ff9999,stroke:#333
-    style CA fill:#ff9999,stroke:#333
-    style KD fill:#ff9999,stroke:#333
-    style PR fill:#ff9999,stroke:#333
-    
-    style DM fill:#ffcc99,stroke:#333
-    style SY fill:#ffcc99,stroke:#333
-    style UI fill:#ffcc99,stroke:#333
-    style NF fill:#ffcc99,stroke:#333
-    
-    style AU fill:#cccccc,stroke:#333
-    style SE fill:#cccccc,stroke:#333
-    style FL fill:#cccccc,stroke:#333
-```
+- [领域模型设计](docs/models/DomainModel.md) - 完整领域模型与实体关系
+- [核心领域与上下文](docs/models/CoreDomains.md) - 领域划分与上下文映射
+- [聚合与聚合根](docs/models/Aggregates.md) - 聚合设计与实体关系
+- [领域事件](docs/models/DomainEvents.md) - 事件驱动设计与事件流
+- [领域服务](docs/models/DomainServices.md) - 核心领域服务设计
+- [值对象](docs/models/ValueObjects.md) - 值对象设计与使用场景
+- [战略设计](docs/models/StrategicDesign.md) - DDD战略设计与通用语言
 
 ## 版本规划
 
