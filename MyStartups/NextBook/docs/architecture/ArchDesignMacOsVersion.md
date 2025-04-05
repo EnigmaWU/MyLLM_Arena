@@ -67,8 +67,8 @@ flowchart TD
     %% 新增测试组件
     TestHarness[测试工具] -.-> EventBus
     
-    style EventBus fill:#ffff99,stroke:#b09000
-    style CacheManager fill:#ffcce6,stroke:#ff66b3
+    style EventBus fill:#ffff99,stroke:#b09000,stroke-width:3px
+    style CacheManager fill:#ffcce6,stroke:#ff66b3,stroke-width:2px
     style TestHarness fill:#e6ffcc,stroke:#66ff33,stroke-dasharray:5 5
 ```
 
@@ -294,6 +294,19 @@ flowchart TD
    - 无障碍功能合规性检查
 
 【版本定义】
-单机版：macOS版  
-- 设备要求：仅支持macOS设备  
-- 部署方式：单设备本地部署
+单机版：macOS版  cOS版
+- 设备要求：仅支持macOS设备  OS设备
+- 部署方式：单设备本地部署设备本地部署
+  * **开发优先级**：作为首要目标，专注于单用户场景的完整功能验证
+  * **技术基础**：建立核心技术架构，为后续扩展奠定基础
+  * **目的**：
+    * 概念验证，验证核心功能和用户体验
+    * 寻找核心用户群体，收集反馈和建议
+
+* **多平台版**：multiOS版
+  * **技术架构**：与单机版共享相同核心架构，确保技术一致性
+  * **设计考虑**：在设计阶段已为多平台、云模式和多用户场景预留扩展点
+  * **多端使用**：将支持Win11、Ubuntu Linux、iOS和Android平台
+  * **无缝同步**：在不同设备间保持阅读进度和笔记的同步
+  * **目的**：
+    * 扩大用户群体，形成市场竞争力的产品
