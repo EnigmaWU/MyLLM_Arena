@@ -250,6 +250,183 @@ flowchart LR
     class DB storage
 ```
 
+## 事件驱动设计
+
+NextBook Agent采用事件驱动设计模式，提高系统各组件解耦度，增强可扩展性。
+
+### 事件分类
+
+```mermaid
+graph TD
+    EventSystem[事件系统]
+    
+    EventSystem --> DomainEvents[领域事件]
+    EventSystem --> IntegrationEvents[集成事件]
+    EventSystem --> UIEvents[UI事件]
+    EventSystem --> SystemEvents[系统事件]
+    
+    DomainEvents --> DE1[内容导入事件]
+    DomainEvents --> DE2[笔记创建事件]
+    DomainEvents --> DE3[推荐生成事件]
+    DomainEvents --> DE4[知识链接创建事件]
+    
+    IntegrationEvents --> IE1[外部API响应事件]
+    IntegrationEvents --> IE2[同步完成事件]
+    
+    UIEvents --> UE1[视图切换事件]
+    UIEvents --> UE2[用户交互事件]
+    
+    SystemEvents --> SE1[存储状态变更事件]
+    SystemEvents --> SE2[网络状态事件]
+    SystemEvents --> SE3[资源使用事件]
+    
+    classDef eventNode fill:#f5f5f5,stroke:#666666
+    classDef domainEvent fill:#e6f7ff,stroke:#1890ff
+    classDef integrationEvent fill:#fff7e6,stroke:#fa8c16
+    classDef uiEvent fill:#f6ffed,stroke:#52c41a
+    classDef systemEvent fill:#fff1f0,stroke:#f5222d
+    
+    class EventSystem eventNode
+    class DomainEvents,IntegrationEvents,UIEvents,SystemEvents eventNode
+    class DE1,DE2,DE3,DE4 domainEvent
+    class IE1,IE2 integrationEvent
+    class UE1,UE2 uiEvent
+    class SE1,SE2,SE3 systemEvent
+```
+
+### 事件流程
+
+1. **发布-订阅模型**：
+   - 事件生产者无需了解订阅者
+   - 多个订阅者可对同一事件做出反应
+   - 支持异步和同步处理模式
+
+2. **事件存储**：
+   - 关键领域事件持久化存储
+   - 支持事件溯源和系统状态重构
+   - 提供审计跟踪和历史回放功能
+
+3. **事件处理策略**：
+   - 即时处理：需要立即响应的关键事件
+   - 批处理：可延迟处理的次要事件
+   - 重试机制：确保事件最终被处理
+
+4. **事件路由**：
+   - 基于事件类型和属性的动态路由
+   - 支持事件过滤和转换
+   - 可配置的事件传播规则
+
+### 示例事件流
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant EventBus
+    participant ContentService
+    participant AIService
+    participant Storage
+    
+    User->>UI: 上传新书籍
+    UI->>EventBus: 发布ContentImportRequestedEvent
+    EventBus->>ContentService: 路由事件
+    ContentService->>Storage: 保存文件
+    ContentService->>EventBus: 发布ContentImportedEvent
+    EventBus->>AIService: 路由事件
+    AIService->>AIService: 分析内容
+    AIService->>EventBus: 发布ContentAnalyzedEvent
+    EventBus->>UI: 路由事件
+    UI->>User: 显示导入完成和分析结果
+```
+
+## 插件系统设计
+
+为实现高度可扩展的架构，NextBook Agent设计了标准化的插件系统。
+
+### 插件类型
+
+1. **内容处理插件**
+   - 文档解析器：支持不同文件格式的解析
+   - 元数据提取器：从内容中提取元数据
+   - 内容增强器：为内容添加附加信息
+
+2. **AI服务插件**
+   - 推荐算法：自定义推荐逻辑
+   - 内容分析：文本和语义分析
+   - 知识图谱构建：自定义知识连接算法
+
+3. **UI扩展插件**
+   - 视图组件：自定义内容查看器
+   - 交互组件：增强用户交互方式
+   - 可视化组件：自定义数据可视化
+
+4. **数据连接插件**
+   - 外部服务连接器：集成第三方服务
+   - 数据导入导出：支持不同格式的数据交换
+   - 同步适配器：自定义同步逻辑
+
+### 插件接口设计
+
+```mermaid
+classDiagram
+    class Plugin {
+        +String id
+        +String name
+        +String version
+        +String description
+        +initialize()
+        +shutdown()
+    }
+    
+    class ContentProcessorPlugin {
+        +supportedFormats()
+        +processContent(content)
+        +extractMetadata(content)
+    }
+    
+    class AIServicePlugin {
+        +supportedOperations()
+        +processQuery(query)
+        +trainModel(data)
+    }
+    
+    class UIExtensionPlugin {
+        +getComponents()
+        +registerViewports()
+        +handleInteraction(event)
+    }
+    
+    class DataConnectorPlugin {
+        +supportedServices()
+        +connect(config)
+        +importData(source)
+        +exportData(target)
+    }
+    
+    Plugin <|-- ContentProcessorPlugin
+    Plugin <|-- AIServicePlugin
+    Plugin <|-- UIExtensionPlugin
+    Plugin <|-- DataConnectorPlugin
+```
+
+### 插件生命周期
+
+1. **注册**：插件向系统注册自身能力和依赖
+2. **激活**：系统验证并激活符合条件的插件
+3. **执行**：插件在适当的系统事件或用户操作时执行功能
+4. **状态管理**：插件可保存和恢复状态
+5. **更新**：支持插件热更新，无需重启应用
+6. **停用**：在不需要时可临时停用插件
+7. **卸载**：完全移除插件及其数据
+
+### 插件安全与隔离
+
+1. **权限模型**：插件只能访问明确授权的系统资源
+2. **沙箱执行**：插件在受限环境中运行
+3. **资源限制**：防止插件过度消耗系统资源
+4. **验证机制**：插件签名验证和来源检查
+5. **数据隔离**：插件数据相互隔离，防止干扰
+
 ## 相关架构设计
 
 - [返回README](../../README.md)

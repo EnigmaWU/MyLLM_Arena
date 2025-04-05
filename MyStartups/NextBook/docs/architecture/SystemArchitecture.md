@@ -22,6 +22,7 @@ flowchart TD
         KnowledgeManager[知识管理服务]
         AnalyticsManager[分析报告服务]
         UserProfileManager[用户配置管理]
+        EventBus[事件总线]
     end
     
     subgraph "领域服务层"
@@ -39,6 +40,7 @@ flowchart TD
         SearchIndex[(搜索索引)]
         DocumentParser[文档解析器]
         NetworkClient[网络客户端]
+        CacheManager[缓存管理器]
     end
     
     subgraph "外部资源"
@@ -55,14 +57,21 @@ flowchart TD
     UI_REPORT --> AnalyticsManager
     Settings --> UserProfileManager
     
-    %% 应用服务到领域服务的连接
-    ContentManager --> ContentService
-    RecommendationManager --> RecommendationEngine
-    KnowledgeManager --> KnowledgeService
-    AnalyticsManager --> AnalyticsService
-    UserProfileManager --> UserService
+    %% 应用服务通过事件总线通信
+    ContentManager <--> EventBus
+    RecommendationManager <--> EventBus
+    KnowledgeManager <--> EventBus
+    AnalyticsManager <--> EventBus
+    UserProfileManager <--> EventBus
     
-    %% 领域服务间的协作
+    %% 事件总线到领域服务
+    EventBus <--> ContentService
+    EventBus <--> RecommendationEngine
+    EventBus <--> KnowledgeService
+    EventBus <--> AnalyticsService
+    EventBus <--> UserService
+    
+    %% 领域服务间的协作通过事件进行
     ContentService <--> KnowledgeService
     RecommendationEngine --> ContentService
     AnalyticsService --> ContentService
@@ -77,6 +86,12 @@ flowchart TD
     RecommendationEngine --> NetworkClient
     UserService --> UserDataStorage
     
+    %% 缓存管理器的连接
+    ContentService --> CacheManager
+    RecommendationEngine --> CacheManager
+    KnowledgeService --> CacheManager
+    AnalyticsService --> CacheManager
+    
     %% 基础设施到外部资源的连接
     NetworkClient --> BookMetadataAPI
     NetworkClient --> RecommendationAPI
@@ -89,6 +104,8 @@ flowchart TD
     style "领域服务层" fill:#ffd0e0,stroke:#ff3080
     style "基础设施层" fill:#e0d0ff,stroke:#8030ff
     style "外部资源" fill:#d0ffe0,stroke:#30ff80
+    style EventBus fill:#ffff99,stroke:#b09000,stroke-width:3px
+    style CacheManager fill:#ffcce6,stroke:#ff66b3,stroke-width:2px
 ```
 
 ## 架构分层详解
@@ -145,6 +162,46 @@ flowchart TD
 - **搜索引擎** - 获取公开内容和评价
 - **文件系统** - 访问本地文件
 
+### 6. 事件驱动架构
+
+事件驱动是NextBook Agent架构的核心设计模式，通过事件总线实现模块间的松耦合通信。
+
+组件：
+- **事件总线**：中央消息通道，协调系统内各组件的通信
+- **事件生产者**：触发事件的系统组件
+- **事件消费者**：订阅并响应事件的组件
+- **事件存储**：重要事件的持久化存储，支持事件溯源和回放
+
+主要事件类型：
+- **领域事件**：代表系统中的业务事件，如"内容导入完成"、"生成新推荐"
+- **集成事件**：跨系统边界的事件，用于与外部系统集成
+- **命令**：请求系统执行特定操作的消息
+- **查询**：请求系统提供信息的消息
+
+### 7. 多级缓存策略
+
+NextBook Agent采用多级缓存架构，根据数据特性选择最佳缓存策略：
+
+- **内存缓存**：
+  - 热点数据（如当前阅读内容、活跃书籍元数据）
+  - 用户界面状态和偏好设置
+  - AI模型推理过程中的中间结果
+
+- **本地持久化缓存**：
+  - 搜索索引和向量缓存
+  - 常用推荐数据
+  - 外部API响应结果
+
+- **预加载策略**：
+  - 基于用户行为预测的智能预加载
+  - 阅读流内容的前瞻性缓存
+  - 后台异步获取可能需要的相关内容
+
+- **缓存一致性**：
+  - 基于事件的缓存失效机制
+  - 缓存条目的生命周期管理
+  - 多平台版本中的缓存同步策略
+
 ## 数据流向
 
 ### 主要数据流路径
@@ -165,11 +222,16 @@ flowchart TD
 
 NextBook Agent的架构设计考虑了以下扩展点：
 
-1. **插件系统** - 预留插件接口，支持第三方功能扩展
-2. **多平台适配** - 界面层和应用层设计支持跨平台实现
-3. **云同步能力** - 数据模型设计考虑未来云同步需求
-4. **AI能力升级** - 模型接口标准化，支持替换和升级AI模型
-5. **数据源扩展** - 开放式适配器设计，支持新增内容和推荐源
+1. **事件驱动扩展**：任何组件可通过订阅事件响应系统行为，无需直接修改源代码
+2. **插件系统** - 标准化插件接口，包括：
+   - 内容解析插件：支持更多文档格式
+   - 推荐算法插件：自定义推荐逻辑
+   - 视图扩展插件：自定义界面元素
+   - 数据导出插件：支持多种导出格式
+3. **多平台适配** - 界面层和应用层设计支持跨平台实现
+4. **云同步能力** - 数据模型设计考虑未来云同步需求
+5. **AI能力升级** - 模型接口标准化，支持替换和升级AI模型
+6. **数据源扩展** - 开放式适配器设计，支持新增内容和推荐源
 
 ## 安全性考量
 
@@ -186,3 +248,28 @@ NextBook Agent的架构设计考虑了以下扩展点：
 3. **智能缓存** - 多级缓存策略减少计算和网络请求
 4. **懒加载** - 按需加载内容和资源
 5. **资源限制** - 动态调整资源使用，避免过度消耗
+6. **预测性获取** - 基于用户行为预测下一步可能访问的内容
+7. **本地计算优先** - 适合本地处理的计算不发送到服务器
+
+## 可测试性设计
+
+NextBook Agent架构内置高可测试性：
+
+1. **分层测试策略**：
+   - 单元测试：领域服务和基础设施组件的独立测试
+   - 集成测试：组件间交互的验证
+   - 端到端测试：完整功能流程测试
+   
+2. **依赖注入**：
+   - 所有组件遵循依赖注入原则，便于模拟外部依赖
+   - 服务定位器模式用于动态替换实现
+
+3. **A/B测试框架**：
+   - 支持并行运行多个推荐算法版本
+   - 用户反馈收集与分析机制
+   - 性能与质量指标自动比较
+
+4. **监控与可观测性**：
+   - 关键操作的性能追踪
+   - 用户行为分析
+   - 系统健康指标收集
