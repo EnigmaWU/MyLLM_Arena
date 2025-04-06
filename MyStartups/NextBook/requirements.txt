@@ -1,0 +1,45 @@
+# NextBook Agent 依赖项
+
+# 基础依赖
+PyYAML>=6.0           # 配置文件解析
+sqlalchemy>=1.4.0     # 数据库ORM
+pillow>=9.0.0         # 图像处理
+rich>=12.0.0          # 控制台富文本
+pydantic>=1.9.0       # 数据验证
+python-dateutil>=2.8.2 # 日期时间处理
+
+# 文档处理
+PyPDF2>=2.0.0         # PDF处理
+python-docx>=0.8.11   # DOCX处理
+ebooklib>=0.17.1      # EPUB处理
+beautifulsoup4>=4.11.1 # HTML解析
+markdown>=3.4.1        # Markdown处理
+
+# AI组件
+sentence-transformers>=2.2.2  # 文本嵌入
+chromadb>=0.3.0       # 向量数据库
+scikit-learn>=1.1.0   # ML算法
+nltk>=3.7             # 自然语言处理
+spacy>=3.4.0          # NLP工具
+gensim>=4.2.0         # 主题建模
+
+# 网络服务
+requests>=2.28.0       # HTTP客户端
+fastapi[all]>=0.85.0   # API框架 (可选)
+uvicorn>=0.18.0        # ASGI服务器 (可选)
+
+# UI相关
+# (具体前端依赖根据选择的UI框架调整)
+# 例如：
+# PyQt5>=5.15.0         # Qt5绑定
+# PySide6>=6.0.0        # Qt6绑定
+# eel>=0.14.0           # Web GUI
+# textual>=0.9.0        # TUI界面
+
+# 开发工具 (仅开发环境需要)
+pytest>=7.0.0          # 测试框架
+pytest-cov>=3.0.0      # 测试覆盖率
+black>=22.6.0          # 代码格式化
+isort>=5.10.0          # import排序
+mypy>=0.971            # 类型检查
+pylint>=2.14.0         # 代码分析

@@ -1,0 +1,47 @@
+/NextBook
+├── app/                   # 主应用程序代码
+│   ├── core/              # 核心业务逻辑
+│   │   ├── content/       # 内容管理模块 (SAVE)
+│   │   ├── recommendation/ # 推荐模块 (NEXT)
+│   │   ├── knowledge/     # 知识回忆模块 (RECALL)
+│   │   └── analytics/     # 分析报告模块 (REPORT)
+│   │
+│   ├── infrastructure/    # 基础设施层
+│   │   ├── storage/       # 存储适配器
+│   │   ├── ai/            # AI模型适配器
+│   │   ├── document/      # 文档处理
+│   │   └── network/       # 网络服务
+│   │
+│   ├── ui/                # 用户界面层
+│   │   ├── components/    # 可重用UI组件
+│   │   ├── views/         # 主要视图
+│   │   ├── assets/        # 图标和静态资源
+│   │   └── themes/        # 主题和样式
+│   │
+│   └── utils/             # 通用工具函数
+│
+├── data/                  # 本地数据存储
+│   ├── db/                # 数据库文件
+│   ├── files/             # 用户文件存储
+│   ├── temp/              # 临时文件
+│   └── backups/           # 备份文件
+│
+├── plugins/               # 插件系统
+│   ├── core/              # 核心插件
+│   └── custom/            # 用户自定义插件
+│
+├── scripts/               # 开发和维护脚本
+│   ├── setup/             # 环境设置脚本
+│   ├── build/             # 构建脚本
+│   └── maintenance/       # 维护工具
+│
+├── tests/                 # 测试套件
+│   ├── unit/              # 单元测试
+│   ├── integration/       # 集成测试
+│   └── e2e/               # 端到端测试
+│
+├── config.example.yml     # 示例配置文件
+├── app.py                 # 应用入口点
+├── requirements.txt       # Python依赖
+├── setup.py               # 打包配置
+└── README.md              # 项目说明

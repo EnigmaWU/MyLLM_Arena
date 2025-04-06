@@ -1,0 +1,98 @@
+# NextBook Agent 配置文件示例
+# 重命名为config.yml并按需修改
+
+# 应用基本配置
+application:
+  name: "NextBook Agent"
+  version: "0.1.0"
+  log_level: "info" # debug, info, warning, error, critical
+  data_directory: "data" # 数据存储根目录
+  plugins_enabled: true # 是否启用插件系统
+
+# 存储配置
+storage:
+  database:
+    type: "sqlite" # sqlite, postgresql
+    path: "data/db/nextbook.db" # SQLite数据库文件路径
+    # 如使用PostgreSQL
+    # host: "localhost"
+    # port: 5432
+    # database: "nextbook"
+    # user: "nextbook_user"
+    # password: "your_password"
+
+  vector_database:
+    type: "chroma" # chroma, faiss
+    path: "data/db/vectors" # 向量数据库存储路径
+
+  files:
+    path: "data/files" # 用户文件存储路径
+    max_size_mb: 100 # 单个文件最大大小(MB)
+    allowed_formats: # 允许的文件格式
+      - "pdf"
+      - "epub"
+      - "txt"
+
+# AI服务配置
+ai:
+  local_model:
+    enabled: true
+    model_path: "models/local"
+    embedding_model: "sentence-transformers/all-mpnet-base-v2"
+
+  remote_api:
+    enabled: false
+    provider: "openai" # openai, anthropic, etc.
+    api_key: "" # 在实际配置中填入API密钥
+    model: "gpt-4"
+    timeout_seconds: 30
+
+# 功能模块配置
+modules:
+  save:
+    auto_extract_metadata: true
+    process_in_background: true
+    auto_categorize: true
+
+  next:
+    recommendations_count: 3
+    refresh_enabled: true
+    external_sources_enabled: true
+    cache_duration_hours: 24
+
+  recall:
+    default_timespan_days: 30
+    knowledge_graph_enabled: true
+    semantic_search_enabled: true
+
+  report:
+    auto_generate_weekly: false
+    auto_generate_monthly: true
+    visualization_enabled: true
+
+# 用户界面配置
+ui:
+  theme: "system" # system, light, dark
+  font_size: "medium" # small, medium, large
+  layout: "default"
+  animations_enabled: true
+
+# 网络设置
+network:
+  proxy:
+    enabled: false
+    http: ""
+    https: ""
+
+  requests:
+    timeout_seconds: 30
+    retry_count: 3
+    user_agent: "NextBook Agent/0.1.0"
+
+# 安全配置
+security:
+  encrypt_user_data: false # 加密本地用户数据
+  encryption_key_path: "" # 加密密钥路径
+  auto_backup: true # 自动备份
+  backup_interval_days: 7 # 备份间隔天数
+  backup_count: 5 # 保留备份数量
