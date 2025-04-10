@@ -1,0 +1,29 @@
+# NextBook Agent 配置文件
+
+application:
+  name: "NextBook Agent"
+  version: "0.1.0"
+  log_level: "info"
+  dev_mode: false
+  data_directory: "data"
+  plugins_enabled: false
+
+database:
+  type: "sqlite"
+  path: "data/db/nextbook.db"
+
+ui:
+  theme: "default"
+  language: "zh-CN"
+  fullscreen: false
+
+api:
+  enabled: true
+  port: 8000
+  host: "127.0.0.1"
+
+llm:
+  provider: "openai"
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000

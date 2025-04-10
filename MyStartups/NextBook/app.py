@@ -19,11 +19,11 @@ sys.path.insert(0, str(APP_ROOT))
 
 # 导入应用组件
 # 注意：这些模块将在实际开发中创建
-from app.ui import create_ui
-from app.core import AppCore
-from app.infrastructure import initialize_infrastructure
-from app.utils.config import load_config
-from app.utils.logging import setup_logging
+from ui import create_ui
+from core import AppCore
+from infrastructure import initialize_infrastructure
+from utils.config import load_config
+from utils.logging import setup_logging
 
 def parse_arguments():
     """解析命令行参数"""

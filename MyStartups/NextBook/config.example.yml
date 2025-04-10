@@ -8,6 +8,7 @@ application:
   log_level: "info" # debug, info, warning, error, critical
   data_directory: "data" # 数据存储根目录
   plugins_enabled: true # 是否启用插件系统
+  dev_mode: false
 
 # 存储配置
 storage:
@@ -76,6 +77,8 @@ ui:
   font_size: "medium" # small, medium, large
   layout: "default"
   animations_enabled: true
+  language: "zh-CN"
+  fullscreen: false
 
 # 网络设置
 network:
@@ -96,3 +99,16 @@ security:
   auto_backup: true # 自动备份
   backup_interval_days: 7 # 备份间隔天数
   backup_count: 5 # 保留备份数量
+
+# API配置
+api:
+  enabled: true
+  port: 8000
+  host: "127.0.0.1"
+
+# LLM配置
+llm:
+  provider: "openai" # openai, anthropic, local
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+  max_tokens: 1000
