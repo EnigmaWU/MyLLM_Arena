@@ -20,6 +20,7 @@
   - [模型设计](#模型设计)
     - [领域模型概述](#领域模型概述)
     - [模型设计文档](#模型设计文档)
+    - [核心模型对应功能](#核心模型对应功能)
   - [技术架构](#技术架构)
     - [系统架构概述](#系统架构概述)
       - [主要组件](#主要组件)
@@ -131,72 +132,116 @@ NextBook Agent 是一个智能阅读助手，专注于帮助用户管理**阅读
 
 ## 模型设计
 
-<!-- 新增说明：
-     模型设计侧重于业务领域模型，描述系统核心的实体、关系和业务逻辑，
-     例如用户、内容、笔记等，是领域驱动设计(DDD)的体现，与技术实现层面区分开来。 -->
-
-NextBook Agent采用领域驱动设计(DDD)方法构建核心模型，确保系统具有清晰的业务边界和丰富的领域表达能力。
+NextBook Agent采用领域驱动设计(DDD)方法构建核心模型，确保业务概念清晰表达并支持系统的四大核心功能。
 
 ### 领域模型概述
 
 ```mermaid
 classDiagram
     class User {
-        +userId: String
-        +preferenceProfile: PreferenceProfile
-        +readingHistory: ReadingHistory
+        +id: String
+        +username: String
+        +email: String
+        +preferences: UserPreferences
+        +readingInterests: List~String~
+        +createReadingRecord(content)
+        +addNote(content, noteContent)
+        +requestRecommendation()
     }
     
     class Content {
-        +contentId: String
+        +id: String
         +title: String
         +author: String
+        +format: ContentFormat
+        +filePath: String
+        +importDate: DateTime
+        +metadata: ContentMetadata
+        +tags: List~String~
+        +isProcessed: Boolean
+        +isIndexed: Boolean
     }
     
     class ReadingRecord {
-        +recordId: String
-        +content: Content
+        +id: String
+        +userId: String
+        +contentId: String
+        +startTime: DateTime
+        +lastAccessTime: DateTime
+        +progress: Float
         +notes: List~Note~
+        +addNote(noteContent)
+        +updateProgress(newProgress)
     }
     
     class Note {
-        +noteId: String
-        +content: String
-        +relatedContent: Content
+        +id: String
+        +userId: String
+        +contentId: String
+        +text: String
+        +creationTime: DateTime
+        +updateTime: DateTime
+        +tags: List~String~
+        +relatedTextFragment: String
+        +attachments: List~Attachment~
     }
     
     class RecommendationEngine {
         +generateRecommendations(user, count)
+        +refreshRecommendations(user)
+        +provideUserFeedback(recommendation, feedback)
     }
     
     class BookRecommendation {
-        +recommendationId: String
-        +book: Book
-        +recommendationReason: String
+        +id: String
+        +userId: String
+        +book: Content
+        +reason: String
+        +confidence: Float
+        +creationTime: DateTime
+        +userFeedback: String
+        +sourceStrategy: String
     }
     
     class KnowledgeGraph {
-        +entities: List~Entity~
-        +relationships: List~Relationship~
+        +buildGraph(userId, contents, notes)
+        +findRelatedEntities(entity, depth)
+        +suggestConnections(userId, noteId)
+        +getInsightLinks(userId, conceptId)
     }
     
-    User "1" -- "many" ReadingRecord: maintains
-    ReadingRecord "1" -- "1" Content: records
-    ReadingRecord "1" -- "many" Note: contains
-    User "1" -- "many" BookRecommendation: receives
+    User "1" -- "*" ReadingRecord: maintains
+    ReadingRecord "1" -- "1" Content: references
+    ReadingRecord "1" -- "*" Note: contains
+    User "1" -- "*" BookRecommendation: receives
+    RecommendationEngine -- BookRecommendation: generates
+    BookRecommendation "1" -- "1" Content: recommends
+    KnowledgeGraph -- Note: analyzes
+    KnowledgeGraph -- Content: analyzes
+    Note "*" -- "1" Content: relates to
 ```
 
 ### 模型设计文档
 
-查看详细模型设计文档：
+NextBook Agent的模型设计遵循领域驱动设计的核心原则，包含以下详细设计文档：
 
-- [领域模型设计](docs/models/DomainModel.md) - 完整领域模型与实体关系
-- [核心领域与上下文](docs/models/CoreDomains.md) - 领域划分与上下文映射
-- [聚合与聚合根](docs/models/Aggregates.md) - 聚合设计与实体关系
-- [领域事件](docs/models/DomainEvents.md) - 事件驱动设计与事件流
-- [领域服务](docs/models/DomainServices.md) - 核心领域服务设计
-- [值对象](docs/models/ValueObjects.md) - 值对象设计与使用场景
-- [战略设计](docs/models/StrategicDesign.md) - DDD战略设计与通用语言
+- [领域模型设计](docs/models/DomainModel.md) - 详细的领域实体与关系
+- [核心领域与上下文映射](docs/models/CoreDomains.md) - 领域划分与边界
+- [聚合与聚合根](docs/models/Aggregates.md) - 实体聚合与一致性保障
+- [领域事件](docs/models/DomainEvents.md) - 系统内部的事件流设计
+- [领域服务](docs/models/DomainServices.md) - 跨实体业务逻辑设计
+- [值对象](docs/models/ValueObjects.md) - 不可变属性集设计
+- [战略设计](docs/models/StrategicDesign.md) - 领域划分与通用语言
+
+### 核心模型对应功能
+
+| 核心模型 | 对应功能 | 关键职责 |
+|---------|---------|---------|
+| Content | SAVE | 表示书籍、文章等内容项，支持元数据提取与自动分类 |
+| ReadingRecord + Note | SAVE, RECALL | 记录阅读历史与笔记，支持后续回顾与检索 |
+| RecommendationEngine + BookRecommendation | NEXT | 生成个性化书籍推荐，整合多种推荐策略 |
+| KnowledgeGraph | RECALL | 构建知识关联，支持知识回顾与洞见链接 |
+| AnalyticsService | REPORT | 生成阅读统计与报告，提供多维度分析 |
 
 ## 技术架构
 
