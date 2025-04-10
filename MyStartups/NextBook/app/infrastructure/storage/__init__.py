@@ -1,8 +1,5 @@
 """
-存储适配器模块
-
-提供对不同存储后端的统一访问接口。实现存储抽象，
-支持多种存储选项（SQLite、PostgreSQL等），并处理数据持久化。
+存储模块
 """
 
 from .factory import create_storage

@@ -1,5 +1,5 @@
 """
-存储适配器异常定义
+存储相关异常
 """
 
 class StorageError(Exception):
@@ -10,8 +10,8 @@ class StorageConnectionError(StorageError):
     """存储连接异常"""
     pass
 
-class StorageTransactionError(StorageError):
-    """事务操作异常"""
+class StorageTransactionError(Exception):
+    """存储事务错误"""
     pass
 
 class StorageNotFoundError(StorageError):
