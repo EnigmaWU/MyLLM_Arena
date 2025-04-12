@@ -20,13 +20,13 @@
 classDiagram
     class Content {
         <<AggregateRoot>>
-        +id: String
+        +id: ID
         +title: String
         +author: String
         +format: ContentFormat
         +metadata: ContentMetadata
-        +tags: List~String~
-        +sections: List~ContentSection~
+        +tags: List
+        +sections: List
         +addSection(section)
         +updateMetadata(metadata)
         +addTag(tag)
@@ -34,11 +34,11 @@ classDiagram
     }
     
     class ContentSection {
-        +id: String
+        +id: ID
         +title: String
         +content: String
-        +pageNumber: Int
-        +position: Int
+        +pageNumber: Integer
+        +position: Integer
         +update(title, content)
     }
     
@@ -47,8 +47,8 @@ classDiagram
         +publicationDate: DateTime
         +language: String
         +isbn: String
-        +pageCount: Int
-        +categories: List~String~
+        +pageCount: Integer
+        +categories: List
     }
     
     Content "1" *-- "*" ContentSection

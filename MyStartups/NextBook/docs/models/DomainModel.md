@@ -9,51 +9,51 @@ NextBook Agent采用领域驱动设计(DDD)构建核心模型，确保业务概�
 ```mermaid
 classDiagram
     class User {
-        +id: String
+        +id: ID
         +username: String
         +email: String
         +preferences: UserPreferences
-        +readingInterests: List~String~
+        +readingInterests: List
         +createReadingRecord(content)
         +addNote(content, noteContent)
         +requestRecommendation()
     }
     
     class Content {
-        +id: String
+        +id: ID
         +title: String
         +author: String
         +format: ContentFormat
         +filePath: String
         +importDate: DateTime
         +metadata: ContentMetadata
-        +tags: List~String~
+        +tags: List
         +isProcessed: Boolean
         +isIndexed: Boolean
     }
     
     class ReadingRecord {
-        +id: String
-        +userId: String
-        +contentId: String
+        +id: ID
+        +userId: ID
+        +contentId: ID
         +startTime: DateTime
         +lastAccessTime: DateTime
         +progress: Float
-        +notes: List~Note~
+        +notes: List
         +addNote(noteContent)
         +updateProgress(newProgress)
     }
     
     class Note {
-        +id: String
-        +userId: String
-        +contentId: String
+        +id: ID
+        +userId: ID
+        +contentId: ID
         +text: String
         +creationTime: DateTime
         +updateTime: DateTime
-        +tags: List~String~
+        +tags: List
         +relatedTextFragment: String
-        +attachments: List~Attachment~
+        +attachments: List
     }
     
     class RecommendationEngine {
@@ -63,8 +63,8 @@ classDiagram
     }
     
     class BookRecommendation {
-        +id: String
-        +userId: String
+        +id: ID
+        +userId: ID
         +book: Content
         +reason: String
         +confidence: Float

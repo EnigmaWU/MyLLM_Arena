@@ -320,79 +320,108 @@ NextBook Agent的领域服务实现遵循以下模式：
 
 用于实现可替换的算法和业务规则：
 
-```java
-public interface RecommendationStrategy {
-    List<BookRecommendation> recommend(UserProfile profile, int count);
-    String getStrategyName();
-    float getConfidenceScore();
-}
+```pseudocode
+INTERFACE RecommendationStrategy
+    METHOD recommend(profile: UserProfile, count: Integer): List<BookRecommendation>
+    METHOD getStrategyName(): String
+    METHOD getConfidenceScore(): Float
+END INTERFACE
 
-public class ContentBasedStrategy implements RecommendationStrategy {
+CLASS ContentBasedStrategy IMPLEMENTS RecommendationStrategy
     // 实现基于内容的推荐算法
-}
+    METHOD recommend(profile: UserProfile, count: Integer): List<BookRecommendation>
+        // 基于内容相似度的推荐实现
+        relevantBooks = findBooksWithSimilarContent(profile.readHistory)
+        return sortByRelevance(relevantBooks).take(count)
+    END METHOD
+END CLASS
 
-public class CollaborativeFilteringStrategy implements RecommendationStrategy {
+CLASS CollaborativeFilteringStrategy IMPLEMENTS RecommendationStrategy
     // 实现协同过滤推荐算法
-}
+    METHOD recommend(profile: UserProfile, count: Integer): List<BookRecommendation>
+        // 基于用户相似度的推荐实现
+        similarUsers = findSimilarUsers(profile)
+        candidateBooks = collectBooksFromSimilarUsers(similarUsers)
+        return rankByFrequency(candidateBooks).take(count)
+    END METHOD
+END CLASS
 
-public class HybridRecommendationStrategy implements RecommendationStrategy {
+CLASS HybridRecommendationStrategy IMPLEMENTS RecommendationStrategy
     // 实现混合推荐算法
-}
+    FIELD contentStrategy: ContentBasedStrategy
+    FIELD collaborativeStrategy: CollaborativeFilteringStrategy
+    
+    METHOD recommend(profile: UserProfile, count: Integer): List<BookRecommendation>
+        // 组合多种算法结果
+        contentResults = contentStrategy.recommend(profile, count)
+        collaborativeResults = collaborativeStrategy.recommend(profile, count)
+        return mergeAndRankResults(contentResults, collaborativeResults, count)
+    END METHOD
+END CLASS
 ```
 
 #### 组合模式
 
 用于构建复杂的分析和处理流程：
 
-```java
-public interface ContentProcessor {
-    ContentProcessingResult process(Content content);
-}
+```pseudocode
+INTERFACE ContentProcessor
+    METHOD process(content: Content): ContentProcessingResult
+END INTERFACE
 
-public class MetadataExtractor implements ContentProcessor {
-    // 提取元数据
-}
+CLASS MetadataExtractor IMPLEMENTS ContentProcessor
+    METHOD process(content: Content): ContentProcessingResult
+        // 提取元数据实现
+        metadata = extractMetadataFromContent(content)
+        return new ContentProcessingResult(metadata)
+    END METHOD
+END CLASS
 
-public class TextAnalyzer implements ContentProcessor {
-    // 分析文本内容
-}
+CLASS TextAnalyzer IMPLEMENTS ContentProcessor
+    METHOD process(content: Content): ContentProcessingResult
+        // 分析文本内容实现
+        textAnalysis = analyzeTextContent(content.getText())
+        return new ContentProcessingResult(textAnalysis)
+    END METHOD
+END CLASS
 
-public class ContentProcessingPipeline implements ContentProcessor {
-    private List<ContentProcessor> processors;
+CLASS ContentProcessingPipeline IMPLEMENTS ContentProcessor
+    FIELD processors: List<ContentProcessor>
     
-    public ContentProcessingResult process(Content content) {
-        ContentProcessingResult result = new ContentProcessingResult();
-        for (ContentProcessor processor : processors) {
-            result.combine(processor.process(content));
-        }
-        return result;
-    }
-}
+    METHOD process(content: Content): ContentProcessingResult
+        result = new ContentProcessingResult()
+        
+        FOR EACH processor IN processors
+            processorResult = processor.process(content)
+            result.combine(processorResult)
+        END FOR
+        
+        RETURN result
+    END METHOD
+END CLASS
 ```
 
 #### 观察者模式
 
 用于实现事件驱动的领域服务通信：
 
-```java
-public interface DomainEventSubscriber<T extends DomainEvent> {
-    void handleEvent(T event);
-    Class<T> getEventType();
-}
+```pseudocode
+INTERFACE DomainEventSubscriber<T extends DomainEvent>
+    METHOD handleEvent(event: T)
+    METHOD getEventType(): Class<T>
+END INTERFACE
 
-public class KnowledgeGraphUpdater implements DomainEventSubscriber<ContentImportedEvent> {
-    private KnowledgeGraphService graphService;
+CLASS KnowledgeGraphUpdater IMPLEMENTS DomainEventSubscriber<ContentImportedEvent>
+    FIELD graphService: KnowledgeGraphService
     
-    @Override
-    public void handleEvent(ContentImportedEvent event) {
-        graphService.updateGraphWithContent(event.getUserId(), event.getContentId());
-    }
+    METHOD handleEvent(event: ContentImportedEvent)
+        graphService.updateGraphWithContent(event.getUserId(), event.getContentId())
+    END METHOD
     
-    @Override
-    public Class<ContentImportedEvent> getEventType() {
-        return ContentImportedEvent.class;
-    }
-}
+    METHOD getEventType(): Class<ContentImportedEvent>
+        RETURN ContentImportedEvent.class
+    END METHOD
+END CLASS
 ```
 
 ## 服务间的协作
