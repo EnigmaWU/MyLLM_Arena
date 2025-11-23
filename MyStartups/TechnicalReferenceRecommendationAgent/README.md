@@ -365,6 +365,37 @@ Scenario C: Learning from Past Experience
   - Understands project-specific conventions (e.g., "In this legacy repo, we use `MyString` instead of `std::string`")
   - Filters advice based on project configuration (e.g., C++11 vs C++20 standards)
 
+### Story 8: One-Click Remediation
+**AS** a developer who wants to fix an issue quickly,
+**I WANT** to apply the recommended code fix with a single click directly from the "TechRefForYou" panel,
+**SO THAT** I can resolve the warning immediately without manually typing boilerplate code.
+
+**Acceptance Criteria:**
+- **Quick Fix Actions**:
+  - "Apply Fix" button next to the warning
+  - Preview diff before applying
+  - Supports multiple fix options (e.g., "Use `strncpy`" vs "Use `strlcpy`")
+- **Smart Refactoring**:
+  - Automatically handles imports/includes
+  - Preserves existing comments and formatting
+  - Updates related code references if needed
+
+### Story 9: Team-Wide Rule Enforcement
+**AS** a team lead or architect,
+**I WANT** to define and enforce custom API usage rules for my team,
+**SO THAT** I can ensure consistency and prevent specific anti-patterns relevant to our project.
+
+**Acceptance Criteria:**
+- **Custom Rule Definition**:
+  - Simple configuration file (YAML/JSON) to define banned APIs
+  - Ability to add custom warning messages and suggested replacements
+- **Shared Configuration**:
+  - Rules are checked into the repository (e.g., `.techref/rules.yaml`)
+  - Automatically synced to all team members' IDEs
+- **Severity Levels**:
+  - Configurable severity (Error, Warning, Info) for custom rules
+  - Option to block commits (via CI integration) for critical violations
+
 ## Key Features
 
 ### 🎯 "TechRefForYou" Panel
