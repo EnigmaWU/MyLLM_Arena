@@ -2,7 +2,9 @@
 
 ## Vision
 
-An **LLM-powered intelligent coding agent** that provides **async, silent API usage advice** through IDE extensions (VS Code, JetBrains) and a REST API service. Features a dedicated **"TechRefForYou"** panel (similar to PROBLEMS panel), helping developers code confidently from memory while catching common pitfalls.
+An **LLM-powered intelligent coding agent specialized for Embedded C/C++ experts**. It provides **async, silent advice** on **Embedded Linux (User/Kernel)**, **HAL usage**, and **RTOS patterns**, helping experienced engineers code confidently from memory while catching subtle **concurrency, memory, and hardware-interaction pitfalls**.
+
+While focused on Embedded Systems (Linux & RTOS), it also supports general software development contexts.
 
 ## Architecture
 
@@ -51,16 +53,23 @@ flowchart TB
 ### Tech Stack
 
 **IDE Extensions:**
-- **VS Code**: TypeScript, VS Code Extension API, Language Server Protocol
-- **JetBrains**: Kotlin/Java, IntelliJ Platform SDK, LSP support
+- **VS Code**: TypeScript, VS Code Extension API, LSP (Code Actions), Integration with C/C++ Extension (ms-vscode.cpptools)
+- **JetBrains**: Kotlin/Java, CLion Plugin SDK, LSP support
 
 **Backend Service:**
 - **API Framework**: FastAPI (Python) or Express (Node.js)
+- **Identity & User Profile**: 
+  - Auth0 / Clerk for authentication
+  - PostgreSQL for user profiles, preferences, and "seen" history
 - **LLM Integration**: 
   - OpenAI API (GPT-4o, GPT-4-turbo)
   - Anthropic API (Claude 3.5 Sonnet)
   - LangChain for orchestration
-- **Code Analysis**: Tree-sitter for multi-language parsing
+- **Code Analysis & Remediation**: 
+  - **Clangd & Clang-Tidy**: Gold standard for C/C++ static analysis and AST matching
+  - **Tree-sitter**: For robust, error-tolerant parsing of C/C++/DeviceTree/Kconfig
+  - **AST Transformers**: Clang-Repl/LibTooling for safe refactoring
+  - **Custom Rule Engine**: OPA/Rego for team governance
 - **Vector Database**: Pinecone/Weaviate for semantic search
 - **Caching**: Redis for response caching
 - **Message Queue**: RabbitMQ for async processing
@@ -223,67 +232,86 @@ print(response.choices[0].message.content)
 
 ## User Stories
 
-### Story 1: System Call Safety Assistant
-**AS** a C/C++ developer coding from memory,
-**I WANT** real-time advice in the "TechRefForYou" panel when I use Linux system calls (like `snprintf`, `fork`, `mmap`),
-**SO THAT** I can catch easy-to-misuse points, security issues, and error handling gaps without breaking my coding flow or switching to documentation.
+### Story 1: System Call & HAL Safety Assistant
+**AS** an Embedded C/C++ engineer coding from memory,
+**I WANT** real-time advice when I use system calls (Linux `ioctl`, `mmap`) or HAL APIs (STM32 `HAL_GPIO_WritePin`, ESP-IDF `gpio_set_level`),
+**SO THAT** I can catch hardware interaction issues, ISR-unsafe calls, and platform-specific constraints immediately.
 
 **Acceptance Criteria:**
-- Panel shows critical warnings (🔴) for missing error checks
-- Displays common pitfall warnings (🟡) with code examples
-- Provides info tips (🔵) for best practices and performance
-- Updates asynchronously after typing pause (no interruptions)
-- Clickable entries jump to relevant code location
-- Hover tooltips show detailed explanations
+- **Context-Aware Checks**:
+  - Warns if blocking APIs are called inside an ISR (Interrupt Service Routine)
+  - Checks for correct peripheral clock enablement before usage
+  - Validates `ioctl` command arguments against driver specs
+- **Safety Warnings**:
+  - Flags missing `volatile` qualifiers for memory-mapped I/O
+  - Warns about potential race conditions in Read-Modify-Write operations on registers
+- **Examples**:
+  - Shows correct HAL initialization sequences
+  - Provides safe alternatives for ISR context (e.g., `xQueueSendFromISR`)
 
-### Story 2: Framework/Library API Guard
-**AS** a developer using modern frameworks (React, Spring, SQLAlchemy, etc.),
-**I WANT** proactive warnings about deprecated APIs, performance anti-patterns, and version-specific behaviors,
-**SO THAT** I can avoid technical debt and production issues before code review or runtime.
-
-**Acceptance Criteria:**
-- Detects deprecated API usage with migration paths
-- Warns about N+1 queries, unnecessary re-renders, etc.
-- Shows version compatibility issues
-- Filters advice by framework/library category
-- Non-blocking notifications (badge count, gutter icons)
-- Contextual code examples for recommended alternatives
-
-### Story 3: Concurrency & Threading Advisor
-**AS** a developer working with multi-threaded code,
-**I WANT** alerts about deadlock risks, race conditions, and thread-safety issues in the "TechRefForYou" panel,
-**SO THAT** I can prevent concurrency bugs that are hard to debug and reproduce.
+### Story 2: Embedded Linux & RTOS Guard
+**AS** a developer using Embedded Linux (Yocto, Buildroot, Kernel Modules) or RTOS (Zephyr, FreeRTOS, Autosar),
+**I WANT** proactive warnings about configuration mismatches, priority inversion risks, and deprecated board support package (BSP) APIs,
+**SO THAT** I can ensure system stability and real-time performance.
 
 **Acceptance Criteria:**
-- Identifies unsafe shared state access patterns
-- Warns about lock ordering and nested lock issues
-- Suggests thread-safe alternatives (e.g., `strtok_r` vs `strtok`)
-- Shows memory ordering concerns for atomics
-- Groups related issues by synchronization primitive
+- **Linux Kernel & Drivers**:
+  - Checks for correct use of kernel locking primitives (`mutex`, `spinlock`, `RCU`)
+  - Warns about sleeping in atomic context (e.g., `kmalloc(..., GFP_KERNEL)` inside spinlock)
+  - Validates Device Tree properties against binding schemas
+- **RTOS Awareness**:
+  - Detects potential Priority Inversion (e.g., low-priority task holding mutex needed by high-priority task)
+  - Warns about stack overflow risks in recursive functions
+  - Checks for correct mutex/semaphore pairing
+- **Framework Specifics**:
+  - Validates Zephyr Device Tree overlays
+  - Checks Autosar RTE contract compliance
+- **Performance**:
+  - Flags excessive logging in hot paths or ISRs
+  - Warns about busy-wait loops that kill power efficiency
 
-### Story 4: Memory Safety Checker
-**AS** a developer managing memory manually,
-**I WANT** detection of use-after-free, double-free, buffer overflows, and memory leaks,
-**SO THAT** I can write safer code and reduce debugging time for memory corruption issues.
-
-**Acceptance Criteria:**
-- Flags unsafe string operations (`strcpy`, `sprintf`)
-- Detects missing free/delete calls
-- Warns about pointer arithmetic risks
-- Suggests modern alternatives (smart pointers, RAII)
-- Critical issues show immediately in editor gutter
-
-### Story 5: Cryptography & Security Advisor
-**AS** a developer implementing security-sensitive features,
-**I WANT** warnings about weak crypto algorithms, insecure randomness, and timing attacks,
-**SO THAT** I don't accidentally introduce vulnerabilities that could be exploited.
+### Story 3: Concurrency & Hardware Resource Advisor
+**AS** an embedded engineer managing limited hardware resources,
+**I WANT** alerts about DMA buffer coherency, cache maintenance, and peripheral conflicts,
+**SO THAT** I can prevent data corruption and hardware lockups.
 
 **Acceptance Criteria:**
-- Flags weak algorithms (MD5, SHA1, DES)
-- Warns about `rand()` usage for security purposes
-- Detects hardcoded secrets and insecure key storage
-- Recommends current standards (AES-256-GCM, bcrypt)
-- Links to security best practices documentation
+- **Memory & Cache**:
+  - Warns if DMA buffers are not aligned to cache lines
+  - Reminds to flush/invalidate cache before/after DMA transfers
+- **Concurrency**:
+  - Identifies race conditions on shared hardware registers
+  - Suggests atomic operations or critical sections where needed
+  - Warns about "volatile" misuse (it's not a mutex!)
+
+### Story 4: Embedded Memory Management
+**AS** a developer working with constrained RAM/Flash,
+**I WANT** detection of stack overflows, heap fragmentation risks, and flash wear patterns,
+**SO THAT** I can write robust firmware that runs for years without crashing.
+
+**Acceptance Criteria:**
+- **Heap/Stack**:
+  - Flags dynamic allocation (`malloc`/`new`) in critical real-time paths
+  - Warns about large stack variables that could blow the stack
+- **Flash/NVM**:
+  - Detects frequent writes to the same flash sector (wear leveling risk)
+  - Checks for proper alignment of flash writes
+- **Safety**:
+  - Flags use of functions known to be unsafe in embedded (e.g., `printf` with floating point in small stack)
+
+### Story 5: Security & Secure Boot Advisor
+**AS** an engineer implementing secure IoT devices,
+**I WANT** warnings about weak crypto, insecure boot chains, and debug port exposure,
+**SO THAT** I can protect the device against physical and remote attacks.
+
+**Acceptance Criteria:**
+- **Crypto**:
+  - Recommends hardware crypto accelerators over software implementations
+  - Flags weak RNG usage (use TRNG if available)
+- **Device Security**:
+  - Warns if JTAG/SWD is left open in production configurations
+  - Checks for secure boot signature verification steps
+  - Flags unencrypted storage of sensitive keys in flash
 
 ### Story 6: Internal Knowledge Advisor (RAG-Powered)
 **AS** a team member working on an existing codebase,
@@ -316,34 +344,35 @@ print(response.choices[0].message.content)
 **Example Scenarios:**
 ```
 Scenario A: Avoiding Repeated Mistakes
-  You write: db.query("SELECT * FROM users WHERE id = " + userId)
+  You write: void UART_IRQHandler() { strcpy(buffer, rx_reg); }
   
   TechRefForYou shows:
-  🔴 SQL Injection Risk (from RCA-2024-03-15)
-      "This exact pattern caused production incident last March.
-       Use parameterized queries instead."
-  📚 Related: Secure Coding Course - Module 3
+  🔴 Buffer Overflow Risk (from RCA-2024-03-15)
+      "Unbounded string copy in ISR caused crash in v1.2.
+       Use circular buffer or bounded copy."
+  📚 Related: Embedded C Coding Standard - Section 5.2
 ```
 
 ```
 Scenario B: Following Design Decisions
-  You create: class PaymentProcessor { ... }
+  You create: class TempSensor { ... }
   
   TechRefForYou shows:
-  🔵 Architecture Alignment (from Design Doc: Payment-v2)
-      "Payment processing should use PaymentGatewayInterface
-       per our service architecture. See section 3.2."
-  📋 Related: payment-service-design.md
+  🔵 HAL Alignment (from Design Doc: Sensor-HAL-v2)
+      "All sensor drivers must implement ISensor interface
+       to support hardware abstraction. See hal_sensor.h."
+  📋 Related: sensor-driver-architecture.md
 ```
 
 ```
 Scenario C: Learning from Past Experience
-  You implement: multi-threading without locks
+  You implement: volatile int flag; ... flag++;
   
   TechRefForYou shows:
-  🟡 Concurrency Pattern (from RCA-2023-11-20)
-      "Race condition in user session handler was caused by
-       similar pattern. Consider using read-write locks."
+  🟡 ISR Race Condition (from RCA-2023-11-20)
+      "Read-Modify-Write on volatile variable is not atomic.
+       Caused intermittent bug in motor control loop.
+       Use atomic_int or critical section."
   📚 Related: Concurrency Best Practices Course
 ```
 
