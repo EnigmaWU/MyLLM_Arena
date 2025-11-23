@@ -347,6 +347,24 @@ Scenario C: Learning from Past Experience
   📚 Related: Concurrency Best Practices Course
 ```
 
+### Story 7: Personalized & Noise-Free Experience
+**AS** a developer using the service daily,
+**I WANT** the agent to remember what I've already seen and adapt to my specific context,
+**SO THAT** I'm not annoyed by repetitive advice and only see relevant, "new" information.
+
+**Acceptance Criteria:**
+- **Smart Deduplication**:
+  - Tracks "seen" advice per user/project
+  - Suppresses warnings I've explicitly dismissed or fixed previously
+  - Doesn't show the same "best practice" tip 50 times a day
+- **User Context Isolation**:
+  - Maintains separate profiles for different developers
+  - Adapts to my role (e.g., Junior Dev gets more educational tips, Senior Dev gets only critical architectural warnings)
+  - Learns my preferences (e.g., "Don't warn me about `printf` in debug builds")
+- **Project-Specific Context**:
+  - Understands project-specific conventions (e.g., "In this legacy repo, we use `MyString` instead of `std::string`")
+  - Filters advice based on project configuration (e.g., C++11 vs C++20 standards)
+
 ## Key Features
 
 ### 🎯 "TechRefForYou" Panel
@@ -359,6 +377,13 @@ Scenario C: Learning from Past Experience
 - **Clickable items**: Jump to code location
 - **Filterable**: By severity, by API category (syscall, framework, crypto, etc.)
 - **Collapsible groups**: Organize by file or by issue type
+- **Personalized View**: Shows "New for You" vs "All Issues"
+
+### 🧠 Smart Filtering & Personalization
+- **History Tracking**: Remembers dismissed suggestions
+- **Role-Based Tuning**: Junior/Senior/Security-Specialist profiles
+- **Noise Reduction**: Auto-suppresses repetitive tips
+- **Context Awareness**: User + Project + Team settings
 
 ### 🌊 Flow-Preserving UX
 - **Silent analysis**: Triggers after typing pause (500ms debounce)
