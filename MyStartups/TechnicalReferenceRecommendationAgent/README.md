@@ -8,42 +8,44 @@ An **LLM-powered intelligent coding agent** that provides **async, silent API us
 
 ### System Components
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     IDE Extensions                          │
-│  ┌──────────────────┐        ┌──────────────────┐          │
-│  │  VS Code Ext     │        │  JetBrains Plugin│          │
-│  │  - TechRefForYou │        │  - TechRefForYou │          │
-│  │    Panel         │        │    Tool Window   │          │
-│  │  - Language      │        │  - Language      │          │
-│  │    Client (LSP)  │        │    Client (LSP)  │          │
-│  └────────┬─────────┘        └────────┬─────────┘          │
-└───────────┼──────────────────────────┼────────────────────┘
-            │                          │
-            └──────────┬───────────────┘
-                       │ HTTPS/WebSocket
-            ┌──────────▼────────────────────────────────────┐
-            │        REST API Service (Backend)             │
-            │  ┌─────────────────────────────────────────┐  │
-            │  │  LLM Integration Layer                  │  │
-            │  │  - GPT-4o / Claude 3.5 Sonnet          │  │
-            │  │  - Prompt Engineering                   │  │
-            │  │  - Context Window Management            │  │
-            │  └──────────────┬──────────────────────────┘  │
-            │  ┌──────────────▼──────────────────────────┐  │
-            │  │  Analysis Engine                        │  │
-            │  │  - Code Parser (Tree-sitter)            │  │
-            │  │  - API Pattern Matcher                  │  │
-            │  │  - Semantic Analysis                    │  │
-            │  └──────────────┬──────────────────────────┘  │
-            │  ┌──────────────▼──────────────────────────┐  │
-            │  │  Knowledge Base                         │  │
-            │  │  - API Misuse Patterns (Vector DB)      │  │
-            │  │  - CVE Database                         │  │
-            │  │  - Framework Documentation Index        │  │
-            │  │  - Code Examples Repository             │  │
-            │  └─────────────────────────────────────────┘  │
-            └────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph IDE["IDE Extensions"]
+        VSCode["VS Code Extension<br/>- TechRefForYou Panel<br/>- Language Client (LSP)"]
+        JetBrains["JetBrains Plugin<br/>- TechRefForYou Tool Window<br/>- Language Client (LSP)"]
+    end
+    
+    subgraph Backend["REST API Service (Backend)"]
+        subgraph LLM["LLM Integration Layer"]
+            GPT["GPT-4o / Claude 3.5 Sonnet"]
+            Prompt["Prompt Engineering"]
+            Context["Context Window Management"]
+        end
+        
+        subgraph Analysis["Analysis Engine"]
+            Parser["Code Parser<br/>(Tree-sitter)"]
+            Matcher["API Pattern Matcher"]
+            Semantic["Semantic Analysis"]
+        end
+        
+        subgraph Knowledge["Knowledge Base"]
+            VectorDB["API Misuse Patterns<br/>(Vector DB)"]
+            CVE["CVE/CWE Database"]
+            Docs["Framework Documentation<br/>Index"]
+            Examples["Code Examples Repository"]
+            Internal["Internal Knowledge<br/>(RAG-powered)<br/>- Design Docs<br/>- Course Materials<br/>- RCA Reports"]
+        end
+    end
+    
+    VSCode -->|HTTPS/WebSocket| Backend
+    JetBrains -->|HTTPS/WebSocket| Backend
+    
+    Backend --> LLM
+    Backend --> Analysis
+    Backend --> Knowledge
+    
+    LLM -.->|retrieves| Knowledge
+    Analysis -.->|queries| Knowledge
 ```
 
 ### Tech Stack
