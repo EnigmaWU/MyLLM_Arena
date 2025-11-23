@@ -77,28 +77,146 @@ An **LLM-powered intelligent coding agent** that provides **async, silent API us
 
 ### API Endpoints
 
+**OpenAI-Compatible Format** (Drop-in replacement for OpenAI API)
+
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer YOUR_API_KEY
+
+Request:
+{
+  "model": "techref-advisor-v1",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a technical reference advisor for code analysis."
+    },
+    {
+      "role": "user", 
+      "content": "Analyze: int fd = open(filename, O_RDWR);"
+    }
+  ],
+  "temperature": 0.7,
+  "stream": false,
+  
+  // Custom extensions (optional)
+  "techref_context": {
+    "language": "c",
+    "file_path": "src/main.c",
+    "severity_filter": ["critical", "warning"],
+    "include_examples": true,
+    "internal_knowledge": true
+  }
+}
+
+Response (OpenAI-compatible):
+{
+  "id": "techref-chatcmpl-abc123",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "techref-advisor-v1",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "🔴 **Missing Error Check**\n\nThe `open()` system call returns -1 on error...",
+        "techref_metadata": {
+          "suggestions": [
+            {
+              "severity": "critical",
+              "category": "error_handling",
+              "line": 1,
+              "message": "Missing error check for open()",
+              "code_example": "if (fd < 0) { perror(\"open\"); return -1; }"
+            }
+          ],
+          "related_docs": [
+            {"type": "rca", "title": "RCA-2024-03-15", "relevance": 0.92}
+          ]
+        }
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 120,
+    "total_tokens": 165
+  }
+}
 ```
-POST /api/v1/analyze
-  - Request: { code_snippet, language, context }
-  - Response: { suggestions: [...], severity: [...] }
 
-GET /api/v1/examples/{api_name}
-  - Response: { correct_usage: [...], anti_patterns: [...] }
+**Streaming Support (Server-Sent Events)**
 
-POST /api/v1/explain
-  - Request: { api_name, language, use_case }
-  - Response: { explanation, pitfalls, best_practices }
+```http
+POST /v1/chat/completions
+{
+  "model": "techref-advisor-v1",
+  "messages": [...],
+  "stream": true
+}
 
-WebSocket /api/v1/stream
-  - Real-time code analysis as user types
+Response Stream:
+data: {"id":"techref-1","object":"chat.completion.chunk","choices":[{"delta":{"role":"assistant"}}]}
 
-POST /api/v1/knowledge/query
-  - Request: { query, context, doc_types: ["design", "course", "rca"] }
-  - Response: { relevant_docs: [...], recommendations: [...] }
+data: {"id":"techref-1","object":"chat.completion.chunk","choices":[{"delta":{"content":"🔴"}}]}
 
-POST /api/v1/knowledge/ingest
-  - Request: { content, metadata, doc_type }
-  - Response: { indexed: true, embedding_id }
+data: {"id":"techref-1","object":"chat.completion.chunk","choices":[{"delta":{"content":" Missing"}}]}
+
+data: [DONE]
+```
+
+**Additional Endpoints**
+
+```http
+GET /v1/models
+  - Lists available analysis models
+  - Response: { "data": [{"id": "techref-advisor-v1", ...}] }
+
+POST /v1/embeddings
+  - Generate embeddings for code snippets
+  - Request: { "model": "techref-embeddings", "input": "code..." }
+  - Response: { "data": [{"embedding": [...]}] }
+
+POST /v1/knowledge/query
+  - Query internal knowledge base
+  - Request: { "query": "...", "doc_types": ["design", "rca"] }
+  - Response: { "results": [...] }
+
+POST /v1/knowledge/ingest
+  - Index internal documents
+  - Request: { "content": "...", "metadata": {...}, "doc_type": "rca" }
+  - Response: { "indexed": true, "id": "doc-123" }
+```
+
+**Client Usage Example**
+
+```python
+from openai import OpenAI
+
+# Just change base_url - existing OpenAI code works!
+client = OpenAI(
+    base_url="https://techref-service.yourcompany.com/v1",
+    api_key="your-api-key"
+)
+
+response = client.chat.completions.create(
+    model="techref-advisor-v1",
+    messages=[
+        {"role": "system", "content": "Analyze code for API misuse"},
+        {"role": "user", "content": "int fd = open(file, O_RDWR);"}
+    ],
+    extra_body={
+        "techref_context": {
+            "language": "c",
+            "internal_knowledge": True
+        }
+    }
+)
+
+print(response.choices[0].message.content)
 ```
 
 ## User Stories
