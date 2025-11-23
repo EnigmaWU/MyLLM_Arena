@@ -1,11 +1,254 @@
 # Technical Reference Recommendation Agent
 
-## Scenarios
+## Vision
 
-- GIVEN Im coding,
-  - WHEN Im using a linux system call, I use it as what I remembered,
-    - THEN I want to get some advice about easy-to-misuse points of this system call,
-      - AND I want to get some code examples to illustrate the correct usage of this system call.
-  - SO THAT I can avoid common pitfalls to improve code quality and reduce debugging time.
-  - ALSO Im using some framework/library function, SAME AS ABOVE.
+An **LLM-powered intelligent coding agent** that provides **async, silent API usage advice** through IDE extensions (VS Code, JetBrains) and a REST API service. Features a dedicated **"TechRefForYou"** panel (similar to PROBLEMS panel), helping developers code confidently from memory while catching common pitfalls.
 
+## Architecture
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     IDE Extensions                          │
+│  ┌──────────────────┐        ┌──────────────────┐          │
+│  │  VS Code Ext     │        │  JetBrains Plugin│          │
+│  │  - TechRefForYou │        │  - TechRefForYou │          │
+│  │    Panel         │        │    Tool Window   │          │
+│  │  - Language      │        │  - Language      │          │
+│  │    Client (LSP)  │        │    Client (LSP)  │          │
+│  └────────┬─────────┘        └────────┬─────────┘          │
+└───────────┼──────────────────────────┼────────────────────┘
+            │                          │
+            └──────────┬───────────────┘
+                       │ HTTPS/WebSocket
+            ┌──────────▼────────────────────────────────────┐
+            │        REST API Service (Backend)             │
+            │  ┌─────────────────────────────────────────┐  │
+            │  │  LLM Integration Layer                  │  │
+            │  │  - GPT-4o / Claude 3.5 Sonnet          │  │
+            │  │  - Prompt Engineering                   │  │
+            │  │  - Context Window Management            │  │
+            │  └──────────────┬──────────────────────────┘  │
+            │  ┌──────────────▼──────────────────────────┐  │
+            │  │  Analysis Engine                        │  │
+            │  │  - Code Parser (Tree-sitter)            │  │
+            │  │  - API Pattern Matcher                  │  │
+            │  │  - Semantic Analysis                    │  │
+            │  └──────────────┬──────────────────────────┘  │
+            │  ┌──────────────▼──────────────────────────┐  │
+            │  │  Knowledge Base                         │  │
+            │  │  - API Misuse Patterns (Vector DB)      │  │
+            │  │  - CVE Database                         │  │
+            │  │  - Framework Documentation Index        │  │
+            │  │  - Code Examples Repository             │  │
+            │  └─────────────────────────────────────────┘  │
+            └────────────────────────────────────────────────┘
+```
+
+### Tech Stack
+
+**IDE Extensions:**
+- **VS Code**: TypeScript, VS Code Extension API, Language Server Protocol
+- **JetBrains**: Kotlin/Java, IntelliJ Platform SDK, LSP support
+
+**Backend Service:**
+- **API Framework**: FastAPI (Python) or Express (Node.js)
+- **LLM Integration**: 
+  - OpenAI API (GPT-4o, GPT-4-turbo)
+  - Anthropic API (Claude 3.5 Sonnet)
+  - LangChain for orchestration
+- **Code Analysis**: Tree-sitter for multi-language parsing
+- **Vector Database**: Pinecone/Weaviate for semantic search
+- **Caching**: Redis for response caching
+- **Message Queue**: RabbitMQ for async processing
+
+**Knowledge Base:**
+- **Vector embeddings** for API documentation and code examples
+- **Graph database** (Neo4j) for API relationship mapping
+- **CVE/CWE database** integration for security patterns
+- **Community-sourced patterns** from GitHub, Stack Overflow
+- **Internal Knowledge Base** (RAG-powered):
+  - Design documents (architecture decisions, system designs)
+  - Course materials (internal training, best practices guides)
+  - Root-cause analysis docs (post-mortems, incident reports)
+  - Team coding standards and conventions
+  - Historical bug patterns and fixes
+
+### API Endpoints
+
+```
+POST /api/v1/analyze
+  - Request: { code_snippet, language, context }
+  - Response: { suggestions: [...], severity: [...] }
+
+GET /api/v1/examples/{api_name}
+  - Response: { correct_usage: [...], anti_patterns: [...] }
+
+POST /api/v1/explain
+  - Request: { api_name, language, use_case }
+  - Response: { explanation, pitfalls, best_practices }
+
+WebSocket /api/v1/stream
+  - Real-time code analysis as user types
+
+POST /api/v1/knowledge/query
+  - Request: { query, context, doc_types: ["design", "course", "rca"] }
+  - Response: { relevant_docs: [...], recommendations: [...] }
+
+POST /api/v1/knowledge/ingest
+  - Request: { content, metadata, doc_type }
+  - Response: { indexed: true, embedding_id }
+```
+
+## User Stories
+
+### Story 1: System Call Safety Assistant
+**AS** a C/C++ developer coding from memory,
+**I WANT** real-time advice in the "TechRefForYou" panel when I use Linux system calls (like `snprintf`, `fork`, `mmap`),
+**SO THAT** I can catch easy-to-misuse points, security issues, and error handling gaps without breaking my coding flow or switching to documentation.
+
+**Acceptance Criteria:**
+- Panel shows critical warnings (🔴) for missing error checks
+- Displays common pitfall warnings (🟡) with code examples
+- Provides info tips (🔵) for best practices and performance
+- Updates asynchronously after typing pause (no interruptions)
+- Clickable entries jump to relevant code location
+- Hover tooltips show detailed explanations
+
+### Story 2: Framework/Library API Guard
+**AS** a developer using modern frameworks (React, Spring, SQLAlchemy, etc.),
+**I WANT** proactive warnings about deprecated APIs, performance anti-patterns, and version-specific behaviors,
+**SO THAT** I can avoid technical debt and production issues before code review or runtime.
+
+**Acceptance Criteria:**
+- Detects deprecated API usage with migration paths
+- Warns about N+1 queries, unnecessary re-renders, etc.
+- Shows version compatibility issues
+- Filters advice by framework/library category
+- Non-blocking notifications (badge count, gutter icons)
+- Contextual code examples for recommended alternatives
+
+### Story 3: Concurrency & Threading Advisor
+**AS** a developer working with multi-threaded code,
+**I WANT** alerts about deadlock risks, race conditions, and thread-safety issues in the "TechRefForYou" panel,
+**SO THAT** I can prevent concurrency bugs that are hard to debug and reproduce.
+
+**Acceptance Criteria:**
+- Identifies unsafe shared state access patterns
+- Warns about lock ordering and nested lock issues
+- Suggests thread-safe alternatives (e.g., `strtok_r` vs `strtok`)
+- Shows memory ordering concerns for atomics
+- Groups related issues by synchronization primitive
+
+### Story 4: Memory Safety Checker
+**AS** a developer managing memory manually,
+**I WANT** detection of use-after-free, double-free, buffer overflows, and memory leaks,
+**SO THAT** I can write safer code and reduce debugging time for memory corruption issues.
+
+**Acceptance Criteria:**
+- Flags unsafe string operations (`strcpy`, `sprintf`)
+- Detects missing free/delete calls
+- Warns about pointer arithmetic risks
+- Suggests modern alternatives (smart pointers, RAII)
+- Critical issues show immediately in editor gutter
+
+### Story 5: Cryptography & Security Advisor
+**AS** a developer implementing security-sensitive features,
+**I WANT** warnings about weak crypto algorithms, insecure randomness, and timing attacks,
+**SO THAT** I don't accidentally introduce vulnerabilities that could be exploited.
+
+**Acceptance Criteria:**
+- Flags weak algorithms (MD5, SHA1, DES)
+- Warns about `rand()` usage for security purposes
+- Detects hardcoded secrets and insecure key storage
+- Recommends current standards (AES-256-GCM, bcrypt)
+- Links to security best practices documentation
+
+### Story 6: Internal Knowledge Advisor (RAG-Powered)
+**AS** a team member working on an existing codebase,
+**I WANT** contextual recommendations from our internal design docs, training courses, and past RCA reports when I'm coding,
+**SO THAT** I can leverage team knowledge, avoid repeating past mistakes, and follow established architectural patterns without searching through documentation.
+
+**Acceptance Criteria:**
+- **Context-aware suggestions**: 
+  - When working on payment module → surfaces payment service design doc
+  - When using deprecated pattern → shows RCA from similar past incident
+  - When implementing feature → recommends relevant internal course material
+- **Document types indexed**:
+  - 📋 Design documents (architecture decisions, system designs, API specs)
+  - 📚 Course materials (onboarding guides, best practices, coding standards)
+  - 🔍 Root-cause analysis (post-mortems, incident reports, bug patterns)
+  - 📖 Team conventions (code style, review guidelines, deployment procedures)
+- **Smart retrieval**:
+  - Semantic search across all internal docs
+  - Relevance ranking based on current code context
+  - Shows "Related Docs" section in TechRefForYou panel
+- **Continuous learning**:
+  - Auto-indexes new docs from Confluence, Notion, Google Docs
+  - Updates embeddings when documents are modified
+  - Learns from which suggestions developers actually use
+- **Privacy & security**:
+  - Internal knowledge stays within company infrastructure
+  - Role-based access control for sensitive docs
+  - Audit logs for compliance
+
+**Example Scenarios:**
+```
+Scenario A: Avoiding Repeated Mistakes
+  You write: db.query("SELECT * FROM users WHERE id = " + userId)
+  
+  TechRefForYou shows:
+  🔴 SQL Injection Risk (from RCA-2024-03-15)
+      "This exact pattern caused production incident last March.
+       Use parameterized queries instead."
+  📚 Related: Secure Coding Course - Module 3
+```
+
+```
+Scenario B: Following Design Decisions
+  You create: class PaymentProcessor { ... }
+  
+  TechRefForYou shows:
+  🔵 Architecture Alignment (from Design Doc: Payment-v2)
+      "Payment processing should use PaymentGatewayInterface
+       per our service architecture. See section 3.2."
+  📋 Related: payment-service-design.md
+```
+
+```
+Scenario C: Learning from Past Experience
+  You implement: multi-threading without locks
+  
+  TechRefForYou shows:
+  🟡 Concurrency Pattern (from RCA-2023-11-20)
+      "Race condition in user session handler was caused by
+       similar pattern. Consider using read-write locks."
+  📚 Related: Concurrency Best Practices Course
+```
+
+## Key Features
+
+### 🎯 "TechRefForYou" Panel
+- **Dedicated view panel** alongside PROBLEMS, OUTPUT, TERMINAL
+- **Categorized advice**: 
+  - 🔴 Critical (security, memory safety)
+  - 🟡 Warning (common pitfalls, deprecated APIs)
+  - 🔵 Info (best practices, performance tips)
+- **Non-blocking**: Updates asynchronously as you code
+- **Clickable items**: Jump to code location
+- **Filterable**: By severity, by API category (syscall, framework, crypto, etc.)
+- **Collapsible groups**: Organize by file or by issue type
+
+### 🌊 Flow-Preserving UX
+- **Silent analysis**: Triggers after typing pause (500ms debounce)
+- **Gutter icons**: Subtle 💡 in editor for quick reference
+- **Hover tooltips**: Detailed advice on mouseover
+- **No interruptions**: No modals, no auto-focus stealing
+- **Badge count**: Shows new suggestions without disruption
+
+### 🧠 Memory-Assist Mode
+- Detects when you're "coding from memory"
+- Validates against actual API contracts
+- Highlights differences between what you wrote vs. recommended patterns
+- Shows migration paths for outdated knowledge
