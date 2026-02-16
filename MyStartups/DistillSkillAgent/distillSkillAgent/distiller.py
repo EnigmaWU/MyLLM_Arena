@@ -48,6 +48,19 @@ class SkillDistiller:
                 )
             
             return anthropic.Anthropic(api_key=api_key)
+
+        elif provider == "mockSrvLLM_Anthropic":
+            try:
+                import anthropic
+            except ImportError:
+                raise ImportError(
+                    "Anthropic client not installed. "
+                    "Install with: pip install anthropic"
+                )
+            
+            base_url = os.getenv("MOCK_LLM_ANTHROPIC_BASE_URL", "http://localhost:5002")
+            api_key = "mock"
+            return anthropic.Anthropic(base_url=base_url, api_key=api_key)
         
         elif provider == "openai":
             try:
@@ -87,7 +100,7 @@ class SkillDistiller:
         else:
             raise ValueError(
                 f"Invalid LLM provider: {provider}\n"
-                f"Supported providers: anthropic, openai, mockSrvLLM_OpenAI, local"
+                f"Supported providers: anthropic, openai, mockSrvLLM_OpenAI, mockSrvLLM_Anthropic, local"
             )
     
     def distill(self, document: Document, verbose: bool = False) -> List[SkillDescriptor]:
@@ -253,7 +266,7 @@ Return ONLY valid JSON, no other text:
     
     def _call_llm(self, prompt: str) -> str:
         """Call the configured LLM with a prompt."""
-        if self.llm_provider == "anthropic":
+        if self.llm_provider == "anthropic" or self.llm_provider == "mockSrvLLM_Anthropic":
             response = self.llm_client.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=4000,
