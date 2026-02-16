@@ -70,7 +70,7 @@ Examples:
     
     parser.add_argument(
         "--llm",
-        choices=["anthropic", "openai", "local"],
+        choices=["anthropic", "openai", "mockSrvLLM_OpenAI", "local"],
         default="anthropic",
         help="LLM provider to use for skill extraction (default: anthropic)"
     )

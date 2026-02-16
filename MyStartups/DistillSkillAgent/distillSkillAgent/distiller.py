@@ -66,6 +66,19 @@ class SkillDistiller:
                 )
             
             return openai.OpenAI(api_key=api_key)
+
+        elif provider == "mockSrvLLM_OpenAI":
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "OpenAI client not installed (required for mock server client). "
+                    "Install with: pip install openai"
+                )
+            
+            base_url = os.getenv("MOCK_LLM_OPENAI_BASE_URL", "http://localhost:5001/v1")
+            api_key = "mock"
+            return openai.OpenAI(base_url=base_url, api_key=api_key)
         
         elif provider == "local":
             # Placeholder for local model support
@@ -74,7 +87,7 @@ class SkillDistiller:
         else:
             raise ValueError(
                 f"Invalid LLM provider: {provider}\n"
-                f"Supported providers: anthropic, openai, local"
+                f"Supported providers: anthropic, openai, mockSrvLLM_OpenAI, local"
             )
     
     def distill(self, document: Document, verbose: bool = False) -> List[SkillDescriptor]:
@@ -248,9 +261,10 @@ Return ONLY valid JSON, no other text:
             )
             return response.content[0].text
         
-        elif self.llm_provider == "openai":
+        elif self.llm_provider == "openai" or self.llm_provider == "mockSrvLLM_OpenAI":
+            model = "gpt-4" if self.llm_provider == "openai" else "gpt-4-mock"
             response = self.llm_client.chat.completions.create(
-                model="gpt-4",
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=4000
             )
