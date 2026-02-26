@@ -76,6 +76,14 @@ Examples:
     )
     
     parser.add_argument(
+        "--algorithm",
+        "--algo",
+        choices=["simple", "findActionBook"],
+        default="simple",
+        help="Distillation strategy. Use 'findActionBook' for full books."
+    )
+    
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -268,7 +276,10 @@ def main():
     
     # Initialize distiller (may require API key)
     try:
-        distiller = SkillDistiller(llm_provider=args.llm)
+        distiller = SkillDistiller(
+            llm_provider=args.llm,
+            algorithm=args.algorithm
+        )
     except ValueError as e:
         # API key errors
         print(f"Error: {e}", file=sys.stderr)
@@ -276,6 +287,7 @@ def main():
     except ImportError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
     
     # Process sources
     if len(sources) > 1:

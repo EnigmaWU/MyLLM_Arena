@@ -112,22 +112,89 @@ class PDFParser:
         # Get page count before closing
         page_count = len(doc)
         
-        for page_num, page in enumerate(doc):
-            page_text = page.get_text()
-            content += page_text + "\n"
-        
+        # Extract TOC
+        try:
+            toc = doc.get_toc()
+        except:
+            toc = []
+
+        # Extract text per page first
+        page_texts = {}
+        full_text = []
+        for i, page in enumerate(doc):
+            text = page.get_text()
+            page_texts[i + 1] = text # 1-based index
+            full_text.append(text)
+            
         doc.close()
+        content = "\n".join(full_text)
         
-        # Extract sections based on text formatting
-        sections = self._extract_sections(content)
+        # Strategy: Use TOC if available and robust
+        if toc and len(toc) > 5:
+            sections = self._build_sections_from_toc(toc, page_texts, page_count)
+        else:
+            # Fallback to heuristic
+            sections = self._extract_sections(content)
         
         return Document(
             content=content,
             structure=sections,
-            metadata={"page_count": page_count},
+            metadata={"page_count": page_count, "toc_found": bool(toc)},
             source_type="pdf",
             source_path=path
         )
+
+    def _build_sections_from_toc(self, toc: list, page_texts: dict, total_pages: int) -> List[Section]:
+        """Reconstruct sections based on TOC page numbers."""
+        # TOC format: [[lvl, title, page, ...], ...]
+        sections = []
+        
+        # We only handle top-level sections for the main structure list, 
+        # but we can try to nest them if we want. 
+        # For simplicity in 'FindActionBookAlg', a flat list or simple hierarchy is fine.
+        # Let's try to flatten 'Chunks' based on TOC entries.
+        
+        for i, entry in enumerate(toc):
+            lvl, title, page = entry[0], entry[1], entry[2]
+            
+            if page < 0 or page > total_pages:
+                continue
+                
+            # Determine end page
+            if i < len(toc) - 1:
+                next_entry = toc[i+1]
+                end_page = next_entry[2]
+            else:
+                end_page = total_pages + 1
+            
+            # Extract content for this section
+            # Note: This is imperfect as sections can start mid-page.
+            # But it's better than nothing.
+            section_content = []
+            
+            # If start and end are same page
+            if page == end_page or (page == end_page - 1): # simplistic check
+                 if page in page_texts:
+                     section_content.append(page_texts[page])
+            else:
+                # Collect pages
+                # Ensure we don't go out of bounds or negative (PyMuPDF toc sometimes has weird errors)
+                start_p = max(1, page)
+                end_p = min(end_page, total_pages + 1)
+                
+                for p_num in range(start_p, end_p):
+                    if p_num in page_texts:
+                        section_content.append(page_texts[p_num])
+
+            sections.append(Section(
+                title=title,
+                content="\n".join(section_content),
+                level=lvl
+            ))
+            
+        # If TOC yielded nothing useful (e.g. all empty), fallback?
+        # For now assume it works if TOC > 5 items
+        return sections
     
     def _parse_with_pdfplumber(self, path: str) -> Document:
         """Parse using pdfplumber."""
