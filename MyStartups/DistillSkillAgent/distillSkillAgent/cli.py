@@ -39,13 +39,22 @@ Examples:
 
   # Inspect intermediate JSON
   myDistillSkillAgent --input CleanCode.pdf --output-json skills.json --verbose
+
+  # Save skills from a saved chat session file
+  myDistillSkillAgent --input session.json --output-claude-skill ChatSkill
+
+  # Save skills from the current chat session piped via stdin
+  cat current_session.json | myDistillSkillAgent --input - --output-json skills.json
         """
     )
     
     parser.add_argument(
         "--input",
         required=True,
-        help="Input source: path to file (.pdf, .md, .txt) or URL (http://...)"
+        help=(
+            "Input source: path to file (.pdf, .md, .txt, .json) or URL (http://...) "
+            "or '-' to read a JSON chat session from stdin"
+        )
     )
     
     parser.add_argument(
@@ -95,6 +104,10 @@ Examples:
 
 def expand_input_files(input_pattern: str) -> List[str]:
     """Expand glob patterns and comma-separated files."""
+    # Stdin shorthand: return as-is
+    if input_pattern == "-":
+        return ["-"]
+
     # Check for comma-separated list
     if ',' in input_pattern:
         files = [f.strip() for f in input_pattern.split(',')]
@@ -211,7 +224,7 @@ def process_single_source(
         error_msg = str(e).lower()
         if "unsupported" in error_msg or "format" in error_msg:
             print(f"Error: Unsupported file format: {source}", file=sys.stderr)
-            print(f"Supported formats: .pdf, .md, .txt, or URLs (http://...)", file=sys.stderr)
+            print(f"Supported formats: .pdf, .md, .txt, .json, or URLs (http://...)", file=sys.stderr)
         else:
             print(f"Error: {e}", file=sys.stderr)
         return False
@@ -257,8 +270,10 @@ def main():
         print(f"Suggestion: Check the file path or glob pattern.", file=sys.stderr)
         sys.exit(1)
     
-    # Validate input files exist (for non-URLs)
+    # Validate input files exist (for non-URLs and non-stdin)
     for source in sources:
+        if source == "-":
+            continue  # stdin: handled at parse time
         if not source.startswith(('http://', 'https://')):
             if not os.path.exists(source):
                 print(f"Error: File not found: {source}", file=sys.stderr)
@@ -266,9 +281,9 @@ def main():
                 sys.exit(1)
             # Check if format is supported
             ext = os.path.splitext(source)[1].lower()
-            if ext not in ['.pdf', '.md', '.txt', '']:
+            if ext not in ['.pdf', '.md', '.txt', '.json', '']:
                 print(f"Error: Unsupported file format: {source}", file=sys.stderr)
-                print(f"Supported formats: .pdf, .md, .txt, or URLs (http://...)", file=sys.stderr)
+                print(f"Supported formats: .pdf, .md, .txt, .json, or URLs (http://...)", file=sys.stderr)
                 sys.exit(1)
     
     # Initialize parser

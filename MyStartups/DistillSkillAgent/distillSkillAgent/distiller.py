@@ -32,6 +32,92 @@ class SkillDistiller:
         self.algorithm_name = algorithm
         self._init_algorithm()
 
+    def _initialize_llm_client(self, llm_provider: str):
+        """
+        Initialize and return the LLM client for the requested provider.
+
+        Args:
+            llm_provider: One of 'anthropic', 'openai',
+                          'mockSrvLLM_Anthropic', 'mockSrvLLM_OpenAI', 'local'
+
+        Returns:
+            A client instance compatible with algorithms._call_llm()
+
+        Raises:
+            ValueError: When a required API key is missing.
+            ImportError: When the required SDK is not installed.
+        """
+        if llm_provider == "anthropic":
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "Missing ANTHROPIC_API_KEY environment variable.\n"
+                    "Set it with: export ANTHROPIC_API_KEY=<your-key>"
+                )
+            try:
+                import anthropic
+            except ImportError:
+                raise ImportError(
+                    "anthropic SDK not installed. Install with: pip install anthropic"
+                )
+            return anthropic.Anthropic(api_key=api_key)
+
+        if llm_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "Missing OPENAI_API_KEY environment variable.\n"
+                    "Set it with: export OPENAI_API_KEY=<your-key>"
+                )
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "openai SDK not installed. Install with: pip install openai"
+                )
+            return openai.OpenAI(api_key=api_key)
+
+        if llm_provider == "mockSrvLLM_Anthropic":
+            try:
+                import anthropic
+            except ImportError:
+                raise ImportError(
+                    "anthropic SDK not installed. Install with: pip install anthropic"
+                )
+            return anthropic.Anthropic(
+                api_key="mock-key",
+                base_url="http://localhost:5002",
+            )
+
+        if llm_provider == "mockSrvLLM_OpenAI":
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "openai SDK not installed. Install with: pip install openai"
+                )
+            return openai.OpenAI(
+                api_key="mock-key",
+                base_url="http://localhost:5001/v1",
+            )
+
+        if llm_provider == "local":
+            # Local provider: use OpenAI-compatible client pointing at localhost
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "openai SDK not installed. Install with: pip install openai"
+                )
+            local_url = os.getenv("LOCAL_LLM_URL", "http://localhost:11434/v1")
+            return openai.OpenAI(api_key="local", base_url=local_url)
+
+        raise ValueError(
+            f"Unknown LLM provider: '{llm_provider}'. "
+            f"Supported providers: anthropic, openai, mockSrvLLM_Anthropic, "
+            f"mockSrvLLM_OpenAI, local"
+        )
+
     def _init_algorithm(self):
         from .algorithms import SimpleStreamingAlg, FindActionBookAlg, FindSkillAlgorithm
         

@@ -136,3 +136,41 @@ class SkillCandidate:
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class ChatMessage:
+    """Represents a single message in a chat session."""
+    role: str   # 'user', 'assistant', or 'system'
+    content: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ChatSession:
+    """
+    Represents a complete chat/conversation session with an LLM.
+    Supports multiple export formats (generic, Claude, ChatGPT).
+    """
+    messages: List[ChatMessage] = field(default_factory=list)
+    title: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "messages": [m.to_dict() for m in self.messages],
+            "metadata": self.metadata,
+        }
+
+    def to_text(self) -> str:
+        """Convert session to a readable conversation transcript."""
+        lines = []
+        if self.title:
+            lines.append(f"# {self.title}\n")
+        for msg in self.messages:
+            role_label = msg.role.capitalize()
+            lines.append(f"## {role_label}\n\n{msg.content}\n")
+        return "\n".join(lines)
