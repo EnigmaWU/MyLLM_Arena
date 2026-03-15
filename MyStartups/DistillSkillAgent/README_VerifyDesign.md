@@ -265,7 +265,34 @@ Summary: 4 succeeded, 1 failed
 
 ---
 
-## Verification Scenarios
+### US-011: saveAsSkill from Chat Session
+**As a** developer who solves problems through LLM conversations  
+**I want to** save actionable skills from my current or past chat sessions  
+**So that** I can reuse the knowledge discovered during conversations in my AI coding workflow
+
+**Acceptance Criteria:**
+- [ ] `--input` accepts a `.json` chat session file path
+- [ ] `--input -` reads a JSON chat session from stdin (piped current session)
+- [ ] Supports generic format: `{"messages": [{"role": "...", "content": "..."}]}`
+- [ ] Supports Claude export format: `{"chat_messages": [{"sender": "human"|"assistant", "text": "..."}]}`
+- [ ] Supports ChatGPT export format: `{"mapping": {...}}`
+- [ ] Supports top-level JSON array of message objects
+- [ ] Converts conversation to a `Document` with `source_type == "chat_session"`
+- [ ] Each turn becomes a section with title `Turn N: User` or `Turn N: Assistant`
+- [ ] Session title and turn count stored in `Document.metadata`
+- [ ] Malformed JSON produces a clear error with actionable suggestion
+- [ ] Works with all existing output formats (`--output-claude-skill`, `--output-continue-slash-command`, `--output-json`)
+
+**Example:**
+```bash
+# Save skills from a saved session file
+myDistillSkillAgent --input session.json --output-claude-skill ChatSkill
+
+# Save skills from the current session piped via stdin
+cat current_session.json | myDistillSkillAgent --input - --output-json skills.json
+```
+
+---
 
 ### Scenario 1: BDD Book to Executable Specification Skill
 **Given:** User has "Behavior-Driven Development.pdf"  

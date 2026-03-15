@@ -2,7 +2,9 @@
 Input Layer - Source Parsers for various input formats
 """
 
+import json
 import re
+import sys
 from pathlib import Path
 from typing import List, Union
 from urllib.parse import urlparse
@@ -21,7 +23,7 @@ from bs4 import BeautifulSoup
 import requests
 import markdown
 
-from .models import Document, Section
+from .models import Document, Section, ChatMessage, ChatSession
 
 
 class SourceParser:
@@ -31,17 +33,22 @@ class SourceParser:
         self.pdf_parser = PDFParser()
         self.markdown_parser = MarkdownParser()
         self.web_parser = WebParser()
+        self.chat_session_parser = ChatSessionParser()
     
     def parse(self, source: str) -> Document:
         """
         Parse a source file or URL into a Document.
         
         Args:
-            source: Path to file or URL
+            source: Path to file, URL, or '-' for stdin (chat session JSON)
             
         Returns:
             Parsed Document object
         """
+        # Check for stdin input (current chat session)
+        if source == "-":
+            return self.chat_session_parser.parse_stream(sys.stdin)
+
         # Check if it's a URL
         if source.startswith(("http://", "https://")):
             return self.web_parser.parse_url(source)
@@ -59,10 +66,12 @@ class SourceParser:
             return self.markdown_parser.parse_markdown(str(path))
         elif suffix in [".txt"]:
             return self._parse_text(str(path))
+        elif suffix == ".json":
+            return self.chat_session_parser.parse_json_file(str(path))
         else:
             raise ValueError(
                 f"Unsupported format: {suffix}. "
-                f"Supported formats: .pdf, .md, .markdown, .txt, or HTTP/HTTPS URLs"
+                f"Supported formats: .pdf, .md, .markdown, .txt, .json, or HTTP/HTTPS URLs"
             )
     
     def _parse_text(self, path: str) -> Document:
@@ -416,3 +425,223 @@ class WebParser:
             sections = [Section(title="Content", content=text, level=1)]
         
         return sections
+
+
+class ChatSessionParser:
+    """
+    Parser for LLM chat session files.
+
+    Supports multiple export formats:
+      - Generic: {"messages": [{"role": "user"|"assistant", "content": "..."}]}
+      - Claude:  {"chat_messages": [{"sender": "human"|"assistant", "text": "..."}]}
+      - ChatGPT: {"mapping": {"<id>": {"message": {"role": "...",
+                               "content": {"parts": [...]}}}}}
+
+    Also accepts a plain list of message objects as the top-level value.
+    """
+
+    def parse_json_file(self, path: str) -> Document:
+        """Parse a JSON chat session file."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in chat session file: {path}\n"
+                f"  Detail: {e}\n"
+                f"  Suggestion: Verify the file is a valid JSON chat session export."
+            )
+        return self._parse_session_data(data, source_path=path)
+
+    def parse_stream(self, stream) -> Document:
+        """Parse a chat session from a text stream (e.g. stdin)."""
+        try:
+            data = json.load(stream)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON received on stdin.\n"
+                f"  Detail: {e}\n"
+                f"  Suggestion: Pipe a valid JSON chat session, e.g.:\n"
+                f"    cat session.json | myDistillSkillAgent --input - --output-json skill.json"
+            )
+        return self._parse_session_data(data, source_path="<stdin>")
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _parse_session_data(self, data: dict, source_path: str = "") -> Document:
+        """Convert raw JSON data into a Document."""
+        session = self._build_chat_session(data)
+        return self._session_to_document(session, source_path)
+
+    def _build_chat_session(self, data) -> ChatSession:
+        """Detect format and return a normalised ChatSession."""
+        fmt = self._detect_format(data)
+
+        if fmt == "generic_list":
+            messages = self._parse_generic_list(data)
+            return ChatSession(messages=messages)
+
+        if fmt == "claude":
+            return self._parse_claude(data)
+
+        if fmt == "chatgpt":
+            return self._parse_chatgpt(data)
+
+        # Default: generic dict with "messages" key
+        return self._parse_generic(data)
+
+    def _detect_format(self, data) -> str:
+        """Return a format tag based on the shape of the JSON data."""
+        if isinstance(data, list):
+            return "generic_list"
+        if isinstance(data, dict):
+            if "chat_messages" in data:
+                return "claude"
+            if "mapping" in data:
+                return "chatgpt"
+        return "generic"
+
+    # --- format-specific parsers ---
+
+    def _parse_generic_list(self, data: list) -> List[ChatMessage]:
+        """Parse a top-level JSON array of message objects."""
+        messages = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role", "user")
+            content = item.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(str(p) for p in content)
+            if content:
+                messages.append(ChatMessage(role=role, content=str(content)))
+        return messages
+
+    def _parse_generic(self, data: dict) -> ChatSession:
+        """Parse the standard generic format: {"messages": [...]}."""
+        title = data.get("title", data.get("name", ""))
+        raw_messages = data.get("messages", [])
+        messages = []
+        for item in raw_messages:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role", "user")
+            content = item.get("content", "")
+            if isinstance(content, list):
+                # OpenAI-style content array
+                content = " ".join(
+                    p.get("text", str(p)) if isinstance(p, dict) else str(p)
+                    for p in content
+                )
+            if content:
+                messages.append(ChatMessage(role=role, content=str(content)))
+        return ChatSession(title=str(title), messages=messages)
+
+    def _parse_claude(self, data: dict) -> ChatSession:
+        """Parse Anthropic/Claude conversation export format."""
+        title = data.get("name", data.get("title", ""))
+        raw_messages = data.get("chat_messages", [])
+        messages = []
+        for item in raw_messages:
+            if not isinstance(item, dict):
+                continue
+            sender = item.get("sender", item.get("role", "user"))
+            # Claude uses "human" / "assistant"
+            role = "user" if sender in ("human", "user") else "assistant"
+            content = item.get("text", item.get("content", ""))
+            if content:
+                messages.append(ChatMessage(role=role, content=str(content)))
+        return ChatSession(title=str(title), messages=messages)
+
+    def _parse_chatgpt(self, data: dict) -> ChatSession:
+        """Parse ChatGPT conversation export format (mapping-based)."""
+        title = data.get("title", "")
+        mapping = data.get("mapping", {})
+        messages: List[ChatMessage] = []
+
+        # The mapping is an unordered dict; reconstruct the chain via parent refs.
+        # Build a list sorted by a stable traversal (children of the root node).
+        nodes = {}
+        root_id = None
+        for node_id, node in mapping.items():
+            nodes[node_id] = node
+            if node.get("parent") is None:
+                root_id = node_id
+
+        # Walk the conversation tree depth-first, following only the first child
+        # at each node. ChatGPT exports use a tree structure to represent
+        # conversation branches (edits/regenerations); the main conversation
+        # line is always the first child of each node. Branching conversations
+        # are silently ignored – only the primary thread is extracted.
+        ordered_ids: List[str] = []
+        stack = [root_id] if root_id else list(mapping.keys())[:1]
+        while stack:
+            nid = stack.pop(0)
+            ordered_ids.append(nid)
+            children = mapping.get(nid, {}).get("children", [])
+            stack = children[:1] + stack  # first child = main conversation line
+
+        for nid in ordered_ids:
+            node = mapping.get(nid, {})
+            msg = node.get("message")
+            if not msg:
+                continue
+            role = msg.get("role", "user")
+            if role not in ("user", "assistant", "system"):
+                continue
+            content_obj = msg.get("content", {})
+            if isinstance(content_obj, str):
+                content = content_obj
+            elif isinstance(content_obj, dict):
+                parts = content_obj.get("parts", [])
+                content = " ".join(str(p) for p in parts if p)
+            else:
+                content = str(content_obj)
+            if content:
+                messages.append(ChatMessage(role=role, content=content))
+
+        return ChatSession(title=str(title), messages=messages)
+
+    # --- conversion to Document ---
+
+    def _session_to_document(self, session: ChatSession, source_path: str) -> Document:
+        """
+        Convert a ChatSession into a Document for the distillation pipeline.
+
+        The conversation is organised into sections by speaker turn so the
+        existing chunking algorithms receive well-structured input.
+        """
+        sections: List[Section] = []
+        full_text_parts: List[str] = []
+
+        if session.title:
+            full_text_parts.append(f"# {session.title}\n")
+
+        for i, msg in enumerate(session.messages):
+            role_label = "User" if msg.role == "user" else "Assistant"
+            section_title = f"Turn {i + 1}: {role_label}"
+            sections.append(Section(
+                title=section_title,
+                content=msg.content,
+                level=2,
+            ))
+            full_text_parts.append(f"## {section_title}\n\n{msg.content}")
+
+        full_text = "\n\n".join(full_text_parts)
+
+        if not sections:
+            sections = [Section(title="Chat Session", content="", level=1)]
+
+        return Document(
+            content=full_text,
+            structure=sections,
+            metadata={
+                "title": session.title,
+                "turn_count": len(session.messages),
+                "source_format": "chat_session",
+            },
+            source_type="chat_session",
+            source_path=source_path,
+        )
