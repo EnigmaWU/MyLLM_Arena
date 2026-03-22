@@ -102,7 +102,22 @@ If the conversation produced helper scripts or reference material, suggest bundl
 └── assets/      # Templates, configs, boilerplate
 ```
 
-## Step 5: Suggest Where to Save
+## Step 5: Test the Skill (optional but recommended)
+
+After generating the SKILL.md, draft 2-3 realistic test prompts and share them
+with the user. For each test, create a workspace directory with outputs, then
+launch the review viewer:
+
+```bash
+python .github/skills/save-as-skill/scripts/generate_review.py \
+  <skill-name>-workspace/ \
+  --skill-name "my-skill"
+```
+
+The user reviews each test case in the browser, leaves feedback, and submits.
+Read `feedback.json`, improve the skill, and iterate until satisfied.
+
+## Step 6: Suggest Where to Save
 
 Tell the user where to place the generated file:
 

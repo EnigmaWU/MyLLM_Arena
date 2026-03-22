@@ -109,7 +109,71 @@ future skill users would need, suggest this structure:
 Keep SKILL.md under 500 lines. If it's getting long, move detailed reference
 material into `references/` and point to it from SKILL.md.
 
-## Step 5: Suggest Where to Save
+## Step 5: Test the Skill (optional but recommended)
+
+After generating the SKILL.md, draft 2-3 realistic test prompts — the kind of
+thing a user would actually say when they need this skill. Share them with the
+user for confirmation.
+
+Save test cases to `<skill-name>-workspace/evals.json`:
+
+```json
+{
+  "skill_name": "example-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A realistic user prompt that should trigger this skill",
+      "expected_output": "Description of expected result",
+      "files": []
+    }
+  ]
+}
+```
+
+For each test case, create a directory with outputs:
+
+```
+<skill-name>-workspace/
+├── evals.json
+├── eval-descriptive-name/
+│   ├── eval_metadata.json   # {"eval_id": 1, "prompt": "..."}
+│   └── outputs/
+│       └── SKILL.md         # The output produced
+└── feedback.json             # Written by the reviewer
+```
+
+### Launch the Review Viewer
+
+Use the bundled [generate_review.py](./scripts/generate_review.py) to let the
+user review the outputs:
+
+```bash
+python .github/skills/save-as-skill/scripts/generate_review.py \
+  <skill-name>-workspace/ \
+  --skill-name "my-skill"
+```
+
+This opens an HTML viewer where the user can:
+- Navigate through each test case
+- See the prompt and the skill's output
+- Leave feedback per test case
+- Submit all reviews (saves to `feedback.json`)
+
+For environments without a browser, use `--static /tmp/review.html` to write
+a standalone HTML file instead.
+
+### Iterate
+
+Read `feedback.json` after the user is done. Empty feedback means the output
+looked good. Focus improvements on test cases where the user had complaints.
+
+- Improve the skill based on feedback
+- Rerun test cases into `iteration-2/`
+- Relaunch the viewer with `--previous-workspace` pointing at the first iteration
+- Repeat until the user is satisfied
+
+## Step 6: Suggest Where to Save
 
 Tell the user where to place the generated file:
 
