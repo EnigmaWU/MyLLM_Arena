@@ -48,6 +48,17 @@ The prompt analyzes the conversation and either:
 1. **Creates a SKILL.md** — with name, description, what, why, how (ReACT steps), when, examples, constraints
 2. **Advises alternatives** — if too simple, suggests saving as a rule (`.instructions.md`) or workflow note instead
 
+### Test & Review
+
+A bundled [generate_review.py](../../.github/skills/save-as-skill/scripts/generate_review.py) script launches an HTML viewer for reviewing generated skills:
+
+```bash
+python .github/skills/save-as-skill/scripts/generate_review.py \
+  <skill-name>-workspace/ --skill-name "my-skill"
+```
+
+The user reviews outputs, leaves feedback, and iterates until satisfied.
+
 ### Relation to DistillSkillAgent
 
 This prompt-based approach is the lightweight counterpart to [DistillSkillAgent](../DistillSkillAgent/), which provides a full Python CLI pipeline for batch processing exported chat sessions.

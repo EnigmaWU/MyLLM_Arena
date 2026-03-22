@@ -17,10 +17,10 @@ No dependencies beyond the Python stdlib are required.
 
 import argparse
 import base64
+import html as html_module
 import json
 import mimetypes
 import os
-import re
 import signal
 import subprocess
 import sys
@@ -193,6 +193,7 @@ def generate_html(runs: list, skill_name: str, previous: dict, benchmark: dict |
 
 def _generate_minimal_html(runs: list, skill_name: str, previous: dict, benchmark: dict | None) -> str:
     """Generate a minimal self-contained HTML page when viewer.html template is not available."""
+    safe_name = html_module.escape(skill_name)
     data = {
         "runs": runs,
         "skill_name": skill_name,
@@ -206,7 +207,7 @@ def _generate_minimal_html(runs: list, skill_name: str, previous: dict, benchmar
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skill Review - {skill_name}</title>
+  <title>Skill Review - {safe_name}</title>
   <style>
     :root {{ --bg: #faf9f5; --surface: #fff; --border: #e8e6dc; --text: #141413;
              --accent: #d97757; --green: #788c5d; --red: #c44; --radius: 6px; }}
@@ -245,7 +246,7 @@ def _generate_minimal_html(runs: list, skill_name: str, previous: dict, benchmar
 </head>
 <body>
   <div class="header">
-    <h1>Skill Review: <span id="skill-name">{skill_name}</span></h1>
+    <h1>Skill Review: <span id="skill-name">{safe_name}</span></h1>
     <div id="counter"></div>
   </div>
   <div class="progress" id="progress"></div>
