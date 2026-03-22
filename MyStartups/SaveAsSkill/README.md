@@ -19,7 +19,19 @@
 
 ## Implementation
 
-Prompt file: [`.github/prompts/save-as-skill.prompt.md`](../../.github/prompts/save-as-skill.prompt.md)
+Three files work together:
+
+| File | Role |
+|------|------|
+| [`.github/prompts/save-as-skill.prompt.md`](../../.github/prompts/save-as-skill.prompt.md) | Slash command — manual invocation via `/save-as-skill` |
+| [`.github/skills/save-as-skill/SKILL.md`](../../.github/skills/save-as-skill/SKILL.md) | Skill — auto-discoverable by the model when conversation matches |
+| [`.github/instructions/save-as-skill-nudge.instructions.md`](../../.github/instructions/save-as-skill-nudge.instructions.md) | Instruction — always-on nudge to suggest `/save-as-skill` after long, solved conversations |
+
+### Auto-Discovery Flow
+
+1. **Always-on nudge** (`.instructions.md`): On every conversation, the agent checks if the conversation is long, solved, non-trivial, and reusable. If all true, it suggests `/save-as-skill`.
+2. **Model auto-invocation** (`SKILL.md`): The model can auto-load the skill when it detects keywords like "save", "skill", "capture solution" — no explicit `/` command needed.
+3. **Manual invocation** (`.prompt.md`): User types `/save-as-skill` at any time.
 
 ### Usage by Agent
 
