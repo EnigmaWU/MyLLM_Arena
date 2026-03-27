@@ -1,21 +1,21 @@
 {
     "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
 
-    "protocolName": "generatedTextDesc", //Text=Code or Document or other readable text
+    "protocolName": "generatedTextDesc",
     "protocolVersion": "26.03",
     "codeAgent": "HuayanCoder",
 
     "SUMMARY":
     {
         "totalCodeLines": 99,
-        "fullGeneratedCodeLines": 19, // 100%
-        "partialGeneratedCodeLines": 29 //ALL=full+partial
+        "fullGeneratedCodeLines": 19,
+        "partialGeneratedCodeLines": 29
     },
 
     "DETAIL":
     [
         {
-            "fileName": "relativePath/2/nameOfFileA.cxx", //Text=CodeFile 
+            "fileName": "relativePath/2/nameOfFileA.cxx",
             "codeLines": 
             [
                 {"lineLocation":  15, "genRatio": 100, "genMethod": "codeCompletion" },
@@ -25,7 +25,7 @@
             ]
         },
         {
-            "fileName": "relativePath/2/nameOfFileB.md", //Text=DocFile
+            "fileName": "relativePath/2/nameOfFileB.md",
             "codeLines":
             [
                 {"lineLocation":  15, "genRatio": 100 , "genMethod": "vibeCoding"}
@@ -33,16 +33,16 @@
         }
     ],
 
-    "CREIDENTIAL":
+    "CREDENTIAL":
     {
         "accessToken": "1234567890abcdef"
     },
 
     "REPOSITORY":
     {
-        "vcsType": "git", // git or svn
+        "vcsType": "git",
         "repoURL": "https://yfgitlab/PATH/2/nameOfRepo",
         "repoBranch": "main",
-        "revisionId": "1234567890abcdef", // Git commit hash or SVN revision number
+        "revisionId": "1234567890abcdef"
     }
 }
