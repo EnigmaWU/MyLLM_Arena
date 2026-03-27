@@ -40,8 +40,10 @@
 
     "REPOSITORY":
     {
+        "vcsType": "git", // git or svn
         "repoURL": "https://yfgitlab/PATH/2/nameOfRepo",
         "repoBranch": "main",
-        "commitID": "1234567890abcdef"
+        "revisionId": "1234567890abcdef", // Git commit hash or SVN revision number
+        "commitID": "1234567890abcdef" // deprecated, keep only for backward compatibility when vcsType=git
     }
 }

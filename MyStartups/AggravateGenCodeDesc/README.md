@@ -125,6 +125,13 @@ The protocol must answer:
 
 The current protocol example already contains the key fields needed for that.
 
+For cross-VCS support, the repository section should use:
+
+- `vcsType`: `git` or `svn`
+- `revisionId`: Git commit hash or SVN revision number
+
+`commitID` can be kept temporarily as a Git-only compatibility field, but `revisionId` should be the long-term canonical field.
+
 ### 8. Output example
 
 Example output for `RepoA:branchB, 2026-03-01 to 2026-03-31`:
