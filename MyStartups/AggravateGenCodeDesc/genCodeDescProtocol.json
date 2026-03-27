@@ -1,0 +1,47 @@
+{
+    "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
+
+    "protocolName": "generatedTextDesc", //Text=Code or Document or other readable text
+    "protocolVersion": "26.03",
+    "codeAgent": "HuayanCoder",
+
+    "SUMMARY":
+    {
+        "totalCodeLines": 99,
+        "fullGeneratedCodeLines": 19, // 100%
+        "partialGeneratedCodeLines": 29 //ALL=full+partial
+    },
+
+    "DETAIL":
+    [
+        {
+            "fileName": "relativePath/2/nameOfFileA.cxx", //Text=CodeFile 
+            "codeLines": 
+            [
+                {"lineLocation":  15, "genRatio": 100, "genMethod": "codeCompletion" },
+                {"lineLocation":  16, "genRatio": 95, "genMethod": "vibeCoding" },
+                 {"lineLocation":  17, "genRatio": 30, "genMethod": "vibeCoding" },
+                {"lineRange":  {"from":   20, "to": 25 }, "genRatio": 100, "genMethod": "vibeCoding"}
+            ]
+        },
+        {
+            "fileName": "relativePath/2/nameOfFileB.md", //Text=DocFile
+            "codeLines":
+            [
+                {"lineLocation":  15, "genRatio": 100 , "genMethod": "vibeCoding"}
+            ]
+        }
+    ],
+
+    "CREIDENTIAL":
+    {
+        "accessToken": "1234567890abcdef"
+    },
+
+    "REPOSITORY":
+    {
+        "repoURL": "https://yfgitlab/PATH/2/nameOfRepo",
+        "repoBranch": "main",
+        "commitID": "1234567890abcdef"
+    }
+}
