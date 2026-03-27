@@ -10,6 +10,11 @@
 - We want to calculate the AI code generation ratio in a specific time period.
   - Such as: `ratio of AI code in all code` in RepoA:branchB from time 2026-03-01 to 2026-03-31.
 
+## ======>>>RELATED DOCS<<<======
+
+- User stories and acceptance criteria: `README_UserStory.md`
+- Scenario-based test fixtures: `testdata/`
+
 ## ======>>>HOW TO GET IT<<<======
 
 ### 1. Exact meaning of the metric
