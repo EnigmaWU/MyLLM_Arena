@@ -20,6 +20,7 @@ Each scenario contains:
 - `US-3` -> `testdata/us3_ai_overwrites_human`
 - `US-4` -> `testdata/us4_deleted_ai_lines`
 - `US-5` -> `testdata/us5_file_rename`
+- `US-6` -> `testdata/us6_period_added_ratio`
 
 ## User Stories
 
@@ -130,3 +131,27 @@ Each scenario contains:
 3. **GIVEN** the test data in `testdata/us5_file_rename`
    **WHEN** the analyzer evaluates the final snapshot
    **THEN** the expected result must be `2 / 3 = 66.67%`
+
+### US-6: Calculate AI-Added Ratio During The Requested Period
+
+**As a** repository analyst,
+**I want** to calculate how much AI-generated code was added during `startTime~endTime`,
+**so that** I can distinguish period contribution from end-of-period inventory.
+
+#### Acceptance Criteria For US-6
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** the analyzer evaluates the period metric
+   **THEN** it must consider only revisions whose commit time falls inside the requested window
+
+2. **GIVEN** revisions both before and inside the requested period
+   **WHEN** the analyzer calculates period contribution
+   **THEN** code introduced before `startTime` must not be counted in the numerator or denominator
+
+3. **GIVEN** AI-generated and human-generated added lines within the requested period
+   **WHEN** the analyzer aggregates the added lines for those revisions
+   **THEN** it must compute `AI-weighted added lines / total added lines in period`
+
+4. **GIVEN** the test data in `testdata/us6_period_added_ratio`
+   **WHEN** the analyzer evaluates the period metric
+   **THEN** the expected result must be `3 / 5 = 60.0%`
