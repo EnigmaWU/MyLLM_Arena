@@ -10,6 +10,7 @@ The current baseline is `P0 / Scope A: pure source code` using `Model A (preferr
 At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
 The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
+For fixture verification, `expected_result.json` should remain a minimal protocol-shaped output artifact. It should keep result fields such as `protocolName`, `protocolVersion`, `SUMMARY`, and `REPOSITORY`, and should not duplicate query-only fields such as `metric`, `model`, `scope`, `startTime`, or `endTime`.
 
 Each story is paired with scenario-based test data under `testdata/`.
 Each scenario contains:
@@ -19,12 +20,15 @@ Each scenario contains:
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_basic_end_snapshot`
-- `US-2` -> `testdata/us2_human_overwrites_ai`
-- `US-3` -> `testdata/us3_ai_overwrites_human`
-- `US-4` -> `testdata/us4_deleted_ai_lines`
-- `US-5` -> `testdata/us5_file_rename`
+- `US-1` -> `testdata/us1_live_changed_source_ratio`
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`
+- `US-4` -> `testdata/us4_deleted_lines_excluded`
+- `US-5` -> `testdata/us5_rename_preserves_lineage`
 - `US-6` -> `testdata/us6_period_added_ratio`
+- `US-7` -> `testdata/us7_mixed_multi_commit_window`
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution`
+- `US-9` -> `testdata/us9_svn_contract_parity`
 
 ## User Stories
 
@@ -44,7 +48,7 @@ Each scenario contains:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us1_basic_end_snapshot`
+3. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -64,7 +68,7 @@ Each scenario contains:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us2_human_overwrites_ai`
+3. **GIVEN** the fixture `testdata/us2_human_overwrites_ai_live_changed`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -84,7 +88,7 @@ Each scenario contains:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us3_ai_overwrites_human`
+3. **GIVEN** the fixture `testdata/us3_ai_overwrites_human_live_changed`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -104,7 +108,7 @@ Each scenario contains:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us4_deleted_ai_lines`
+3. **GIVEN** the fixture `testdata/us4_deleted_lines_excluded`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -124,7 +128,7 @@ Each scenario contains:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us5_file_rename`
+3. **GIVEN** the fixture `testdata/us5_rename_preserves_lineage`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -147,5 +151,65 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
 3. **GIVEN** the fixture `testdata/us6_period_added_ratio`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-7: Resolve Mixed Multi-Commit History In One Requested Window
+
+**As a** repository analyst,
+**I want** one requested window to correctly resolve mixed line histories across many commits,
+**so that** the final result remains correct when human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines all appear in the same period.
+
+#### Acceptance Criteria For US-7
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** multiple commits inside that window contain mixed ownership transitions across different live lines
+   **THEN** the system must produce exactly one final record for the live changed source code set at `endTime`, using the latest effective attribution of each surviving line
+
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
+
+3. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-8: Merge Commit Must Preserve Effective Attribution
+
+**As a** repository analyst,
+**I want** merged branch content to preserve the effective attribution of surviving lines,
+**so that** a merge operation does not incorrectly reset line ownership to the merge commit itself.
+
+#### Acceptance Criteria For US-8
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** a merge commit brings together earlier human and AI-attributed changes before `endTime`
+   **THEN** the system must produce one final record for the live changed source code set at `endTime`, using the effective attribution of the surviving merged lines rather than treating the merge commit as a blanket origin
+
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
+
+3. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-9: Git And SVN Must Follow The Same Result Contract
+
+**As a** repository analyst,
+**I want** Git and SVN targets to follow the same query/result contract for the current primary metric,
+**so that** changing VCS type does not change the metric semantics or output structure.
+
+#### Acceptance Criteria For US-9
+
+1. **GIVEN** equivalent repository history represented in a supported VCS target and a requested period `startTime~endTime`
+   **WHEN** the user requests the current primary metric
+   **THEN** the system must produce one final record with the same metric semantics and the same protocol-shaped output structure, differing only in VCS-specific repository identity such as `vcsType`, branch-path conventions, or `revisionId`
+
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
+
+3. **GIVEN** the fixture `testdata/us9_svn_contract_parity`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
