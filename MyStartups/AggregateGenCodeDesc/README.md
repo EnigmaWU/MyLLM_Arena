@@ -46,7 +46,9 @@ Notes:
 
 ### 2. Recommended calculation model
 
-The cleanest model is `end snapshot + blame + window filter + protocol lookup`.
+`Model A (preferred): blame-based end-snapshot attribution`
+
+The cleanest primary model is `end snapshot + blame + window filter + protocol lookup`.
 
 Steps:
 
@@ -106,20 +108,56 @@ That means:
 - live lines whose current form comes from before `startTime` are out of scope
 - deleted lines are out of scope because they are not live at `endTime`
 
-There are still two implementation strategies:
+### 6. Candidate models
 
-- Blame-based window filter:
-  - compute the live snapshot at `endTime`
-  - identify the origin revision of each live line
-  - keep only lines whose current origin revision is in `[startTime, endTime]`
-- Incremental processing boundary:
-  - start from the branch snapshot just before `startTime`
-  - replay commits in `[startTime, endTime]`
-  - update per-line ownership forward until `endTime`
+There are two candidate models:
 
-For correctness and simplicity, the blame-based method is better because it does not require replaying every diff correctly.
+- `Model A (preferred): blame-based end-snapshot attribution`
+  - method:
+    - start from the live snapshot at `endTime`
+    - use blame to identify the origin revision of each final live line
+    - filter by `startTime~endTime`
+  - advantages:
+    - directly matches the primary metric, which is defined on the live snapshot at `endTime`
+    - implementation is simpler because the VCS already computes line ancestry
+    - rename handling is usually easier because mature blame implementations already support it
+    - lower logical risk for P0 because there is no need to rebuild line state across every commit in the window
+  - disadvantages:
+    - can be slower on very large repositories if blame must run across many large files
+    - depends heavily on the quality and behavior of VCS blame support
+    - is less suitable for metrics about deleted lines, churn, or intermediate history states
 
-### 6. What counts as code lines
+- `Model B (alternative): incremental lineage reconstruction without blame`
+  - method:
+    - start from the snapshot just before `startTime`
+    - replay snapshot diff and per-commit diffs through `endTime`
+    - maintain a line-state map until the final live snapshot is reconstructed
+  - advantages:
+    - can support richer history-oriented analytics such as added-then-deleted AI lines, churn, survival rate, and per-commit reports
+    - may perform better when the time window is narrow and the touched file set is much smaller than the full live repository at `endTime`
+    - may be easier if the system already has a reliable incremental diff-processing pipeline or event log
+  - disadvantages:
+    - implementation is much harder because the analyzer must correctly track inserts, deletes, rewrites, renames, and line-number shifts
+    - correctness risk is higher because this approach effectively rebuilds a partial blame engine
+    - merge handling and cross-VCS consistency are more difficult
+    - a final `start->end` diff alone is not enough; per-commit replay is required for correct live-line ownership
+
+When the alternative model may be better:
+
+- the product needs history-process metrics, not only final live-snapshot metrics
+- the analysis window is small but the final repository snapshot is very large
+- commit diffs are already indexed and cheaply queryable, while blame is slow or operationally expensive
+- the team wants commit-by-commit attribution outputs in addition to the final ratio
+
+When the blame model remains better:
+
+- the primary goal is the agreed `P0 / Scope A` metric on the live snapshot at `endTime`
+- correctness and implementation simplicity matter more than richer history analytics
+- rename-aware blame is available and reliable in the target VCS environment
+
+For the current project direction, choose `Model A` as the implementation baseline and keep `Model B` as the explicit alternative architecture.
+
+### 7. What counts as code lines
 
 This must be fixed in the spec, otherwise the ratio will drift between tools.
 
@@ -153,7 +191,7 @@ For the first implementation, Scope A is the primary metric.
 Scope B is a secondary extension.
 Scopes C and D are broader reporting views that can be added later without changing the core line-origin algorithm.
 
-### 7. Required data assumptions
+### 8. Required data assumptions
 
 This design assumes each relevant commit has a protocol file that can be resolved by commit id and contains line-level metadata for the committed file content.
 
@@ -187,7 +225,7 @@ For cross-VCS support, the repository section should use:
 
 `commitID` can be kept temporarily as a Git-only compatibility field, but `revisionId` should be the long-term canonical field.
 
-### 8. Output example
+### 9. Output example
 
 Example summary fields inside one protocol document:
 
@@ -201,7 +239,7 @@ Optional breakdowns:
 
 - by genMethod such as `codeCompletion` vs `vibeCoding` or others.
 
-### 9. Practical conclusion
+### 10. Practical conclusion
 
 So yes, the intended metric can be defined precisely as:
 
