@@ -5,7 +5,8 @@
 This document defines the first user stories for AggregateGenCodeDesc and the acceptance criteria used to verify them.
 
 All stories assume the analysis request includes `repo + branch + startTime + endTime`.
-For the current primary metric, `startTime~endTime` is the requested reporting window, while the actual codebase ratio is calculated from the live snapshot at `endTime`.
+For the current primary metric, `startTime~endTime` defines which live lines are in scope, and the result is calculated from the live snapshot at `endTime`.
+The current baseline is `P0 / Scope A: pure source code` using `Model A (preferred): blame-based end-snapshot attribution`.
 At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
 The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
@@ -27,17 +28,17 @@ Each scenario contains:
 
 ## User Stories
 
-### US-1: Calculate Weighted AI Ratio For A Requested Time Window
+### US-1: Calculate Weighted AI Ratio For Live Changed Source Code In A Requested Time Window
 
 **As a** repository analyst,
-**I want** to calculate the weighted AI code ratio for a branch in a requested period `startTime~endTime`,
-**so that** I can know how much of the current live codebase is attributable to AI.
+**I want** to calculate the weighted AI ratio for live source code lines whose current version falls in a requested period `startTime~endTime`,
+**so that** I can know how much of the current live changed source code is attributable to AI.
 
 #### Acceptance Criteria For US-1
 
 1. **GIVEN** a query `Repo:Branch:startTime:endTime`
    **WHEN** the user requests the AI code ratio
-   **THEN** the system must return exactly one repository-level final result for that query, describing how much of the branch codebase is AI-generated as of `endTime`
+   **THEN** the system must return exactly one repository-level final result for that query, describing the AI ratio among live source code lines whose current version was added or modified in `startTime~endTime` as of `endTime`
 
 2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
@@ -57,7 +58,7 @@ Each scenario contains:
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** code previously attributed to AI has been superseded by later human revisions before `endTime`
-   **THEN** the system must produce one final record that reflects the newer repository state instead of preserving outdated AI ownership
+   **THEN** the system must produce one final record for the live changed source code set at `endTime`, reflecting the newer repository state instead of preserving outdated AI ownership
 
 2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
@@ -71,13 +72,13 @@ Each scenario contains:
 
 **As a** repository analyst,
 **I want** a later AI rewrite of a human line to become the effective attribution source,
-**so that** the live codebase reflects the latest AI contribution.
+**so that** the live changed source code at `endTime` reflects the latest AI contribution.
 
 #### Acceptance Criteria For US-3
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** later revisions introduce new AI-attributed code before `endTime`
-   **THEN** the system must produce one final record that reflects that newer AI contribution in the repository state at `endTime`
+   **THEN** the system must produce one final record that reflects that newer AI contribution in the live changed source code state at `endTime`
 
 2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
@@ -91,13 +92,13 @@ Each scenario contains:
 
 **As a** repository analyst,
 **I want** deleted AI-generated lines to disappear from both numerator and denominator,
-**so that** the result reflects only the current live snapshot.
+**so that** the result reflects only the current live changed source code snapshot.
 
 #### Acceptance Criteria For US-4
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** some earlier AI-attributed code no longer exists in the branch state at `endTime`
-   **THEN** the system must produce one final record that excludes that deleted code from the result
+   **THEN** the system must produce one final record that excludes that deleted code from the live changed source code result
 
 2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
@@ -111,13 +112,13 @@ Each scenario contains:
 
 **As a** repository analyst,
 **I want** file rename or move operations to preserve line attribution when content does not change,
-**so that** the final ratio is not distorted by path-only history changes.
+**so that** the final live changed source code ratio is not distorted by path-only history changes.
 
 #### Acceptance Criteria For US-5
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** files are renamed or moved before `endTime` without changing their effective content contribution
-   **THEN** the system must produce one final record that remains stable under path-only history changes
+   **THEN** the system must produce one final record that remains stable under path-only history changes in the live changed source code set at `endTime`
 
 2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
@@ -132,6 +133,8 @@ Each scenario contains:
 **As a** repository analyst,
 **I want** to calculate how much AI-generated code was added during `startTime~endTime`,
 **so that** I can distinguish period contribution from end-of-period inventory.
+
+Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that may align better with `Model B` or another future implementation.
 
 #### Acceptance Criteria For US-6
 
