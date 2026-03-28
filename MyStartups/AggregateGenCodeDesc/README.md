@@ -252,3 +252,139 @@ If we build this, the first implementation should use:
 - time-window filtering on each live line's current origin revision
 - protocol lookup by `origin commit + origin file + origin line`
 - weighted aggregation by `genRatio`
+
+## ======>>>CLI UTILITY DESIGN<<<======
+
+Recommended first utility name:
+
+- `aggregateGenCodeDesc.py`
+
+Purpose:
+
+- take a repository target plus a time window as input
+- compute the agreed aggregate metric
+- emit a machine-readable result file and an optional human-readable summary
+
+Recommended command shape:
+
+```bash
+python aggregateGenCodeDesc.py \
+  --repoURL <repo_url> \
+  --repoBranch <branch_name> \
+  --startTime <yyyy-mm-dd> \
+  --endTime <yyyy-mm-dd>
+```
+
+Required arguments for the first implementation:
+
+- `--repoURL`
+  - repository URL or repository identity to analyze
+- `--repoBranch`
+  - branch name for Git-style analysis
+  - for SVN, this may be mapped to a branch path such as `trunk` or `branches/release-1.0`
+- `--startTime`
+  - inclusive window start date in `yyyy-mm-dd` format
+- `--endTime`
+  - inclusive window end date in `yyyy-mm-dd` format
+
+Recommended optional arguments:
+
+- `--vcsType <git|svn>`
+  - optional if the tool can auto-detect from `repoURL`
+- `--model <A|B>`
+  - default: `A`
+  - `A` means blame-based end-snapshot attribution
+  - `B` means incremental lineage reconstruction without blame
+- `--scope <A|B|C|D>`
+  - default: `A`
+  - `A` pure source code
+  - `B` source code with comments
+  - `C` documentation text lines
+  - `D` all text
+- `--outputFile <path>`
+  - write the aggregate result JSON to a file
+- `--outputFormat <json|text>`
+  - default: `json`
+- `--protocolPattern <pattern>`
+  - locate per-revision `genCodeDesc.json` files
+- `--workingDir <path>`
+  - local checkout or temporary workspace directory
+- `--failOnMissingProtocol`
+  - fail immediately if a required revision-level protocol file is missing
+- `--includeBreakdown <genMethod|directory|none>`
+  - optional extra summary breakdowns
+
+Recommended default behavior:
+
+- default to `Model A`
+- default to `Scope A`
+- default to JSON output
+- resolve the branch snapshot at `endTime`
+- compute the aggregate metric for live lines in `[startTime, endTime]`
+
+Recommended result shape:
+
+- one aggregate result document per run
+- use a protocol-shaped JSON output that contains:
+  - repository identity
+  - query window
+  - chosen model and scope
+  - summary totals
+  - optional breakdowns
+  - execution warnings such as missing protocol files
+
+Recommended example commands:
+
+Git example:
+
+```bash
+python aggregateGenCodeDesc.py \
+  --repoURL https://example.com/repo.git \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31
+```
+
+Git example with explicit options:
+
+```bash
+python aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.com/repo.git \
+  --repoBranch release/1.0 \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --model A \
+  --scope A \
+  --outputFile out.json
+```
+
+SVN example:
+
+```bash
+python aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL https://svn.example.com/repos/project \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile out.json
+```
+
+SVN branch-path example:
+
+```bash
+python aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL https://svn.example.com/repos/project \
+  --repoBranch branches/release-1.0 \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31
+```
+
+First implementation advice:
+
+- implement only `Model A`
+- implement only `Scope A`
+- require `--repoURL`, `--repoBranch`, `--startTime`, and `--endTime`
+- make the rest optional so the CLI stays narrow and testable
