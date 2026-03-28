@@ -121,14 +121,28 @@ If you want a broader metric later, document a second metric such as `AI ratio i
 
 This design assumes each relevant commit has a protocol file that can be resolved by commit id and contains line-level metadata for the committed file content.
 
+The protocol should stay minimal.
+It is primarily an AI-generated code description document, and its `SUMMARY` section is already enough to reuse the same file as a final aggregate report.
+
 The protocol must answer:
 
 - which files were described
 - which lines or ranges were AI-generated
 - the `genRatio` for each line
-- the exact repository commit id that the metadata belongs to
+- the exact repository revision that the metadata belongs to
+- what the aggregate totals are for that described revision or snapshot
 
 The current protocol example already contains the key fields needed for that.
+
+Recommended aggregate fields in `SUMMARY` include:
+
+- `totalCodeLines`
+- `fullGeneratedCodeLines`
+- `partialGeneratedCodeLines`
+
+Derived values such as weighted AI lines, AI ratio, or AI ratio percent do not need to be stored in the protocol if they can be calculated from the summary totals and detailed line metadata.
+
+Fields like `metric`, `startTime`, `endTime`, or credentials are not required in the protocol itself if they belong to the external query or runtime environment rather than the generated-code description.
 
 For cross-VCS support, the repository section should use:
 
@@ -139,13 +153,13 @@ For cross-VCS support, the repository section should use:
 
 ### 8. Output example
 
-Example output for `RepoA:branchB, 2026-03-01 to 2026-03-31`:
+Example summary fields inside one protocol document:
 
-- snapshot commit: `abc1234`
-- snapshot time: `2026-03-31 23:59:58`
 - total live code lines: `12,480`
-- AI-weighted live code lines: `3,215.4`
-- AI code ratio: `25.76%`
+- full AI-generated code lines: `2,100`
+- partial AI-generated code lines: `1,340`
+
+From those fields and the detailed `genRatio` entries, the analyzer can calculate weighted AI lines and the final ratio when needed.
 
 Optional breakdowns:
 

@@ -6,6 +6,9 @@ This document defines the first user stories for AggregateGenCodeDesc and the ac
 
 All stories assume the analysis request includes `repo + branch + startTime + endTime`.
 For the current primary metric, `startTime~endTime` is the requested reporting window, while the actual codebase ratio is calculated from the live snapshot at `endTime`.
+At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
+The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
+The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
 
 Each story is paired with scenario-based test data under `testdata/`.
 Each scenario contains:
@@ -32,25 +35,17 @@ Each scenario contains:
 
 #### Acceptance Criteria For US-1
 
-1. **GIVEN** a repository branch and a requested period `startTime~endTime`
-   **WHEN** the analyzer resolves the latest revision at or before `endTime`
-   **THEN** it must use that snapshot as the only counting baseline
+1. **GIVEN** a query `Repo:Branch:startTime:endTime`
+   **WHEN** the user requests the AI code ratio
+   **THEN** the system must return exactly one repository-level final result for that query, describing how much of the branch codebase is AI-generated as of `endTime`
 
-2. **GIVEN** a repository branch and a requested period `startTime~endTime`
-   **WHEN** the analyzer returns the final result
-   **THEN** the report must preserve both `startTime` and `endTime` as the query window metadata
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** a live file in that snapshot
-   **WHEN** the analyzer processes each live line
-   **THEN** it must obtain the origin revision for the current line and look up the matching `genRatio`
-
-4. **GIVEN** line-level `genRatio` values of `100`, `50`, and `0`
-   **WHEN** the analyzer aggregates all live lines
-   **THEN** it must compute a weighted ratio instead of a binary AI-or-human count
-
-5. **GIVEN** the test data in `testdata/us1_basic_end_snapshot`
-   **WHEN** the analyzer finishes the calculation
-   **THEN** the expected result must be `2.5 / 4 = 62.5%`
+3. **GIVEN** the fixture `testdata/us1_basic_end_snapshot`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 ### US-2: Human Rewrite Removes Prior AI Attribution
 
@@ -60,17 +55,17 @@ Each scenario contains:
 
 #### Acceptance Criteria For US-2
 
-1. **GIVEN** a line was AI-generated in an earlier revision
-   **WHEN** a later human revision changes the current text of that line
-   **THEN** the final snapshot must attribute that line to the newer human revision
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** code previously attributed to AI has been superseded by later human revisions before `endTime`
+   **THEN** the system must produce one final record that reflects the newer repository state instead of preserving outdated AI ownership
 
-2. **GIVEN** the newer human revision has no AI line entry for that line
-   **WHEN** the analyzer looks up the line attribution
-   **THEN** the effective `genRatio` for that live line must be `0`
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the test data in `testdata/us2_human_overwrites_ai`
-   **WHEN** the analyzer evaluates the final snapshot
-   **THEN** the expected result must be `2 / 3 = 66.67%`
+3. **GIVEN** the fixture `testdata/us2_human_overwrites_ai`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 ### US-3: AI Rewrite Replaces Prior Human Ownership
 
@@ -80,17 +75,17 @@ Each scenario contains:
 
 #### Acceptance Criteria For US-3
 
-1. **GIVEN** a line was originally written by a human
-   **WHEN** a later revision rewrites that line using AI assistance
-   **THEN** the origin for the final live line must be the later AI-related revision
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** later revisions introduce new AI-attributed code before `endTime`
+   **THEN** the system must produce one final record that reflects that newer AI contribution in the repository state at `endTime`
 
-2. **GIVEN** the new revision assigns partial AI ownership such as `80`
-   **WHEN** the analyzer aggregates the live lines
-   **THEN** that partial weight must be included in the final ratio
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the test data in `testdata/us3_ai_overwrites_human`
-   **WHEN** the analyzer evaluates the final snapshot
-   **THEN** the expected result must be `1.8 / 3 = 60.0%`
+3. **GIVEN** the fixture `testdata/us3_ai_overwrites_human`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 ### US-4: Deleted AI Lines Must Not Count
 
@@ -100,17 +95,17 @@ Each scenario contains:
 
 #### Acceptance Criteria For US-4
 
-1. **GIVEN** an earlier revision added AI-generated lines
-   **WHEN** a later revision deletes some of those lines
-   **THEN** deleted lines must not contribute to the final result
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** some earlier AI-attributed code no longer exists in the branch state at `endTime`
+   **THEN** the system must produce one final record that excludes that deleted code from the result
 
-2. **GIVEN** only two AI-generated lines survive in the final snapshot
-   **WHEN** the analyzer computes totals
-   **THEN** the denominator must be the two surviving lines only
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the test data in `testdata/us4_deleted_ai_lines`
-   **WHEN** the analyzer evaluates the final snapshot
-   **THEN** the expected result must be `2 / 2 = 100%`
+3. **GIVEN** the fixture `testdata/us4_deleted_ai_lines`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 ### US-5: Rename Must Preserve Attribution Lineage
 
@@ -120,17 +115,17 @@ Each scenario contains:
 
 #### Acceptance Criteria For US-5
 
-1. **GIVEN** a file is renamed without changing its line content
-   **WHEN** the analyzer resolves origin revisions with rename-aware blame
-   **THEN** the live lines must still trace back to the original content revision
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** files are renamed or moved before `endTime` without changing their effective content contribution
+   **THEN** the system must produce one final record that remains stable under path-only history changes
 
-2. **GIVEN** the rename revision contributes no new AI-generated lines
-   **WHEN** the analyzer reads the protocol for the final live lines
-   **THEN** it must keep the original attribution from before the rename
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the test data in `testdata/us5_file_rename`
-   **WHEN** the analyzer evaluates the final snapshot
-   **THEN** the expected result must be `2 / 3 = 66.67%`
+3. **GIVEN** the fixture `testdata/us5_file_rename`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 ### US-6: Calculate AI-Added Ratio During The Requested Period
 
@@ -141,17 +136,13 @@ Each scenario contains:
 #### Acceptance Criteria For US-6
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
-   **WHEN** the analyzer evaluates the period metric
-   **THEN** it must consider only revisions whose commit time falls inside the requested window
+   **WHEN** the user requests the period contribution metric
+   **THEN** the system must return exactly one repository-level final result for that query window, describing the aggregate AI-added code result during that period
 
-2. **GIVEN** revisions both before and inside the requested period
-   **WHEN** the analyzer calculates period contribution
-   **THEN** code introduced before `startTime` must not be counted in the numerator or denominator
+2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+   **WHEN** the period contribution result is returned or serialized as `genCodeDescProtocol.json`
+   **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** AI-generated and human-generated added lines within the requested period
-   **WHEN** the analyzer aggregates the added lines for those revisions
-   **THEN** it must compute `AI-weighted added lines / total added lines in period`
-
-4. **GIVEN** the test data in `testdata/us6_period_added_ratio`
-   **WHEN** the analyzer evaluates the period metric
-   **THEN** the expected result must be `3 / 5 = 60.0%`
+3. **GIVEN** the fixture `testdata/us6_period_added_ratio`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
