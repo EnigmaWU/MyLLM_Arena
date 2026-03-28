@@ -20,15 +20,15 @@ Each scenario contains:
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio`
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`
-- `US-4` -> `testdata/us4_deleted_lines_excluded`
-- `US-5` -> `testdata/us5_rename_preserves_lineage`
-- `US-6` -> `testdata/us6_period_added_ratio`
-- `US-7` -> `testdata/us7_mixed_multi_commit_window`
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution`
-- `US-9` -> `testdata/us9_svn_contract_parity`
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Model A`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Model A`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Model A`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Model A`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Model A`)
+- `US-6` -> `testdata/us6_period_added_ratio` (`Model B`)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Model A`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Model A`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Model A`)
 
 ## User Stories
 
