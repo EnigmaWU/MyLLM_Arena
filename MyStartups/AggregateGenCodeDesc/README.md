@@ -7,8 +7,8 @@
 
 ## ======>>>WHAT WE WANT<<<======
 
-- We want to calculate the AI code generation ratio in a specific time period.
-  - Such as: `ratio of AI code in all code` in RepoA:branchB from time 2026-03-01 to 2026-03-31.
+- We want to calculate the AI ratio among live code lines whose current version was changed within a specific time period.
+  - Such as: `AI ratio among live code lines changed within [2026-03-01, 2026-03-31]` in RepoA:branchB.
 
 ## ======>>>RELATED DOCS<<<======
 
@@ -21,7 +21,7 @@
 
 For a given `repo + branch + [startTime, endTime]`, the primary metric is:
 
-`AI ratio among live changed code lines in the window`
+`AI ratio among live code lines changed within the time window [startTime, endTime]`
 
 That means:
 
@@ -51,9 +51,12 @@ The cleanest model is `end snapshot + blame + window filter + protocol lookup`.
 Steps:
 
 1. Resolve `endCommit`:
-   - the latest commit on `branchB` whose time is `<= endTime`.
+   a) the latest commit on `branchB` whose time is `<= endTime`.
 2. Get the file list in `endCommit`.
+  a) This is intentional: the metric only considers files that are still present in the final live snapshot at `endTime`.
+  b) Files changed during `startTime~endTime` but deleted before `endTime` are excluded by design.
 3. For each source file in `endCommit`, run blame with rename/move detection.
+  a) If a file was renamed or moved and still exists at `endTime`, rename-aware blame should preserve its line origin.
 4. For each final live line, collect:
    - final file path
    - final line number
@@ -120,16 +123,35 @@ For correctness and simplicity, the blame-based method is better because it does
 
 This must be fixed in the spec, otherwise the ratio will drift between tools.
 
-Recommended default:
+Recommended scope definitions and priorities:
 
-- include only tracked source files of selected languages
-- exclude generated files
-- exclude vendored third-party code
-- exclude binary files
-- exclude blank lines
-- exclude pure comment lines
+- `P0 / Scope A: pure source code`
+  - include only tracked source files of selected languages
+  - include code lines only
+  - exclude blank lines
+  - exclude pure comment lines
+  - exclude generated files
+  - exclude vendored third-party code
+  - exclude binary files
+- `P1 / Scope B: source code with comments`
+  - include tracked source files of selected languages
+  - include code lines and comment lines inside source files
+  - exclude standalone documentation files
+  - exclude generated files
+  - exclude vendored third-party code
+  - exclude binary files
+- `P2 / Scope C: documentation text lines`
+  - include Markdown, plain text, README, design docs, specs, prompts, and similar documentation text files
+  - exclude source code files unless explicitly treated as documentation artifacts
+  - generated documentation may be optionally included if the product decision is to measure accepted AI-authored docs
+- `P2 / Scope D: all text`
+  - include source code, source comments, and documentation text
+  - optionally include other textual repo assets such as JSON, YAML, SQL, config, or templates depending on product policy
+  - exclude binary files
 
-If you want a broader metric later, document a second metric such as `AI ratio in all text lines`.
+For the first implementation, Scope A is the primary metric.
+Scope B is a secondary extension.
+Scopes C and D are broader reporting views that can be added later without changing the core line-origin algorithm.
 
 ### 7. Required data assumptions
 
@@ -177,10 +199,7 @@ From those fields and the detailed `genRatio` entries, the analyzer can calculat
 
 Optional breakdowns:
 
-- by directory
-- by file type
-- by author
-- by genMethod such as `codeCompletion` vs `vibeCoding`
+- by genMethod such as `codeCompletion` vs `vibeCoding` or others.
 
 ### 9. Practical conclusion
 
