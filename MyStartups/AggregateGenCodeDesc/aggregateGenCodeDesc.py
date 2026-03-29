@@ -72,7 +72,7 @@ class EmptyGenCodeDescProvider(GenCodeDescProvider):
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
         if self.fail_on_missing:
             raise FileNotFoundError(f"Missing genCodeDesc provider data for revision {revision_id}")
-        self.logger.info(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
+        self.logger.debug(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
         return {}
 
 
@@ -87,11 +87,11 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         if not protocol_path.exists():
             if self.fail_on_missing:
                 raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
-            self.logger.info(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
+            self.logger.debug(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
             return {}
         protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
-        self.logger.info(f"Loaded genCodeDesc for revision {revision_id} from {protocol_path}")
+        self.logger.debug(f"Loaded genCodeDesc for revision {revision_id} from {protocol_path}")
 
         # WHY: genCodeDesc is external metadata, not repository content. We
         # validate identity fields here so the analyzer cannot silently join a
@@ -291,7 +291,7 @@ def best_effort_transition_hint(
     parent_ratio = line_ratio(parent_protocol, blame_line.origin_file, blame_line.origin_line)
     if parent_ratio == current_ratio:
         return None
-    return f"transition={describe_ratio(parent_ratio)}->{describe_ratio(current_ratio)}"
+    return f"best_effort_transition={describe_ratio(parent_ratio)}->{describe_ratio(current_ratio)}"
 
 
 def line_ratio(protocol: dict, origin_file: str, origin_line: int) -> int:
@@ -334,10 +334,10 @@ def build_result(args: argparse.Namespace) -> dict:
     partial_generated_code_lines = 0
 
     source_files = list_source_files(repo_dir, end_revision_id)
-    logger.info(f"Resolved {len(source_files)} source files in the end snapshot")
+    logger.debug(f"Resolved {len(source_files)} source files in the end snapshot")
 
     for relative_path in source_files:
-        logger.info(f"Scanning file {relative_path}")
+        logger.debug(f"Scanning file {relative_path}")
         for blame_line in parse_blame(repo_dir, end_revision_id, relative_path):
             if not is_code_line(blame_line.content):
                 logger.debug(f"Skip non-code line {relative_path}:{blame_line.final_line}")
@@ -377,11 +377,12 @@ def build_result(args: argparse.Namespace) -> dict:
                 parent_revisions,
             )
             line_message = (
-                f"Line {relative_path}:{blame_line.final_line} <= {blame_line.origin_file}:{blame_line.origin_line} "
-                f"originRevision={blame_line.revision_id} classification={describe_ratio(ratio)}"
+                f"LiveLine {relative_path}:{blame_line.final_line} aggregate "
+                f"origin={blame_line.origin_file}:{blame_line.origin_line}@{blame_line.revision_id} "
+                f"classification={describe_ratio(ratio)}"
             )
             if transition_hint:
-                line_message = f"{line_message} {transition_hint}"
+                logger.debug(f"{line_message} {transition_hint}")
             logger.info(line_message)
 
             if ratio == 100:
