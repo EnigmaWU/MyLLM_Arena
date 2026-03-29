@@ -387,7 +387,11 @@ def build_result(args: argparse.Namespace) -> dict:
                 f"classification={describe_ratio(ratio)}"
             )
             if transition_hint:
-                logger.debug(f"{line_message} {transition_hint}")
+                logger.debug(
+                    f"TransitionHint {relative_path}:{blame_line.final_line} "
+                    f"origin={blame_line.origin_file}:{blame_line.origin_line}@{blame_line.revision_id} "
+                    f"{transition_hint}"
+                )
             logger.info(line_message)
 
             if ratio == 100:
