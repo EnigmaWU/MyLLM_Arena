@@ -11,6 +11,8 @@ Unless explicitly stated otherwise, the current user stories apply to both Git a
 At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
 The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
+The `genCodeDesc` records used during analysis are revision-level external metadata, not files committed into the analyzed repository.
+The intended lookup key for one metadata record is `repoURL + repoBranch + revisionId`.
 For fixture verification, `expected_result.json` should remain a minimal protocol-shaped output artifact. It should keep result fields such as `protocolName`, `protocolVersion`, `SUMMARY`, and `REPOSITORY`, and should not duplicate query-only fields such as `metric`, `model`, `scope`, `startTime`, or `endTime`.
 
 Each story is paired with scenario-based test data under `testdata/`.
@@ -19,8 +21,11 @@ Each scenario contains:
 - one `genCodeDesc` file per revision that describes AI attribution for that revision
 
 Those `testdata/` scenarios are design-oriented fixtures.
+Those local `genCodeDesc` files simulate the external metadata store used in real deployments.
 The earlier diff artifacts have been removed from `testdata` to keep the fixture contract small and focused.
 For real repository verification of `Model A`, the preferred test layer is under `tests/`, where actual Git or SVN repositories are created and `*.diff` files are not required.
+
+For production-oriented runs, the analyzer should discover relevant revisions from repository history first and then fetch matching `genCodeDesc` records from an external provider.
 
 ## Scenario Mapping
 
@@ -48,11 +53,15 @@ For real repository verification of `Model A`, the preferred test layer is under
    **WHEN** the user requests the AI code ratio
    **THEN** the system must return exactly one repository-level final result for that query, describing the AI ratio among live source code lines whose current version was added or modified in `startTime~endTime` as of `endTime`
 
-2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+2. **GIVEN** a set of revision-level `genCodeDesc` records stored outside the repository and indexed by `repoURL + repoBranch + revisionId`
+   **WHEN** the analyzer discovers the in-scope origin revisions from the final live snapshot
+   **THEN** it must fetch and use the matching external metadata records for those revisions during aggregation
+
+3. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio`
+4. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 

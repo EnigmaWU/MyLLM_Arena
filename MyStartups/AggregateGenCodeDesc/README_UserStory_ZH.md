@@ -11,6 +11,8 @@
 在现阶段，验收标准有意定义在仓库查询级别，而不是内部文件级或行级实现细节层面。
 最终聚合结果可以通过报告返回，也可以直接由协议中的 `SUMMARY` 段表示。
 用户查询与最终记录是两个不同工件：`query.json` 表示分析输入，而 `genCodeDescProtocol.json` 表示最终结果记录。
+分析过程中使用的 `genCodeDesc` 记录是修订级别的外部元数据，而不是提交进被分析仓库中的文件。
+单条元数据记录的目标查找键是 `repoURL + repoBranch + revisionId`。
 在夹具验证中，`expected_result.json` 应保持为最小化的协议形态输出工件。它应保留 `protocolName`、`protocolVersion`、`SUMMARY`、`REPOSITORY` 等结果字段，而不应重复 `metric`、`model`、`scope`、`startTime`、`endTime` 这类只属于查询的字段。
 
 每个故事都配有位于 `testdata/` 下的场景化测试夹具。
@@ -19,8 +21,11 @@
 - 每个修订对应一个 `genCodeDesc` 文件，用于描述该修订的 AI 归因
 
 这些 `testdata/` 场景是面向设计讨论的夹具。
+这些本地 `genCodeDesc` 文件用于模拟真实部署中的外部元数据存储。
 之前的 diff 工件已经从 `testdata/` 中移除，以保持夹具契约尽量小且聚焦。
 对于 `Model A` 的真实仓库验证，首选测试层是在 `tests/` 下，通过创建真实的 Git 或 SVN 仓库来验证，并且不要求 `*.diff` 文件。
+
+对于偏生产的运行方式，分析器应先从仓库历史中发现相关修订，再从外部提供者中获取匹配的 `genCodeDesc` 记录。
 
 ## 场景映射
 
@@ -48,11 +53,15 @@
    **WHEN** 用户请求 AI 代码占比
    **THEN** 系统必须针对该查询返回且只返回一个仓库级最终结果，用于描述截至 `endTime` 时，在 `startTime~endTime` 内新增或修改且仍然存活的源码行中的 AI 占比
 
-2. **GIVEN** `Repo:Branch:startTime:endTime` 的成功结果
+2. **GIVEN** 一组存储在仓库外部、并由 `repoURL + repoBranch + revisionId` 索引的修订级别 `genCodeDesc` 记录
+   **WHEN** 分析器从最终存活快照中发现落入统计范围的来源修订
+   **THEN** 它必须在聚合过程中获取并使用这些修订对应的外部元数据记录
+
+3. **GIVEN** `Repo:Branch:startTime:endTime` 的成功结果
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio`
+4. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio`
    **WHEN** 分析器产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 

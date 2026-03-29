@@ -2,7 +2,9 @@
 
 ## ======>>>我们已有的前提<<<======
 
-- 我们把代码提交到 GIT/SVN 仓库，每次提交都带有一个 `genCodeDesc.json` 协议文件，用于描述哪些代码行由 AI 生成。
+- 我们把代码提交到 GIT/SVN 仓库。
+- 每当一个修订创建完成后，会有独立流程为该修订生成一条 `genCodeDesc` 记录，用于描述哪些代码行由 AI 生成。
+- `genCodeDesc` 不是仓库内容，而是存储在独立数据库或服务中的外部元数据，并由 `repoURL + repoBranch + revisionId` 索引。
   - 协议定义见：[genCodeDescProtocol](genCodeDescProtocol.json)
 
 ## ======>>>我们想要达到的目标<<<======
@@ -13,6 +15,7 @@
 ## ======>>>相关文档<<<======
 
 - 用户故事与验收标准：`README_UserStory.md`
+- 架构设计：`README_ArchDesign.md`
 - 基于场景的测试夹具：`testdata/`
 
 ## ======>>>如何得到这个结果<<<======
@@ -48,7 +51,7 @@
 
 `Model A（首选）：基于 blame 的 end-snapshot 归因`
 
-最直接的一线模型是：`end snapshot + blame + window filter + protocol lookup`
+最直接的一线模型是：`end snapshot + blame + window filter + 外部元数据查找`
 
 步骤如下：
 
@@ -66,7 +69,7 @@
    - 来源文件路径
    - 来源行号
 5. 过滤掉所有 `origin commit id` 时间不在 `startTime~endTime` 范围内的存活代码行。
-6. 加载这些来源提交对应的 `genCodeDesc.json`。
+6. 从外部元数据提供者中获取这些来源提交对应的 `genCodeDesc` 记录。
 7. 用 `origin file path + origin line number` 查找对应的 AI 元数据。
 8. 如果找到，则使用对应的 `genRatio`；否则视为 `0`。
 9. 对剩余存活变更代码行的 AI 权重求和，再除以剩余存活变更代码行的总数。
@@ -195,7 +198,10 @@ Scope C 和 Scope D 是后续可加的更宽统计视图，而不改变核心行
 
 ### 8. 必要的数据前提
 
-该设计假定每个相关提交都存在一个可通过 commit id 解析到的协议文件，并且该文件包含对应提交后文件内容的行级元数据。
+该设计假定每个相关修订在外部元数据存储中都有一条 `genCodeDesc` 记录，并且该记录可以通过 `repoURL + repoBranch + revisionId` 解析出来。
+
+当前第一版本地测试切片只是使用文件来模拟这一外部元数据契约。
+这些文件并不是目标生产存储模型。
 
 协议应尽量保持简洁。
 它首先是一个 AI 生成代码说明文档，而其 `SUMMARY` 部分已经足够被复用于最终聚合报告。
@@ -207,6 +213,11 @@ Scope C 和 Scope D 是后续可加的更宽统计视图，而不改变核心行
 - 每一行的 `genRatio`
 - 这些元数据所属的精确仓库修订
 - 该修订或快照的聚合统计结果是什么
+
+分析器应当把仓库历史和 `genCodeDesc` 元数据存储视为两个不同系统：
+
+- 仓库回答哪些代码行仍然存活，以及哪个修订最后引入了它们的当前形态
+- 外部元数据存储回答某个具体修订中的代码行有多少可归因于 AI
 
 当前协议示例已经包含完成这些目标所需的关键字段。
 
@@ -226,6 +237,12 @@ Scope C 和 Scope D 是后续可加的更宽统计视图，而不改变核心行
 - `revisionId`: Git commit hash 或 SVN revision number
 
 `commitID` 可以暂时作为 Git 兼容字段保留，但长期标准字段应是 `revisionId`。
+
+在目标生产架构里，实际查找键应为：
+
+- `repoURL`
+- `repoBranch`
+- `revisionId`
 
 ### 9. 输出示例
 
@@ -252,7 +269,7 @@ Scope C 和 Scope D 是后续可加的更宽统计视图，而不改变核心行
 - `endTime` 时刻的 Git 快照
 - 用 blame 找到存活代码行的来源
 - 按每条存活代码行当前来源修订做时间窗口过滤
-- 通过 `origin commit + origin file + origin line` 查找协议元数据
+- 先通过 `repoURL + repoBranch + origin revisionId` 做外部元数据查找，再用 `origin file + origin line` 查找行级元数据
 - 基于 `genRatio` 做加权聚合
 
 ## ======>>>CLI 工具设计<<<======
@@ -307,8 +324,13 @@ python aggregateGenCodeDesc.py \
   - 将聚合结果 JSON 写入文件
 - `--outputFormat <json|text>`
   - 默认：`json`
-- `--protocolPattern <pattern>`
-  - 用于定位每个修订的 `genCodeDesc.json`
+- `--metadataSource <provider>`
+  - 选择如何解析修订级别的 `genCodeDesc`
+  - 当前默认值：`genCodeDesc`
+  - 在当前切片中，应保持为 `genCodeDesc`
+- `--genCodeDescSetDir <dir>`
+  - 本地测试专用适配方式，用于从一个目录中解析一组修订级别的 `genCodeDesc` 文件
+  - 这适用于夹具与离线测试，但不是目标生产存储模型
 - `--workingDir <path>`
   - 本地 checkout 或临时工作目录
 - `--failOnMissingProtocol`
@@ -322,6 +344,8 @@ python aggregateGenCodeDesc.py \
 - 默认使用 `Scope A`
 - 默认输出 JSON
 - 解析 `endTime` 对应的分支快照
+- 从仓库历史中发现相关的来源修订
+- 从配置好的元数据提供者中获取修订级别的 `genCodeDesc`
 - 计算 `[startTime, endTime]` 内存活代码行的聚合指标
 
 推荐结果形态：
@@ -389,4 +413,7 @@ python aggregateGenCodeDesc.py \
 - 只实现 `Model A`
 - 只实现 `Scope A`
 - 只强制要求 `--repoURL`、`--repoBranch`、`--startTime`、`--endTime`
+- 仅把 `--genCodeDescSetDir` 保留为本地测试适配方式
+- 当前切片里，`metadataSource=genCodeDesc` 是唯一启用的模式
+- 生产路径可在后续再围绕以 `repoURL + repoBranch + revisionId` 为键的外部元数据提供者演进
 - 其余参数保持可选，以便 CLI 保持收敛且便于测试
