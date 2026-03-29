@@ -1,0 +1,17 @@
+{
+  "vcsType": "git",
+  "repoURL": "https://example.local/repo/demo",
+  "repoBranch": "main",
+  "metric": "period_added_ai_ratio",
+  "model": "B",
+  "scope": "A",
+  "startTime": "2026-03-10",
+  "endTime": "2026-03-31",
+  "includedRevisionIds": [
+    "us6-r2",
+    "us6-r3"
+  ],
+  "excludedRevisionIds": [
+    "us6-r1"
+  ]
+}

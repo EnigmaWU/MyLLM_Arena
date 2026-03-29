@@ -1,0 +1,26 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 6,
+    "fullGeneratedCodeLines": 3,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/mixed.py",
+      "codeLines": [
+        {"lineLocation": 3, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 4, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 5, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/demo",
+    "repoBranch": "main",
+    "revisionId": "us7-r2"
+  }
+}

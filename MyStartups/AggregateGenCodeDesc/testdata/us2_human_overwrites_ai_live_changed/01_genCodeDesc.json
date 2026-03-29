@@ -1,0 +1,26 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 3,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/normalize.py",
+      "codeLines": [
+        {"lineLocation": 1, "genRatio": 100, "genMethod": "vibeCoding"},
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "vibeCoding"},
+        {"lineLocation": 3, "genRatio": 100, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/demo",
+    "repoBranch": "main",
+    "revisionId": "us2-r1"
+  }
+}
