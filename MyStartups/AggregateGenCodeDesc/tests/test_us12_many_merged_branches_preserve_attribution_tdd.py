@@ -637,6 +637,194 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                 classification="human/unattributed",
             )
 
+    def test_cli_preserves_pre_rename_branch_origin_after_rename_and_merge_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us12-rename-merge",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us12-rm-r7",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/legacy_merge_name.py",
+                "carry_pre_window = base\n"
+                "branch_human = base + 1\n"
+                "branch_full = base + 2\n"
+                "branch_partial = base + 3\n",
+            )
+            repo.write(
+                "src/main_side.py",
+                "carry_pre_window = base\n"
+                "main_human = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r1 = repo.commit_all("us12-rm-r1", "2026-02-24T09:00:00Z")
+
+            repo.checkout_new_branch("feature-rename")
+            repo.write(
+                "src/legacy_merge_name.py",
+                "carry_pre_window = base\n"
+                "branch_human = sanitize(base + 1)\n"
+                "branch_full = base + 2\n"
+                "branch_partial = base + 3\n",
+            )
+            revision_id_r2 = repo.commit_all("us12-rm-r2", "2026-03-03T09:00:00Z")
+
+            repo.rename("src/legacy_merge_name.py", "src/merged_name.py")
+            revision_id_r3 = repo.commit_all("us12-rm-r3", "2026-03-05T09:00:00Z")
+
+            repo.write(
+                "src/merged_name.py",
+                "carry_pre_window = base\n"
+                "branch_human = sanitize(base + 1)\n"
+                "branch_full = helper(base + 2)\n"
+                "branch_partial = suggest(base + 3)\n",
+            )
+            revision_id_r4 = repo.commit_all("us12-rm-r4", "2026-03-07T09:00:00Z")
+
+            repo.checkout("main")
+            repo.write(
+                "src/main_side.py",
+                "carry_pre_window = base\n"
+                "main_human = normalize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r5 = repo.commit_all("us12-rm-r5", "2026-03-09T09:00:00Z")
+
+            revision_id_r6 = repo.merge_no_ff("feature-rename", "us12-rm-r6", "2026-03-12T09:00:00Z")
+
+            repo.write("README.md", "us12 rename merge docs update\n")
+            revision_id_r7 = repo.commit_all("us12-rm-r7", "2026-03-14T09:00:00Z")
+
+            baseline_protocol = self._inline_protocol(repo_branch="main", file_name="src/legacy_merge_name.py")
+            baseline_protocol["DETAIL"] = [
+                {"fileName": "src/legacy_merge_name.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, baseline_protocol, repo_dir, revision_id_r1)
+
+            pre_rename_human_protocol = self._inline_protocol(repo_branch="feature-rename", file_name="src/legacy_merge_name.py")
+            pre_rename_human_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, pre_rename_human_protocol, repo_dir, revision_id_r2)
+
+            rename_protocol = self._inline_protocol(repo_branch="feature-rename", file_name="src/merged_name.py")
+            rename_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, rename_protocol, repo_dir, revision_id_r3)
+
+            branch_ai_protocol = self._inline_protocol(
+                repo_branch="feature-rename",
+                file_name="src/merged_name.py",
+                full_lines=[3],
+                partial_lines={4: 60},
+            )
+            branch_ai_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, branch_ai_protocol, repo_dir, revision_id_r4)
+
+            main_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_side.py")
+            main_protocol["DETAIL"] = [
+                {"fileName": "src/merged_name.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, main_protocol, repo_dir, revision_id_r5)
+
+            merge_protocol = self._inline_protocol(repo_branch="main", file_name="src/merged_name.py")
+            merge_protocol["DETAIL"] = [
+                {"fileName": "src/merged_name.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, merge_protocol, repo_dir, revision_id_r6)
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                json.loads(output_file.read_text(encoding="utf-8")),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 4,
+                        "fullGeneratedCodeLines": 1,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r7,
+                    },
+                },
+            )
+            assert_log_contains_all(
+                self,
+                result.stderr,
+                [
+                    "Metadata repoBranch differs",
+                    "Skip out-of-window line src/merged_name.py:1",
+                    "Skip out-of-window line src/main_side.py:1",
+                    "Skip out-of-window line src/main_side.py:3",
+                ],
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/merged_name.py",
+                final_line=2,
+                origin_file="src/legacy_merge_name.py",
+                origin_line=2,
+                revision_id=revision_id_r2,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/merged_name.py",
+                final_line=3,
+                origin_file="src/merged_name.py",
+                origin_line=3,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/merged_name.py",
+                final_line=4,
+                origin_file="src/merged_name.py",
+                origin_line=4,
+                revision_id=revision_id_r4,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_side.py",
+                final_line=2,
+                origin_file="src/main_side.py",
+                origin_line=2,
+                revision_id=revision_id_r5,
+                classification="human/unattributed",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

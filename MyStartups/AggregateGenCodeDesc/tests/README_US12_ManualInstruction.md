@@ -172,6 +172,41 @@ Its expected surviving in-scope lines are:
 
 This variant currently passes and is useful evidence that the present implementation handles at least one real multi-parent merge topology correctly.
 
+## Additional Hard Variant: Feature-Branch Rename Plus Merge
+
+The US-12 automated test file also now contains a rename-focused branch variant with no merge conflicts.
+
+Why this variant matters:
+
+1. US-5 proved that a pure rename on one branch should preserve lineage
+2. this variant raises the difficulty by moving the rename onto a feature branch and merging it later into `main`
+3. it checks two different path cases in the same final merged file:
+   one surviving line last changed before the rename and therefore expected to keep the old origin path
+   two surviving lines changed after the rename and therefore expected to use the new origin path
+
+The rename-plus-merge variant uses this shape:
+
+1. pre-window baseline creates `src/legacy_merge_name.py` and `src/main_side.py`
+2. feature branch makes an in-window human rewrite on `src/legacy_merge_name.py`
+3. the same feature branch renames that file to `src/merged_name.py`
+4. the feature branch then adds one full-AI line and one partial-AI line after the rename
+5. `main` independently makes a human rewrite in `src/main_side.py`
+6. the feature branch is merged into `main` without conflicts
+7. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 4`
+2. `fullGeneratedCodeLines = 1`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important path assertions are:
+
+1. `src/merged_name.py:2` must report `origin_file=src/legacy_merge_name.py` because that line was last changed before the rename
+2. `src/merged_name.py:3` and `src/merged_name.py:4` must report `origin_file=src/merged_name.py` because those lines were last changed after the rename
+
+If this variant passes, it is strong evidence that the current implementation handles feature-branch rename lineage correctly across a later merge, at least for the non-conflict case.
+
 ## Why This Exists
 
 US-8 proved that one merge should not flatten attribution.
