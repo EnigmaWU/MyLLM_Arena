@@ -98,6 +98,9 @@ class TestUs1LiveChangedSourceRatioTdd(unittest.TestCase):
             repo_dir.mkdir()
             protocol_dir.mkdir()
 
+            # WHY: this test intentionally creates a real Git history instead of
+            # mocking Git output, because the product contract depends on blame
+            # behavior and commit timestamps rather than on an internal adapter.
             repo = GitRepoHarness(repo_dir)
             repo.write(
                 "src/calc.py",
@@ -150,6 +153,10 @@ class TestUs1LiveChangedSourceRatioTdd(unittest.TestCase):
             protocol_path = protocol_dir / f"{revision_id}_genCodeDesc.json"
             protocol_path.write_text(json.dumps(revision_protocol, indent=2), encoding="utf-8")
 
+            # WHY: external metadata can be present but still belong to the
+            # wrong repository target. This failure case protects against a
+            # silent cross-repository join that would produce believable but
+            # invalid aggregate numbers.
             with self.assertRaises(subprocess.CalledProcessError) as context:
                 self.run_cli(repo_dir, output_file, protocol_dir, query)
 

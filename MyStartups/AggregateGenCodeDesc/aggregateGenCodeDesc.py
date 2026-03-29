@@ -61,6 +61,9 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
 
+        # WHY: genCodeDesc is external metadata, not repository content. We
+        # validate identity fields here so the analyzer cannot silently join a
+        # real repository revision with the wrong external record.
         protocol_vcs_type = repository.get("vcsType")
         if protocol_vcs_type and protocol_vcs_type != vcs_type:
             raise ValueError(
@@ -119,10 +122,14 @@ def run_git(repo_dir: Path, args: list[str]) -> str:
 
 
 def parse_day_start(value: str) -> datetime:
+    # WHY: the current query contract is day-based, so the lower bound expands
+    # to the start of that UTC day instead of treating the input as an instant.
     return datetime.combine(datetime.fromisoformat(value).date(), time.min, tzinfo=timezone.utc)
 
 
 def parse_day_end(value: str) -> datetime:
+    # WHY: endTime is inclusive for the current metric definition. Expanding to
+    # the end of the UTC day avoids dropping commits made later that day.
     return datetime.combine(datetime.fromisoformat(value).date(), time.max, tzinfo=timezone.utc)
 
 
@@ -160,6 +167,9 @@ def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[Bl
         while index < len(lines) and not lines[index].startswith("\t"):
             meta_line = lines[index]
             if meta_line.startswith("filename "):
+                # WHY: blame can report the historical filename after rename.
+                # The metadata join needs that origin path rather than only the
+                # final path shown in the end snapshot.
                 origin_file = meta_line[len("filename "):]
             index += 1
 
@@ -237,12 +247,18 @@ def build_result(args: argparse.Namespace) -> dict:
                 continue
 
             commit_time = parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", blame_line.revision_id]))
+            # WHY: US-1 is defined over live lines whose current form originated
+            # within the query window. Blame gives that origin revision, so the
+            # time filter must be applied to the blame-resolved commit.
             if not (start_bound <= commit_time <= end_bound):
                 continue
 
             total_code_lines += 1
             protocol = protocols.get(blame_line.revision_id)
             if protocol is None:
+                # WHY: metadata is revision-scoped. Many lines can share one
+                # origin revision, so caching keeps lookup cost aligned with the
+                # revision model instead of repeating the same fetch per line.
                 protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, blame_line.revision_id, args.vcsType)
                 protocols[blame_line.revision_id] = protocol
 
