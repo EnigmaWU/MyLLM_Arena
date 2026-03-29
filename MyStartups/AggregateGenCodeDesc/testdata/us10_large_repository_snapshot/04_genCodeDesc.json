@@ -1,0 +1,30 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 24,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/utils/zeta.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "src/app/theta.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 40, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us10-demo",
+    "repoBranch": "main",
+    "revisionId": "us10-r4"
+  }
+}

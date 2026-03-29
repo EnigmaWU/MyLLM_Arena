@@ -1,0 +1,36 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 24,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/core/alpha.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "src/core/beta.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "src/core/gamma.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 50, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us10-demo",
+    "repoBranch": "main",
+    "revisionId": "us10-r2"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 24,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {"fileName": "src/core/alpha.py", "codeLines": []},
+    {"fileName": "src/core/beta.py", "codeLines": []},
+    {"fileName": "src/core/gamma.py", "codeLines": []},
+    {"fileName": "src/services/delta.py", "codeLines": []},
+    {"fileName": "src/services/epsilon.py", "codeLines": []},
+    {"fileName": "src/utils/zeta.py", "codeLines": []},
+    {"fileName": "src/utils/eta.py", "codeLines": []},
+    {"fileName": "src/app/theta.py", "codeLines": []}
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us10-demo",
+    "repoBranch": "main",
+    "revisionId": "us10-r1"
+  }
+}

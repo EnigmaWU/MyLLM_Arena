@@ -1,0 +1,30 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 24,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/services/delta.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "src/services/epsilon.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 60, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us10-demo",
+    "repoBranch": "main",
+    "revisionId": "us10-r3"
+  }
+}
