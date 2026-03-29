@@ -53,7 +53,14 @@ class GitRepoHarness:
 class TestUs2HumanOverwritesAiTdd(unittest.TestCase):
     maxDiff = None
 
-    def run_cli(self, repo_dir: Path, output_file: Path, protocol_dir: Path, query: dict) -> subprocess.CompletedProcess[str]:
+    def run_cli(
+        self,
+        repo_dir: Path,
+        output_file: Path,
+        protocol_dir: Path,
+        query: dict,
+        extra_args: list[str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
                 "python3",
@@ -72,6 +79,7 @@ class TestUs2HumanOverwritesAiTdd(unittest.TestCase):
                 str(output_file),
                 "--genCodeDescSetDir",
                 str(protocol_dir),
+                *(extra_args or []),
             ],
             cwd=PROJECT_ROOT,
             text=True,
@@ -136,6 +144,64 @@ class TestUs2HumanOverwritesAiTdd(unittest.TestCase):
             expected_result["REPOSITORY"]["revisionId"] = revision_id_r2
 
             self.assertEqual(actual_result, expected_result)
+
+    def test_cli_emits_process_logs_for_us2_when_debug_logging_is_enabled(self) -> None:
+        query = json.loads((FIXTURE_DIR / "query.json").read_text(encoding="utf-8"))
+        revision_protocol_r1 = json.loads((FIXTURE_DIR / "01_genCodeDesc.json").read_text(encoding="utf-8"))
+        revision_protocol_r2 = json.loads((FIXTURE_DIR / "02_genCodeDesc.json").read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/normalize.py",
+                "value = raw.strip()\n"
+                "value = value.lower()\n"
+                "result = value\n",
+            )
+            revision_id_r1 = repo.commit_all("us2-r1", "2026-03-10T09:00:00Z")
+
+            repo.write(
+                "src/normalize.py",
+                "value = raw.strip()\n"
+                "value = raw.casefold()\n"
+                "result = value\n",
+            )
+            revision_id_r2 = repo.commit_all("us2-r2", "2026-03-20T09:00:00Z")
+
+            revision_protocol_r1["REPOSITORY"]["repoURL"] = str(repo_dir)
+            revision_protocol_r1["REPOSITORY"]["revisionId"] = revision_id_r1
+            (protocol_dir / f"{revision_id_r1}_genCodeDesc.json").write_text(
+                json.dumps(revision_protocol_r1, indent=2),
+                encoding="utf-8",
+            )
+
+            revision_protocol_r2["REPOSITORY"]["repoURL"] = str(repo_dir)
+            revision_protocol_r2["REPOSITORY"]["revisionId"] = revision_id_r2
+            (protocol_dir / f"{revision_id_r2}_genCodeDesc.json").write_text(
+                json.dumps(revision_protocol_r2, indent=2),
+                encoding="utf-8",
+            )
+
+            result = self.run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertIn("Loaded genCodeDesc for revision", result.stderr)
+            self.assertIn(f"originRevision={revision_id_r1} classification=100%-ai", result.stderr)
+            self.assertIn(f"originRevision={revision_id_r2} classification=human/unattributed", result.stderr)
+            self.assertIn("transition=100%-ai->human/unattributed", result.stderr)
 
 
 if __name__ == "__main__":

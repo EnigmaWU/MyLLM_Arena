@@ -13,6 +13,7 @@ The tested story coverage now includes at least US-1 and US-2 on this runtime pa
 import argparse
 import json
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
@@ -40,7 +41,21 @@ class BlameLine:
     revision_id: str
     origin_file: str
     origin_line: int
+    final_line: int
     content: str
+
+
+class RuntimeLogger:
+    def __init__(self, level: str):
+        self.level = level
+
+    def info(self, message: str) -> None:
+        if self.level in {"info", "debug"}:
+            print(f"[agg] {message}", file=sys.stderr)
+
+    def debug(self, message: str) -> None:
+        if self.level == "debug":
+            print(f"[agg] {message}", file=sys.stderr)
 
 
 class GenCodeDescProvider(ABC):
@@ -50,28 +65,33 @@ class GenCodeDescProvider(ABC):
 
 
 class EmptyGenCodeDescProvider(GenCodeDescProvider):
-    def __init__(self, fail_on_missing: bool):
+    def __init__(self, fail_on_missing: bool, logger: RuntimeLogger):
         self.fail_on_missing = fail_on_missing
+        self.logger = logger
 
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
         if self.fail_on_missing:
             raise FileNotFoundError(f"Missing genCodeDesc provider data for revision {revision_id}")
+        self.logger.info(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
         return {}
 
 
 class GenCodeDescSetDirProvider(GenCodeDescProvider):
-    def __init__(self, base_dir: Path, fail_on_missing: bool):
+    def __init__(self, base_dir: Path, fail_on_missing: bool, logger: RuntimeLogger):
         self.base_dir = base_dir
         self.fail_on_missing = fail_on_missing
+        self.logger = logger
 
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
         protocol_path = self.base_dir / f"{revision_id}_genCodeDesc.json"
         if not protocol_path.exists():
             if self.fail_on_missing:
                 raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
+            self.logger.info(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
             return {}
         protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
+        self.logger.info(f"Loaded genCodeDesc for revision {revision_id} from {protocol_path}")
 
         # WHY: genCodeDesc is external metadata, not repository content. We
         # validate identity fields here so the analyzer cannot silently join a
@@ -119,6 +139,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workingDir")
     parser.add_argument("--failOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
+    parser.add_argument("--logLevel", choices=["quiet", "info", "debug"], default="quiet")
     return parser.parse_args()
 
 
@@ -173,6 +194,7 @@ def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[Bl
         header_parts = header.split()
         revision = header_parts[0]
         origin_line = int(header_parts[1])
+        final_line = int(header_parts[2])
         index += 1
 
         origin_file = relative_path
@@ -194,6 +216,7 @@ def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[Bl
                 revision_id=revision,
                 origin_file=origin_file,
                 origin_line=origin_line,
+                final_line=final_line,
                 content=content,
             )
         )
@@ -210,13 +233,65 @@ def is_code_line(content: str) -> bool:
     return not stripped.startswith(comment_prefixes)
 
 
-def build_gen_code_desc_provider(args: argparse.Namespace) -> GenCodeDescProvider:
+def build_gen_code_desc_provider(args: argparse.Namespace, logger: RuntimeLogger) -> GenCodeDescProvider:
     if args.metadataSource == "genCodeDesc":
         if args.genCodeDescSetDir:
-            return GenCodeDescSetDirProvider(Path(args.genCodeDescSetDir), args.failOnMissingProtocol)
-        return EmptyGenCodeDescProvider(args.failOnMissingProtocol)
+            return GenCodeDescSetDirProvider(Path(args.genCodeDescSetDir), args.failOnMissingProtocol, logger)
+        return EmptyGenCodeDescProvider(args.failOnMissingProtocol, logger)
 
     raise ValueError(f"Unsupported metadataSource: {args.metadataSource}. Only 'genCodeDesc' is supported in the current slice.")
+
+
+def describe_ratio(ratio: int) -> str:
+    if ratio == 100:
+        return "100%-ai"
+    if ratio > 0:
+        return f"{ratio}%-ai"
+    return "human/unattributed"
+
+
+def resolve_parent_revision(repo_dir: Path, revision_id: str) -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", f"{revision_id}^"],
+        cwd=repo_dir,
+        text=True,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def best_effort_transition_hint(
+    repo_dir: Path,
+    provider: GenCodeDescProvider,
+    logger: RuntimeLogger,
+    args: argparse.Namespace,
+    blame_line: BlameLine,
+    current_ratio: int,
+    protocols: dict[str, dict],
+    parent_revisions: dict[str, str | None],
+) -> str | None:
+    if logger.level != "debug":
+        return None
+
+    parent_revision = parent_revisions.get(blame_line.revision_id)
+    if parent_revision is None and blame_line.revision_id not in parent_revisions:
+        parent_revision = resolve_parent_revision(repo_dir, blame_line.revision_id)
+        parent_revisions[blame_line.revision_id] = parent_revision
+
+    if not parent_revision:
+        return None
+
+    parent_protocol = protocols.get(parent_revision)
+    if parent_protocol is None:
+        parent_protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, parent_revision, args.vcsType)
+        protocols[parent_revision] = parent_protocol
+
+    parent_ratio = line_ratio(parent_protocol, blame_line.origin_file, blame_line.origin_line)
+    if parent_ratio == current_ratio:
+        return None
+    return f"transition={describe_ratio(parent_ratio)}->{describe_ratio(current_ratio)}"
 
 
 def line_ratio(protocol: dict, origin_file: str, origin_line: int) -> int:
@@ -242,20 +317,30 @@ def build_result(args: argparse.Namespace) -> dict:
     if args.outputFormat != "json":
         raise NotImplementedError("Only JSON output is implemented in the current Git Model A slice")
 
+    logger = RuntimeLogger(args.logLevel)
     repo_dir = Path(args.workingDir or args.repoURL)
-    provider = build_gen_code_desc_provider(args)
+    provider = build_gen_code_desc_provider(args, logger)
     start_bound = parse_day_start(args.startTime)
     end_bound = parse_day_end(args.endTime)
     end_revision_id = resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
+    logger.info(
+        f"Starting analysis for repo={repo_dir} branch={args.repoBranch} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
+    )
 
     protocols: dict[str, dict] = {}
+    parent_revisions: dict[str, str | None] = {}
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
 
-    for relative_path in list_source_files(repo_dir, end_revision_id):
+    source_files = list_source_files(repo_dir, end_revision_id)
+    logger.info(f"Resolved {len(source_files)} source files in the end snapshot")
+
+    for relative_path in source_files:
+        logger.info(f"Scanning file {relative_path}")
         for blame_line in parse_blame(repo_dir, end_revision_id, relative_path):
             if not is_code_line(blame_line.content):
+                logger.debug(f"Skip non-code line {relative_path}:{blame_line.final_line}")
                 continue
 
             commit_time = parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", blame_line.revision_id]))
@@ -264,6 +349,9 @@ def build_result(args: argparse.Namespace) -> dict:
             # origin revision, so the time filter must be applied to the
             # blame-resolved commit rather than only to the end snapshot.
             if not (start_bound <= commit_time <= end_bound):
+                logger.debug(
+                    f"Skip out-of-window line {relative_path}:{blame_line.final_line} origin={blame_line.revision_id} commitTime={commit_time.isoformat()}"
+                )
                 continue
 
             total_code_lines += 1
@@ -274,12 +362,38 @@ def build_result(args: argparse.Namespace) -> dict:
                 # revision model instead of repeating the same fetch per line.
                 protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, blame_line.revision_id, args.vcsType)
                 protocols[blame_line.revision_id] = protocol
+            else:
+                logger.debug(f"Reuse cached genCodeDesc for revision {blame_line.revision_id}")
 
             ratio = line_ratio(protocol, blame_line.origin_file, blame_line.origin_line)
+            transition_hint = best_effort_transition_hint(
+                repo_dir,
+                provider,
+                logger,
+                args,
+                blame_line,
+                ratio,
+                protocols,
+                parent_revisions,
+            )
+            line_message = (
+                f"Line {relative_path}:{blame_line.final_line} <= {blame_line.origin_file}:{blame_line.origin_line} "
+                f"originRevision={blame_line.revision_id} classification={describe_ratio(ratio)}"
+            )
+            if transition_hint:
+                line_message = f"{line_message} {transition_hint}"
+            logger.info(line_message)
+
             if ratio == 100:
                 full_generated_code_lines += 1
             elif ratio > 0:
                 partial_generated_code_lines += 1
+
+    logger.info(
+        "Finished analysis with "
+        f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
+        f"partialGeneratedCodeLines={partial_generated_code_lines}"
+    )
 
     return {
         "protocolName": "generatedTextDesc",
