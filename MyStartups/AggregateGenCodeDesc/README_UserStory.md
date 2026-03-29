@@ -21,6 +21,8 @@ Each scenario contains:
 
 - one `genCodeDesc` file per revision that describes AI attribution for that revision
 
+For planned future stories, the scenario name defines the intended verification target even if the concrete fixture or integration test has not been added yet.
+
 Those `testdata/` scenarios are design-oriented fixtures.
 Those local `genCodeDesc` files simulate the external metadata store used in real deployments.
 The earlier diff artifacts have been removed from `testdata` to keep the fixture contract small and focused.
@@ -39,6 +41,9 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Model A`)
 - `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Model A`)
 - `US-9` -> `testdata/us9_svn_contract_parity` (`Model A`)
+- `US-10` -> `testdata/us10_large_repository_snapshot` (`Model A`)
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Model A`)
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Model A`)
 
 ## User Stories
 
@@ -180,11 +185,15 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** multiple commits inside that window contain mixed ownership transitions across different live lines
    **THEN** the system must produce exactly one final record for the live changed source code set at `endTime`, using the latest effective attribution of each surviving line
 
-2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+2. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** a surviving line has passed through a long chain of intermediate revisions inside that window
+   **THEN** the system must still resolve that line by its latest effective live attribution at `endTime`, without leaking superseded intermediate ownership into the final result
+
+3. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window`
+4. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -200,11 +209,15 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** a merge commit brings together earlier human and AI-attributed changes before `endTime`
    **THEN** the system must produce one final record for the live changed source code set at `endTime`, using the effective attribution of the surviving merged lines rather than treating the merge commit as a blanket origin
 
-2. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
+2. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** multiple branches are merged into the target branch before `endTime` and surviving lines originate from different merged branches
+   **THEN** the system must preserve the effective attribution of each surviving line independently, without collapsing ownership to merge commits or to the final branch identity alone
+
+3. **GIVEN** a successful result for `Repo:Branch:startTime:endTime`
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution`
+4. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
@@ -225,5 +238,65 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
 3. **GIVEN** the fixture `testdata/us9_svn_contract_parity`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-10: Large Repository Snapshot Must Preserve Result Semantics
+
+**As a** repository analyst,
+**I want** the analyzer to keep the same result semantics when the repository contains many source files and many live lines,
+**so that** the final aggregate result remains correct for realistic large codebases.
+
+#### Acceptance Criteria For US-10
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** the final live snapshot at `endTime` spans many source files and many live code lines
+   **THEN** the system must still produce exactly one repository-level final result with the same metric semantics and protocol-shaped structure as smaller repositories
+
+2. **GIVEN** a large repository snapshot containing many in-scope lines across many files
+   **WHEN** the analyzer aggregates the result
+   **THEN** file count or repository size must not change the per-line attribution rules, the repository identity rules, or the meaning of the final `SUMMARY` fields
+
+3. **GIVEN** the fixture `testdata/us10_large_repository_snapshot`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-11: Deep History Must Preserve Latest Effective Attribution
+
+**As a** repository analyst,
+**I want** long revision chains to preserve the latest effective attribution of each surviving line,
+**so that** many intermediate rewrites do not distort the final live result.
+
+#### Acceptance Criteria For US-11
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** the in-scope live lines at `endTime` depend on long revision chains with many intermediate rewrites
+   **THEN** the system must resolve each surviving line by its latest effective live attribution rather than by earlier superseded revisions in the chain
+
+2. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** long history chains contain both human-to-AI and AI-to-human transitions before `endTime`
+   **THEN** deleted or superseded intermediate states must not leak into the final aggregate result
+
+3. **GIVEN** the fixture `testdata/us11_deep_history_preserves_attribution`
+   **WHEN** the analyzer produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-12: Many Merged Branches In One Window Must Preserve Per-Line Attribution
+
+**As a** repository analyst,
+**I want** branch-heavy history inside one requested window to preserve per-line effective attribution,
+**so that** integrating many feature branches into the target branch does not distort the final result.
+
+#### Acceptance Criteria For US-12
+
+1. **GIVEN** a repository branch and a requested period `startTime~endTime`
+   **WHEN** many branches are merged into the target branch before `endTime`
+   **THEN** the system must still produce exactly one repository-level final result for the live changed source code set at `endTime`
+
+2. **GIVEN** multiple merged branches inside one requested window
+   **WHEN** surviving lines originate from different merged branches with different effective attribution histories
+   **THEN** the system must preserve the effective attribution of each surviving line independently and must not flatten ownership to merge commits, branch labels, or merge order alone
+
+3. **GIVEN** the fixture `testdata/us12_many_merged_branches_preserve_attribution`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
