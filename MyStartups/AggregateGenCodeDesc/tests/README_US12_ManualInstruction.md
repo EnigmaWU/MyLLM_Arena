@@ -353,6 +353,46 @@ Its most important lineage assertions are:
 
 If this variant passes, it is strong evidence that the current implementation can preserve multiple independent rename histories in the same end snapshot after separate feature-branch merges.
 
+## Additional Hard Variant: Parallel Rename Lineages Inside Octopus Merge
+
+The next stronger non-conflict US-12 variant combines the previous parallel-rename idea with a single octopus merge.
+
+Why this matters:
+
+1. the earlier parallel-rename variant merged the two renamed branches back into `main` one after the other
+2. this variant raises the difficulty by asking one multi-parent merge to preserve both rename histories at the same time
+3. it also adds a third feature branch with an unrelated AI-origin line so the octopus merge must keep multiple independent origins alive together
+
+The parallel-octopus variant uses this shape:
+
+1. pre-window baseline creates `src/alpha_oct_legacy.py`, `src/beta_oct_legacy.py`, `src/gamma_octopus.py`, and `src/main_octopus.py`
+2. `feature-alpha` makes an in-window human rewrite on `src/alpha_oct_legacy.py`
+3. `feature-alpha` renames that file to `src/alpha_oct_final.py`
+4. `feature-alpha` adds a full-AI line after the rename
+5. `feature-beta` independently makes an in-window human rewrite on `src/beta_oct_legacy.py`
+6. `feature-beta` renames that file to `src/beta_oct_final.py`
+7. `feature-beta` adds a partial-AI line after the rename
+8. `feature-gamma` independently adds a full-AI line in `src/gamma_octopus.py`
+9. `main` performs one conflict-free octopus merge of all three feature branches
+10. `main` then performs an independent human rewrite in `src/main_octopus.py`
+11. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 6`
+2. `fullGeneratedCodeLines = 2`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important lineage assertions are:
+
+1. `src/alpha_oct_final.py:2` must report `origin_file=src/alpha_oct_legacy.py`
+2. `src/alpha_oct_final.py:3` must report `origin_file=src/alpha_oct_final.py`
+3. `src/beta_oct_final.py:2` must report `origin_file=src/beta_oct_legacy.py`
+4. `src/beta_oct_final.py:3` must report `origin_file=src/beta_oct_final.py`
+5. `src/gamma_octopus.py:2` must report `origin_file=src/gamma_octopus.py`
+
+If this variant passes, it is strong evidence that the current implementation can preserve multiple independent rename histories even when they enter `main` through one multi-parent octopus merge.
+
 ## Why This Exists
 
 US-8 proved that one merge should not flatten attribution.

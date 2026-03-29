@@ -1699,6 +1699,274 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                 classification="human/unattributed",
             )
 
+    def test_cli_preserves_parallel_rename_lineages_inside_octopus_merge_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us12-parallel-rename-octopus",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us12-pro-r10",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/alpha_oct_legacy.py",
+                "carry_pre_window = base\n"
+                "alpha_human = base + 1\n"
+                "alpha_full = base + 2\n",
+            )
+            repo.write(
+                "src/beta_oct_legacy.py",
+                "carry_pre_window = base\n"
+                "beta_human = base + 1\n"
+                "beta_partial = base + 2\n",
+            )
+            repo.write(
+                "src/gamma_octopus.py",
+                "carry_pre_window = base\n"
+                "gamma_full = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            repo.write(
+                "src/main_octopus.py",
+                "carry_pre_window = base\n"
+                "main_human = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r1 = repo.commit_all("us12-pro-r1", "2026-02-24T09:00:00Z")
+
+            repo.checkout_new_branch("feature-alpha")
+            repo.write(
+                "src/alpha_oct_legacy.py",
+                "carry_pre_window = base\n"
+                "alpha_human = sanitize(base + 1)\n"
+                "alpha_full = base + 2\n",
+            )
+            revision_id_r2 = repo.commit_all("us12-pro-r2", "2026-03-03T09:00:00Z")
+            repo.rename("src/alpha_oct_legacy.py", "src/alpha_oct_final.py")
+            revision_id_r3 = repo.commit_all("us12-pro-r3", "2026-03-04T09:00:00Z")
+            repo.write(
+                "src/alpha_oct_final.py",
+                "carry_pre_window = base\n"
+                "alpha_human = sanitize(base + 1)\n"
+                "alpha_full = helper(base + 2)\n",
+            )
+            revision_id_r4 = repo.commit_all("us12-pro-r4", "2026-03-05T09:00:00Z")
+
+            repo.checkout("main")
+            repo.checkout_new_branch("feature-beta")
+            repo.write(
+                "src/beta_oct_legacy.py",
+                "carry_pre_window = base\n"
+                "beta_human = normalize(base + 1)\n"
+                "beta_partial = base + 2\n",
+            )
+            revision_id_r5 = repo.commit_all("us12-pro-r5", "2026-03-06T09:00:00Z")
+            repo.rename("src/beta_oct_legacy.py", "src/beta_oct_final.py")
+            revision_id_r6 = repo.commit_all("us12-pro-r6", "2026-03-07T09:00:00Z")
+            repo.write(
+                "src/beta_oct_final.py",
+                "carry_pre_window = base\n"
+                "beta_human = normalize(base + 1)\n"
+                "beta_partial = suggest(base + 2)\n",
+            )
+            revision_id_r7 = repo.commit_all("us12-pro-r7", "2026-03-08T09:00:00Z")
+
+            repo.checkout("main")
+            repo.checkout_new_branch("feature-gamma")
+            repo.write(
+                "src/gamma_octopus.py",
+                "carry_pre_window = base\n"
+                "gamma_full = synthesize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r8 = repo.commit_all("us12-pro-r8", "2026-03-09T09:00:00Z")
+
+            repo.checkout("main")
+            revision_id_r9 = repo.merge_octopus(
+                ["feature-alpha", "feature-beta", "feature-gamma"],
+                "us12-pro-r9",
+                "2026-03-11T09:00:00Z",
+            )
+            repo.write(
+                "src/main_octopus.py",
+                "carry_pre_window = base\n"
+                "main_human = verify(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            repo.commit_all("us12-pro-r9b", "2026-03-12T09:00:00Z")
+
+            repo.write("README.md", "us12 parallel octopus docs update\n")
+            revision_id_r10 = repo.commit_all("us12-pro-r10", "2026-03-13T09:00:00Z")
+
+            baseline_protocol = self._inline_protocol(repo_branch="main", file_name="src/alpha_oct_legacy.py")
+            baseline_protocol["DETAIL"] = [
+                {"fileName": "src/alpha_oct_legacy.py", "codeLines": []},
+                {"fileName": "src/beta_oct_legacy.py", "codeLines": []},
+                {"fileName": "src/gamma_octopus.py", "codeLines": []},
+                {"fileName": "src/main_octopus.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, baseline_protocol, repo_dir, revision_id_r1)
+
+            alpha_human_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/alpha_oct_legacy.py")
+            alpha_human_protocol["DETAIL"].append({"fileName": "src/beta_oct_legacy.py", "codeLines": []})
+            alpha_human_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            alpha_human_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, alpha_human_protocol, repo_dir, revision_id_r2)
+
+            alpha_rename_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/alpha_oct_final.py")
+            alpha_rename_protocol["DETAIL"].append({"fileName": "src/beta_oct_legacy.py", "codeLines": []})
+            alpha_rename_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            alpha_rename_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, alpha_rename_protocol, repo_dir, revision_id_r3)
+
+            alpha_ai_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/alpha_oct_final.py", full_lines=[3])
+            alpha_ai_protocol["DETAIL"].append({"fileName": "src/beta_oct_legacy.py", "codeLines": []})
+            alpha_ai_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            alpha_ai_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, alpha_ai_protocol, repo_dir, revision_id_r4)
+
+            beta_human_protocol = self._inline_protocol(repo_branch="feature-beta", file_name="src/beta_oct_legacy.py")
+            beta_human_protocol["DETAIL"].append({"fileName": "src/alpha_oct_final.py", "codeLines": []})
+            beta_human_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            beta_human_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, beta_human_protocol, repo_dir, revision_id_r5)
+
+            beta_rename_protocol = self._inline_protocol(repo_branch="feature-beta", file_name="src/beta_oct_final.py")
+            beta_rename_protocol["DETAIL"].append({"fileName": "src/alpha_oct_final.py", "codeLines": []})
+            beta_rename_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            beta_rename_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, beta_rename_protocol, repo_dir, revision_id_r6)
+
+            beta_ai_protocol = self._inline_protocol(repo_branch="feature-beta", file_name="src/beta_oct_final.py", partial_lines={3: 60})
+            beta_ai_protocol["DETAIL"].append({"fileName": "src/alpha_oct_final.py", "codeLines": []})
+            beta_ai_protocol["DETAIL"].append({"fileName": "src/gamma_octopus.py", "codeLines": []})
+            beta_ai_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, beta_ai_protocol, repo_dir, revision_id_r7)
+
+            gamma_protocol = self._inline_protocol(repo_branch="feature-gamma", file_name="src/gamma_octopus.py", full_lines=[2])
+            gamma_protocol["DETAIL"].append({"fileName": "src/alpha_oct_final.py", "codeLines": []})
+            gamma_protocol["DETAIL"].append({"fileName": "src/beta_oct_final.py", "codeLines": []})
+            gamma_protocol["DETAIL"].append({"fileName": "src/main_octopus.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, gamma_protocol, repo_dir, revision_id_r8)
+
+            octopus_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_octopus.py")
+            octopus_protocol["DETAIL"] = [
+                {"fileName": "src/alpha_oct_final.py", "codeLines": []},
+                {"fileName": "src/beta_oct_final.py", "codeLines": []},
+                {"fileName": "src/gamma_octopus.py", "codeLines": []},
+                {"fileName": "src/main_octopus.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, octopus_protocol, repo_dir, revision_id_r9)
+
+            main_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_octopus.py")
+            main_protocol["DETAIL"] = [
+                {"fileName": "src/alpha_oct_final.py", "codeLines": []},
+                {"fileName": "src/beta_oct_final.py", "codeLines": []},
+                {"fileName": "src/gamma_octopus.py", "codeLines": []},
+                {"fileName": "src/main_octopus.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, main_protocol, repo_dir, repo.commit_ids["us12-pro-r9b"])
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                json.loads(output_file.read_text(encoding="utf-8")),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 6,
+                        "fullGeneratedCodeLines": 2,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r10,
+                    },
+                },
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/alpha_oct_final.py",
+                final_line=2,
+                origin_file="src/alpha_oct_legacy.py",
+                origin_line=2,
+                revision_id=revision_id_r2,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/alpha_oct_final.py",
+                final_line=3,
+                origin_file="src/alpha_oct_final.py",
+                origin_line=3,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/beta_oct_final.py",
+                final_line=2,
+                origin_file="src/beta_oct_legacy.py",
+                origin_line=2,
+                revision_id=revision_id_r5,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/beta_oct_final.py",
+                final_line=3,
+                origin_file="src/beta_oct_final.py",
+                origin_line=3,
+                revision_id=revision_id_r7,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/gamma_octopus.py",
+                final_line=2,
+                origin_file="src/gamma_octopus.py",
+                origin_line=2,
+                revision_id=revision_id_r8,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_octopus.py",
+                final_line=2,
+                origin_file="src/main_octopus.py",
+                origin_line=2,
+                revision_id=repo.commit_ids["us12-pro-r9b"],
+                classification="human/unattributed",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
