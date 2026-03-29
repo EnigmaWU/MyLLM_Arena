@@ -35,6 +35,9 @@ class GitRepoHarness:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
 
+    def rename(self, old_path: str, new_path: str) -> None:
+        self._run(["git", "mv", old_path, new_path])
+
     def commit_all(self, label: str, date: str) -> str:
         env = {
             "GIT_AUTHOR_DATE": date,
