@@ -1,3 +1,15 @@
+"""Current CLI slice for AggregateGenCodeDesc.
+
+This implementation is intentionally narrow:
+- Git only
+- Model A only
+- Scope A only
+- JSON output only
+- external revision metadata resolved through the current genCodeDesc provider path
+
+The tested story coverage now includes at least US-1 and US-2 on this runtime path.
+"""
+
 import argparse
 import json
 import subprocess
@@ -222,13 +234,13 @@ def line_ratio(protocol: dict, origin_file: str, origin_line: int) -> int:
 
 def build_result(args: argparse.Namespace) -> dict:
     if args.vcsType != "git":
-        raise NotImplementedError("Only git is implemented in the first US-1 slice")
+        raise NotImplementedError("Only git is implemented in the current Git Model A slice")
     if args.model != "A":
-        raise NotImplementedError("Only Model A is implemented in the first US-1 slice")
+        raise NotImplementedError("Only Model A is implemented in the current Git Model A slice")
     if args.scope != "A":
-        raise NotImplementedError("Only Scope A is implemented in the first US-1 slice")
+        raise NotImplementedError("Only Scope A is implemented in the current Git Model A slice")
     if args.outputFormat != "json":
-        raise NotImplementedError("Only JSON output is implemented in the first US-1 slice")
+        raise NotImplementedError("Only JSON output is implemented in the current Git Model A slice")
 
     repo_dir = Path(args.workingDir or args.repoURL)
     provider = build_gen_code_desc_provider(args)
@@ -247,9 +259,10 @@ def build_result(args: argparse.Namespace) -> dict:
                 continue
 
             commit_time = parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", blame_line.revision_id]))
-            # WHY: US-1 is defined over live lines whose current form originated
-            # within the query window. Blame gives that origin revision, so the
-            # time filter must be applied to the blame-resolved commit.
+            # WHY: the current primary metric is defined over live lines whose
+            # current form originated within the query window. Blame gives that
+            # origin revision, so the time filter must be applied to the
+            # blame-resolved commit rather than only to the end snapshot.
             if not (start_bound <= commit_time <= end_bound):
                 continue
 
