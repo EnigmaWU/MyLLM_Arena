@@ -1,0 +1,24 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "Us12FeatureDelta",
+  "SUMMARY": {
+    "totalCodeLines": 1,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/branch_matrix.py",
+      "codeLines": [
+        {"lineLocation": 6, "genRatio": 40, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us12",
+    "repoBranch": "feature-delta",
+    "revisionId": "us12-r10"
+  }
+}

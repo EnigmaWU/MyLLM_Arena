@@ -54,6 +54,16 @@ class GitRepoHarness:
         self.commit_ids[label] = commit_id
         return commit_id
 
+    def merge_octopus(self, branch_names: list[str], label: str, date: str) -> str:
+        env = {
+            "GIT_AUTHOR_DATE": date,
+            "GIT_COMMITTER_DATE": date,
+        }
+        self._run(["git", "merge", "-m", label, *branch_names], env=env)
+        commit_id = self._run(["git", "rev-parse", "HEAD"])
+        self.commit_ids[label] = commit_id
+        return commit_id
+
     def commit_all(self, label: str, date: str) -> str:
         env = {
             "GIT_AUTHOR_DATE": date,

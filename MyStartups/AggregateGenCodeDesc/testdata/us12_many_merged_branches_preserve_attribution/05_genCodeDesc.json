@@ -1,0 +1,24 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "Us12FeatureBeta",
+  "SUMMARY": {
+    "totalCodeLines": 1,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/branch_matrix.py",
+      "codeLines": [
+        {"lineLocation": 4, "genRatio": 70, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us12",
+    "repoBranch": "feature-beta",
+    "revisionId": "us12-r5"
+  }
+}
