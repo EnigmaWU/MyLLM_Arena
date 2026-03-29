@@ -1069,14 +1069,197 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                 revision_id=repo.commit_ids["us12-ro-r7b"],
                 classification="human/unattributed",
             )
+
+    def test_cli_preserves_double_rename_lineage_after_merge_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us12-double-rename",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us12-dr-r9",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/legacy_round1.py",
+                "carry_pre_window = base\n"
+                "rename_human = base + 1\n"
+                "rename_full = base + 2\n"
+                "rename_partial = base + 3\n",
+            )
+            repo.write(
+                "src/main_companion.py",
+                "carry_pre_window = base\n"
+                "main_human = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r1 = repo.commit_all("us12-dr-r1", "2026-02-24T09:00:00Z")
+
+            repo.checkout_new_branch("feature-double-rename")
+            repo.write(
+                "src/legacy_round1.py",
+                "carry_pre_window = base\n"
+                "rename_human = sanitize(base + 1)\n"
+                "rename_full = base + 2\n"
+                "rename_partial = base + 3\n",
+            )
+            revision_id_r2 = repo.commit_all("us12-dr-r2", "2026-03-03T09:00:00Z")
+
+            repo.rename("src/legacy_round1.py", "src/intermediate_round2.py")
+            revision_id_r3 = repo.commit_all("us12-dr-r3", "2026-03-04T09:00:00Z")
+
+            repo.write(
+                "src/intermediate_round2.py",
+                "carry_pre_window = base\n"
+                "rename_human = sanitize(base + 1)\n"
+                "rename_full = helper(base + 2)\n"
+                "rename_partial = base + 3\n",
+            )
+            revision_id_r4 = repo.commit_all("us12-dr-r4", "2026-03-05T09:00:00Z")
+
+            repo.rename("src/intermediate_round2.py", "src/final_round3.py")
+            revision_id_r5 = repo.commit_all("us12-dr-r5", "2026-03-06T09:00:00Z")
+
+            repo.write(
+                "src/final_round3.py",
+                "carry_pre_window = base\n"
+                "rename_human = sanitize(base + 1)\n"
+                "rename_full = helper(base + 2)\n"
+                "rename_partial = suggest(base + 3)\n",
+            )
+            revision_id_r6 = repo.commit_all("us12-dr-r6", "2026-03-07T09:00:00Z")
+
+            repo.checkout("main")
+            repo.write(
+                "src/main_companion.py",
+                "carry_pre_window = base\n"
+                "main_human = normalize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r7 = repo.commit_all("us12-dr-r7", "2026-03-09T09:00:00Z")
+
+            revision_id_r8 = repo.merge_no_ff("feature-double-rename", "us12-dr-r8", "2026-03-11T09:00:00Z")
+
+            repo.write("README.md", "us12 double rename docs update\n")
+            revision_id_r9 = repo.commit_all("us12-dr-r9", "2026-03-12T09:00:00Z")
+
+            baseline_protocol = self._inline_protocol(repo_branch="main", file_name="src/legacy_round1.py")
+            baseline_protocol["DETAIL"] = [
+                {"fileName": "src/legacy_round1.py", "codeLines": []},
+                {"fileName": "src/main_companion.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, baseline_protocol, repo_dir, revision_id_r1)
+
+            first_change_protocol = self._inline_protocol(repo_branch="feature-double-rename", file_name="src/legacy_round1.py")
+            first_change_protocol["DETAIL"].append({"fileName": "src/main_companion.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, first_change_protocol, repo_dir, revision_id_r2)
+
+            first_rename_protocol = self._inline_protocol(repo_branch="feature-double-rename", file_name="src/intermediate_round2.py")
+            first_rename_protocol["DETAIL"].append({"fileName": "src/main_companion.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, first_rename_protocol, repo_dir, revision_id_r3)
+
+            middle_ai_protocol = self._inline_protocol(repo_branch="feature-double-rename", file_name="src/intermediate_round2.py", full_lines=[3])
+            middle_ai_protocol["DETAIL"].append({"fileName": "src/main_companion.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, middle_ai_protocol, repo_dir, revision_id_r4)
+
+            second_rename_protocol = self._inline_protocol(repo_branch="feature-double-rename", file_name="src/final_round3.py")
+            second_rename_protocol["DETAIL"].append({"fileName": "src/main_companion.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, second_rename_protocol, repo_dir, revision_id_r5)
+
+            final_ai_protocol = self._inline_protocol(repo_branch="feature-double-rename", file_name="src/final_round3.py", partial_lines={4: 60})
+            final_ai_protocol["DETAIL"].append({"fileName": "src/main_companion.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, final_ai_protocol, repo_dir, revision_id_r6)
+
+            main_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_companion.py")
+            main_protocol["DETAIL"] = [
+                {"fileName": "src/final_round3.py", "codeLines": []},
+                {"fileName": "src/main_companion.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, main_protocol, repo_dir, revision_id_r7)
+
+            merge_protocol = self._inline_protocol(repo_branch="main", file_name="src/final_round3.py")
+            merge_protocol["DETAIL"] = [
+                {"fileName": "src/final_round3.py", "codeLines": []},
+                {"fileName": "src/main_companion.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, merge_protocol, repo_dir, revision_id_r8)
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                json.loads(output_file.read_text(encoding="utf-8")),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 4,
+                        "fullGeneratedCodeLines": 1,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r9,
+                    },
+                },
+            )
             assert_live_line_log(
                 self,
                 result.stderr,
-                relative_path="src/main_side.py",
+                relative_path="src/final_round3.py",
                 final_line=2,
-                origin_file="src/main_side.py",
+                origin_file="src/legacy_round1.py",
                 origin_line=2,
-                revision_id=repo.commit_ids["us12-ro-r7b"],
+                revision_id=revision_id_r2,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/final_round3.py",
+                final_line=3,
+                origin_file="src/intermediate_round2.py",
+                origin_line=3,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/final_round3.py",
+                final_line=4,
+                origin_file="src/final_round3.py",
+                origin_line=4,
+                revision_id=revision_id_r6,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_companion.py",
+                final_line=2,
+                origin_file="src/main_companion.py",
+                origin_line=2,
+                revision_id=revision_id_r7,
                 classification="human/unattributed",
             )
 

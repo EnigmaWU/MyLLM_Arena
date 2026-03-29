@@ -159,7 +159,7 @@ The octopus variant uses multiple source files so the merge itself stays conflic
 
 Its expected final aggregate is:
 
-1. `totalCodeLines = 5`
+1. `totalCodeLines = 4`
 2. `fullGeneratedCodeLines = 2`
 3. `partialGeneratedCodeLines = 1`
 
@@ -225,7 +225,7 @@ Why this matters:
 
 Its expected final aggregate is:
 
-1. `totalCodeLines = 4`
+1. `totalCodeLines = 5`
 2. `fullGeneratedCodeLines = 2`
 3. `partialGeneratedCodeLines = 1`
 
@@ -237,6 +237,45 @@ Its most important assertions are:
 4. the later mainline human line in `src/main_side.py` remains independently attributed to its post-merge mainline revision
 
 If this variant passes, it is strong evidence that the present implementation handles one of the most demanding non-conflict Git topologies currently in scope for Model A.
+
+## Additional Hard Variant: Double Rename On Feature Branch Before Merge
+
+Another strong non-conflict US-12 variant now checks whether one feature branch can rename the same file twice before merging back to `main`.
+
+Why this matters:
+
+1. a single rename already proved useful, but two renames create three distinct historical path stages
+2. the final merged file can then contain live lines whose current origins should map to three different path names:
+   the original path before any rename
+   the intermediate path after the first rename
+   the final path after the second rename
+3. this directly pressure-tests whether blame filename lineage and metadata lookup continue to agree after repeated path changes on one feature branch
+
+The double-rename variant uses this shape:
+
+1. pre-window baseline creates `src/legacy_round1.py` and `src/main_companion.py`
+2. the feature branch makes an in-window human rewrite while the file is still named `src/legacy_round1.py`
+3. the feature branch renames the file to `src/intermediate_round2.py`
+4. the feature branch adds a full-AI line while the intermediate path is active
+5. the feature branch renames the file again to `src/final_round3.py`
+6. the feature branch adds a partial-AI line after the second rename
+7. `main` independently makes a human rewrite in `src/main_companion.py`
+8. the feature branch merges back into `main` without conflicts
+9. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 4`
+2. `fullGeneratedCodeLines = 1`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important lineage assertions are:
+
+1. `src/final_round3.py:2` must report `origin_file=src/legacy_round1.py`
+2. `src/final_round3.py:3` must report `origin_file=src/intermediate_round2.py`
+3. `src/final_round3.py:4` must report `origin_file=src/final_round3.py`
+
+If this variant passes, it is strong evidence that the current implementation preserves multi-step rename lineage correctly across a later merge, at least for the non-conflict case.
 
 ## Why This Exists
 
