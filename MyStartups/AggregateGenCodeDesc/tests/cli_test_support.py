@@ -38,6 +38,22 @@ class GitRepoHarness:
     def rename(self, old_path: str, new_path: str) -> None:
         self._run(["git", "mv", old_path, new_path])
 
+    def checkout_new_branch(self, branch_name: str) -> None:
+        self._run(["git", "checkout", "-b", branch_name])
+
+    def checkout(self, branch_name: str) -> None:
+        self._run(["git", "checkout", branch_name])
+
+    def merge_no_ff(self, branch_name: str, label: str, date: str) -> str:
+        env = {
+            "GIT_AUTHOR_DATE": date,
+            "GIT_COMMITTER_DATE": date,
+        }
+        self._run(["git", "merge", "--no-ff", branch_name, "-m", label], env=env)
+        commit_id = self._run(["git", "rev-parse", "HEAD"])
+        self.commit_ids[label] = commit_id
+        return commit_id
+
     def commit_all(self, label: str, date: str) -> str:
         env = {
             "GIT_AUTHOR_DATE": date,

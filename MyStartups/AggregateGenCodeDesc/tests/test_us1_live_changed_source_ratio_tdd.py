@@ -79,8 +79,8 @@ class TestUs1LiveChangedSourceRatioTdd(unittest.TestCase):
             )
             revision_id = repo.commit_all("us1-r1", "2026-03-10T09:00:00Z")
 
-            revision_protocol["REPOSITORY"]["repoURL"] = str(repo_dir)
-            revision_protocol["REPOSITORY"]["repoBranch"] = "wrong-branch"
+            revision_protocol["REPOSITORY"]["repoURL"] = "https://wrong.example/repo/demo"
+            revision_protocol["REPOSITORY"]["repoBranch"] = query["repoBranch"]
             revision_protocol["REPOSITORY"]["revisionId"] = revision_id
             (protocol_dir / f"{revision_id}_genCodeDesc.json").write_text(
                 json.dumps(revision_protocol, indent=2),
@@ -94,7 +94,7 @@ class TestUs1LiveChangedSourceRatioTdd(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError) as context:
                 run_cli(repo_dir, output_file, protocol_dir, query)
 
-            self.assertIn("Metadata repoBranch mismatch", context.exception.stderr)
+            self.assertIn("Metadata repoURL mismatch", context.exception.stderr)
 
     def test_cli_emits_debug_logs_for_us1_when_enabled(self) -> None:
         query = load_json(FIXTURE_DIR / "query.json")

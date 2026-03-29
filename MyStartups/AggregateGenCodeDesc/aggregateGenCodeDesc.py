@@ -109,9 +109,14 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
             )
 
         protocol_repo_branch = repository.get("repoBranch")
+        # WHY: repoBranch describes where that metadata record was produced, but
+        # merged revisions can legitimately originate from a different branch
+        # than the query branch while still being part of the end revision's
+        # reachable history. Branch equality is therefore not a stable
+        # revision-identity check for revision-scoped metadata.
         if protocol_repo_branch and protocol_repo_branch != repo_branch:
-            raise ValueError(
-                f"Metadata repoBranch mismatch for revision {revision_id}: expected {repo_branch}, got {protocol_repo_branch}"
+            self.logger.debug(
+                f"Metadata repoBranch differs for revision {revision_id}: query={repo_branch} metadata={protocol_repo_branch}; accepting revision-scoped metadata"
             )
 
         protocol_revision_id = repository.get("revisionId")
