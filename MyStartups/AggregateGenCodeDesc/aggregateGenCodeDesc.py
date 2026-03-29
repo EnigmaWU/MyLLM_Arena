@@ -14,6 +14,7 @@ import argparse
 import json
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
@@ -181,11 +182,42 @@ def parse_git_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def format_svn_date_bound(value: datetime) -> str:
+    return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
 def resolve_end_revision(repo_dir: Path, branch: str, end_time: str) -> str:
     end_value = parse_day_end(end_time).isoformat()
     revision_id = run_git(repo_dir, ["rev-list", "-1", f"--before={end_value}", branch])
     if not revision_id:
         raise RuntimeError("No revision found at or before endTime")
+    return revision_id
+
+
+def build_svn_branch_target(repo_url: str, branch: str) -> str:
+    return f"{repo_url.rstrip('/')}/{branch.strip('/')}"
+
+
+def run_svn(args: list[str]) -> str:
+    result = subprocess.run(
+        ["svn", *args],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def resolve_svn_end_revision(repo_url: str, branch: str, end_time: str) -> str:
+    end_value = format_svn_date_bound(parse_day_end(end_time))
+    log_xml = run_svn(["log", "--xml", "-r", f"{{{end_value}}}:1", build_svn_branch_target(repo_url, branch)])
+    root = ET.fromstring(log_xml)
+    log_entry = root.find("logentry")
+    if log_entry is None:
+        raise RuntimeError("No revision found at or before endTime")
+    revision_id = log_entry.attrib.get("revision")
+    if not revision_id:
+        raise RuntimeError("Unable to resolve SVN end revision")
     return revision_id
 
 
@@ -197,9 +229,31 @@ def get_commit_time(repo_dir: Path, revision_id: str, commit_times: dict[str, da
     return commit_time
 
 
+def get_svn_commit_time(repo_url: str, branch: str, revision_id: str, commit_times: dict[str, datetime]) -> datetime:
+    commit_time = commit_times.get(revision_id)
+    if commit_time is None:
+        log_xml = run_svn(["log", "--xml", "-r", revision_id, build_svn_branch_target(repo_url, branch)])
+        root = ET.fromstring(log_xml)
+        log_entry = root.find("logentry")
+        if log_entry is None:
+            raise RuntimeError(f"Unable to resolve SVN revision timestamp for revision {revision_id}")
+        date_node = log_entry.find("date")
+        if date_node is None or not date_node.text:
+            raise RuntimeError(f"Missing SVN revision timestamp for revision {revision_id}")
+        commit_time = parse_git_timestamp(date_node.text)
+        commit_times[revision_id] = commit_time
+    return commit_time
+
+
 def list_source_files(repo_dir: Path, revision_id: str) -> list[str]:
     output = run_git(repo_dir, ["ls-tree", "-r", "--name-only", revision_id])
     files = [line for line in output.splitlines() if Path(line).suffix in SOURCE_EXTENSIONS]
+    return files
+
+
+def list_svn_source_files(repo_url: str, branch: str, revision_id: str) -> list[str]:
+    output = run_svn(["ls", "-R", "-r", revision_id, build_svn_branch_target(repo_url, branch)])
+    files = [line for line in output.splitlines() if line and not line.endswith("/") and Path(line).suffix in SOURCE_EXTENSIONS]
     return files
 
 
@@ -240,6 +294,43 @@ def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[Bl
             )
         )
         index += 1
+
+    return parsed
+
+
+def parse_svn_blame(repo_url: str, branch: str, revision_id: str, relative_path: str) -> list[BlameLine]:
+    target = f"{build_svn_branch_target(repo_url, branch)}/{relative_path}"
+    blame_xml = run_svn(["blame", "--xml", "-r", revision_id, target])
+    file_content = run_svn(["cat", "-r", revision_id, target])
+    content_lines = file_content.splitlines()
+    root = ET.fromstring(blame_xml)
+    target_node = root.find("target")
+    if target_node is None:
+        return []
+
+    parsed: list[BlameLine] = []
+    origin_file = f"{branch.strip('/')}/{relative_path}"
+    for final_line, (entry, content) in enumerate(zip(target_node.findall("entry"), content_lines), start=1):
+        commit_node = entry.find("commit")
+        revision_value = commit_node.attrib.get("revision") if commit_node is not None else None
+        if not revision_value:
+            continue
+        parsed.append(
+            BlameLine(
+                revision_id=revision_value,
+                # WHY: current SVN support is intentionally narrow. Baseline
+                # parity stories use same-path lines without rename tracking, so
+                # we key metadata by branch-qualified final path for now.
+                origin_file=origin_file,
+                # WHY: svn blame does not expose Git-style historical origin
+                # line numbers. The current SVN slice starts with same-path,
+                # no-line-shift scenarios where final line number is sufficient
+                # to join external metadata.
+                origin_line=final_line,
+                final_line=final_line,
+                content=content,
+            )
+        )
 
     return parsed
 
@@ -289,16 +380,25 @@ def build_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
     return indexed_detail
 
 
-def resolve_parent_revision(repo_dir: Path, revision_id: str) -> str | None:
-    result = subprocess.run(
-        ["git", "rev-parse", f"{revision_id}^"],
-        cwd=repo_dir,
-        text=True,
-        capture_output=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip() or None
+def resolve_parent_revision(vcs_type: str, repo_dir: Path, repo_url: str, branch: str, revision_id: str) -> str | None:
+    if vcs_type == "git":
+        result = subprocess.run(
+            ["git", "rev-parse", f"{revision_id}^"],
+            cwd=repo_dir,
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            return None
+        return result.stdout.strip() or None
+
+    if vcs_type == "svn":
+        if not revision_id.isdigit():
+            return None
+        parent_revision = int(revision_id) - 1
+        return str(parent_revision) if parent_revision >= 1 else None
+
+    return None
 
 
 def best_effort_transition_hint(
@@ -317,7 +417,7 @@ def best_effort_transition_hint(
 
     parent_revision = parent_revisions.get(blame_line.revision_id)
     if parent_revision is None and blame_line.revision_id not in parent_revisions:
-        parent_revision = resolve_parent_revision(repo_dir, blame_line.revision_id)
+        parent_revision = resolve_parent_revision(args.vcsType, repo_dir, args.repoURL, args.repoBranch, blame_line.revision_id)
         parent_revisions[blame_line.revision_id] = parent_revision
 
     if not parent_revision:
@@ -349,23 +449,30 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 
 
 def build_result(args: argparse.Namespace) -> dict:
-    if args.vcsType != "git":
-        raise NotImplementedError("Only git is implemented in the current Git Model A slice")
     if args.model != "A":
-        raise NotImplementedError("Only Model A is implemented in the current Git Model A slice")
+        raise NotImplementedError("Only Model A is implemented in the current Git/SVN Model A slice")
     if args.scope != "A":
-        raise NotImplementedError("Only Scope A is implemented in the current Git Model A slice")
+        raise NotImplementedError("Only Scope A is implemented in the current Git/SVN Model A slice")
     if args.outputFormat != "json":
-        raise NotImplementedError("Only JSON output is implemented in the current Git Model A slice")
+        raise NotImplementedError("Only JSON output is implemented in the current Git/SVN Model A slice")
+    if args.vcsType not in {"git", "svn"}:
+        raise NotImplementedError("Only git and svn are implemented in the current Model A slice")
 
     logger = RuntimeLogger(args.logLevel)
     repo_dir = Path(args.workingDir or args.repoURL)
     provider = build_gen_code_desc_provider(args, logger)
     start_bound = parse_day_start(args.startTime)
     end_bound = parse_day_end(args.endTime)
-    end_revision_id = resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
+    if args.vcsType == "git":
+        end_revision_id = resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
+        source_files = list_source_files(repo_dir, end_revision_id)
+        repo_identity_url = str(repo_dir)
+    else:
+        end_revision_id = resolve_svn_end_revision(args.repoURL, args.repoBranch, args.endTime)
+        source_files = list_svn_source_files(args.repoURL, args.repoBranch, end_revision_id)
+        repo_identity_url = args.repoURL
     logger.info(
-        f"Starting analysis for repo={repo_dir} branch={args.repoBranch} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
+        f"Starting analysis for repo={repo_identity_url} branch={args.repoBranch} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
     )
 
     protocols: dict[str, dict] = {}
@@ -376,17 +483,25 @@ def build_result(args: argparse.Namespace) -> dict:
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
 
-    source_files = list_source_files(repo_dir, end_revision_id)
     logger.debug(f"Resolved {len(source_files)} source files in the end snapshot")
 
     for relative_path in source_files:
         logger.debug(f"Scanning file {relative_path}")
-        for blame_line in parse_blame(repo_dir, end_revision_id, relative_path):
+        blame_lines = (
+            parse_blame(repo_dir, end_revision_id, relative_path)
+            if args.vcsType == "git"
+            else parse_svn_blame(args.repoURL, args.repoBranch, end_revision_id, relative_path)
+        )
+        for blame_line in blame_lines:
             if not is_code_line(blame_line.content):
                 logger.debug(f"Skip non-code line {relative_path}:{blame_line.final_line}")
                 continue
 
-            commit_time = get_commit_time(repo_dir, blame_line.revision_id, commit_times)
+            commit_time = (
+                get_commit_time(repo_dir, blame_line.revision_id, commit_times)
+                if args.vcsType == "git"
+                else get_svn_commit_time(args.repoURL, args.repoBranch, blame_line.revision_id, commit_times)
+            )
             # WHY: the current primary metric is defined over live lines whose
             # current form originated within the query window. Blame gives that
             # origin revision, so the time filter must be applied to the
@@ -455,7 +570,7 @@ def build_result(args: argparse.Namespace) -> dict:
         },
         "REPOSITORY": {
             "vcsType": args.vcsType,
-            "repoURL": str(repo_dir),
+            "repoURL": repo_identity_url,
             "repoBranch": args.repoBranch,
             "revisionId": end_revision_id,
         },
