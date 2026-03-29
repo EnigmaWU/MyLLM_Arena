@@ -12,6 +12,25 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us10_large_
 class TestUs10LargeRepositorySnapshotTdd(unittest.TestCase):
     maxDiff = None
 
+    def _protocol(self, *, repo_branch: str, details: list[dict]) -> dict:
+        return {
+            "protocolName": "generatedTextDesc",
+            "protocolVersion": "26.03",
+            "codeAgent": "ExampleAgent",
+            "SUMMARY": {
+                "totalCodeLines": 0,
+                "fullGeneratedCodeLines": 0,
+                "partialGeneratedCodeLines": 0,
+            },
+            "DETAIL": details,
+            "REPOSITORY": {
+                "vcsType": "git",
+                "repoURL": "https://example.local/repo/us10-demo",
+                "repoBranch": repo_branch,
+                "revisionId": "placeholder",
+            },
+        }
+
     def _build_us10_repo(self, root_dir: Path) -> tuple[Path, Path, Path, dict[str, str]]:
         repo_dir = root_dir / "repo"
         protocol_dir = root_dir / "protocols"
@@ -287,6 +306,335 @@ class TestUs10LargeRepositorySnapshotTdd(unittest.TestCase):
                     "LiveLine src/core/alpha.py:1 aggregate",
                 ],
             )
+
+    def test_cli_preserves_dense_multi_line_large_snapshot_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us10-dense-snapshot",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us10-dense-r5",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            baseline_files = {
+                "src/core/alpha.py": ("alpha_two = base + 1", "alpha_three = base + 2", "alpha_four = base + 3"),
+                "src/core/beta.py": ("beta_two = base + 1", "beta_three = base + 2", "beta_four = base + 3"),
+                "src/services/gamma.py": ("gamma_two = base + 1", "gamma_three = base + 2", "gamma_four = base + 3"),
+                "src/services/delta.py": ("delta_two = base + 1", "delta_three = base + 2", "delta_four = base + 3"),
+            }
+            for relative_path, (line_two, line_three, line_four) in baseline_files.items():
+                repo.write(
+                    relative_path,
+                    "carry_pre_window = base\n"
+                    f"{line_two}\n"
+                    f"{line_three}\n"
+                    f"{line_four}\n"
+                    "stable_pre_window = base + 4\n",
+                )
+            revision_id_r1 = repo.commit_all("us10-dense-r1", "2026-02-24T09:00:00Z")
+
+            repo.write(
+                "src/core/alpha.py",
+                "carry_pre_window = base\n"
+                "alpha_two = suggest(base + 1)\n"
+                "alpha_three = assist(base + 2)\n"
+                "alpha_four = base + 3\n"
+                "stable_pre_window = base + 4\n",
+            )
+            repo.write(
+                "src/core/beta.py",
+                "carry_pre_window = base\n"
+                "beta_two = synthesize(base + 1)\n"
+                "beta_three = base + 2\n"
+                "beta_four = base + 3\n"
+                "stable_pre_window = base + 4\n",
+            )
+            repo.write(
+                "src/services/gamma.py",
+                "carry_pre_window = base\n"
+                "gamma_two = base + 1\n"
+                "gamma_three = blend(base + 2)\n"
+                "gamma_four = base + 3\n"
+                "stable_pre_window = base + 4\n",
+            )
+            revision_id_r2 = repo.commit_all("us10-dense-r2", "2026-03-05T09:00:00Z")
+
+            repo.write(
+                "src/core/beta.py",
+                "carry_pre_window = base\n"
+                "beta_two = normalize(base + 1)\n"
+                "beta_three = generate(base + 2)\n"
+                "beta_four = base + 3\n"
+                "stable_pre_window = base + 4\n",
+            )
+            repo.write(
+                "src/services/delta.py",
+                "carry_pre_window = base\n"
+                "delta_two = draft(base + 1)\n"
+                "delta_three = generate(base + 2)\n"
+                "delta_four = base + 3\n"
+                "stable_pre_window = base + 4\n",
+            )
+            revision_id_r3 = repo.commit_all("us10-dense-r3", "2026-03-12T09:00:00Z")
+
+            repo.write(
+                "src/core/alpha.py",
+                "carry_pre_window = base\n"
+                "alpha_two = suggest(base + 1)\n"
+                "alpha_three = assist(base + 2)\n"
+                "alpha_four = refine(base + 3)\n"
+                "stable_pre_window = base + 4\n",
+            )
+            repo.write(
+                "src/services/gamma.py",
+                "carry_pre_window = base\n"
+                "gamma_two = verify(base + 1)\n"
+                "gamma_three = blend(base + 2)\n"
+                "gamma_four = suggest(base + 3)\n"
+                "stable_pre_window = base + 4\n",
+            )
+            revision_id_r4 = repo.commit_all("us10-dense-r4", "2026-03-20T09:00:00Z")
+
+            repo.write("README.md", "us10 dense snapshot docs update\n")
+            revision_id_r5 = repo.commit_all("us10-dense-r5", "2026-03-28T09:00:00Z")
+
+            write_revision_protocol(
+                protocol_dir,
+                self._protocol(
+                    repo_branch="main",
+                    details=[
+                        {"fileName": "src/core/alpha.py", "codeLines": []},
+                        {"fileName": "src/core/beta.py", "codeLines": []},
+                        {"fileName": "src/services/gamma.py", "codeLines": []},
+                        {"fileName": "src/services/delta.py", "codeLines": []},
+                    ],
+                ),
+                repo_dir,
+                revision_id_r1,
+            )
+            write_revision_protocol(
+                protocol_dir,
+                self._protocol(
+                    repo_branch="main",
+                    details=[
+                        {
+                            "fileName": "src/core/alpha.py",
+                            "codeLines": [
+                                {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"},
+                                {"lineLocation": 3, "genRatio": 50, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {
+                            "fileName": "src/core/beta.py",
+                            "codeLines": [
+                                {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {
+                            "fileName": "src/services/gamma.py",
+                            "codeLines": [
+                                {"lineLocation": 3, "genRatio": 60, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {"fileName": "src/services/delta.py", "codeLines": []},
+                    ],
+                ),
+                repo_dir,
+                revision_id_r2,
+            )
+            write_revision_protocol(
+                protocol_dir,
+                self._protocol(
+                    repo_branch="main",
+                    details=[
+                        {"fileName": "src/core/alpha.py", "codeLines": []},
+                        {
+                            "fileName": "src/core/beta.py",
+                            "codeLines": [
+                                {"lineLocation": 3, "genRatio": 100, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {"fileName": "src/services/gamma.py", "codeLines": []},
+                        {
+                            "fileName": "src/services/delta.py",
+                            "codeLines": [
+                                {"lineLocation": 2, "genRatio": 40, "genMethod": "codeCompletion"},
+                                {"lineLocation": 3, "genRatio": 100, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                    ],
+                ),
+                repo_dir,
+                revision_id_r3,
+            )
+            write_revision_protocol(
+                protocol_dir,
+                self._protocol(
+                    repo_branch="main",
+                    details=[
+                        {
+                            "fileName": "src/core/alpha.py",
+                            "codeLines": [
+                                {"lineLocation": 4, "genRatio": 70, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {"fileName": "src/core/beta.py", "codeLines": []},
+                        {
+                            "fileName": "src/services/gamma.py",
+                            "codeLines": [
+                                {"lineLocation": 4, "genRatio": 100, "genMethod": "codeCompletion"},
+                            ],
+                        },
+                        {"fileName": "src/services/delta.py", "codeLines": []},
+                    ],
+                ),
+                repo_dir,
+                revision_id_r4,
+            )
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                load_json(output_file),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 10,
+                        "fullGeneratedCodeLines": 4,
+                        "partialGeneratedCodeLines": 4,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r5,
+                    },
+                },
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/core/alpha.py",
+                final_line=2,
+                origin_file="src/core/alpha.py",
+                origin_line=2,
+                revision_id=revision_id_r2,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/core/alpha.py",
+                final_line=3,
+                origin_file="src/core/alpha.py",
+                origin_line=3,
+                revision_id=revision_id_r2,
+                classification="50%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/core/alpha.py",
+                final_line=4,
+                origin_file="src/core/alpha.py",
+                origin_line=4,
+                revision_id=revision_id_r4,
+                classification="70%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/core/beta.py",
+                final_line=2,
+                origin_file="src/core/beta.py",
+                origin_line=2,
+                revision_id=revision_id_r3,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/core/beta.py",
+                final_line=3,
+                origin_file="src/core/beta.py",
+                origin_line=3,
+                revision_id=revision_id_r3,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/services/gamma.py",
+                final_line=2,
+                origin_file="src/services/gamma.py",
+                origin_line=2,
+                revision_id=revision_id_r4,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/services/gamma.py",
+                final_line=3,
+                origin_file="src/services/gamma.py",
+                origin_line=3,
+                revision_id=revision_id_r2,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/services/gamma.py",
+                final_line=4,
+                origin_file="src/services/gamma.py",
+                origin_line=4,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/services/delta.py",
+                final_line=2,
+                origin_file="src/services/delta.py",
+                origin_line=2,
+                revision_id=revision_id_r3,
+                classification="40%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/services/delta.py",
+                final_line=3,
+                origin_file="src/services/delta.py",
+                origin_line=3,
+                revision_id=revision_id_r3,
+                classification="100%-ai",
+            )
+            assert_transition_hint(self, result.stderr, "100%-ai", "human/unattributed")
+            assert_transition_hint(self, result.stderr, "human/unattributed", "70%-ai")
+            assert_transition_hint(self, result.stderr, "human/unattributed", "100%-ai")
 
 
 if __name__ == "__main__":

@@ -139,3 +139,38 @@ Why that matters:
 1. large snapshots often contain many files whose live lines come from a smaller set of shared revisions
 2. repeatedly rescanning the same protocol payload per line is avoidable overhead in exactly the US-10 scale shape
 3. indexing revision metadata once per revision is a real product improvement aligned with large-snapshot performance pressure
+
+## Additional Hard Variant: Dense Multi-Line Large Snapshot
+
+The next stronger US-10 variant keeps the broad-snapshot shape but raises line density inside each file.
+
+Why this matters:
+
+1. the main US-10 scenario uses one in-scope line per file
+2. this denser variant raises the difficulty by keeping multiple in-scope live lines in the same file across several files
+3. it checks that broad-snapshot semantics still hold when one revision contributes several live lines in one file and across multiple files at the same time
+
+The dense-snapshot variant uses this shape:
+
+1. four source files each end with five live lines
+2. the first and fifth lines stay pre-window and must be excluded
+3. the middle three lines in each file can each carry independent attribution
+4. one revision updates several lines across `alpha`, `beta`, and `gamma`
+5. a later revision resets one earlier AI line in `beta` while also adding dense changes in `delta`
+6. a final source revision adds more dense changes in `alpha` and `gamma`
+7. a docs-only final commit becomes the end revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 10`
+2. `fullGeneratedCodeLines = 4`
+3. `partialGeneratedCodeLines = 4`
+
+Its most important lineage assertions are:
+
+1. `src/core/alpha.py` keeps three different in-scope final lines, two from one earlier revision and one from a later revision
+2. `src/core/beta.py:2` is reset to human on a later revision while `src/core/beta.py:3` remains `100%-ai`
+3. `src/services/gamma.py` keeps both a partial-AI line from an earlier revision and a later full-AI line from a newer revision
+4. `src/services/delta.py` keeps two in-scope lines from the same revision with different ratios
+
+If this variant passes, it is stronger evidence that the current implementation preserves result semantics for broad snapshots not only across many files, but also across denser multi-line live regions inside each file.
