@@ -393,6 +393,45 @@ Its most important lineage assertions are:
 
 If this variant passes, it is strong evidence that the current implementation can preserve multiple independent rename histories even when they enter `main` through one multi-parent octopus merge.
 
+## Additional Hard Variant: Mainline Reset Of One Parallel Rename Lineage
+
+The next stronger non-conflict US-12 variant checks whether a later human rewrite on `main` can reset one merged rename lineage without disturbing another merged rename lineage that survives untouched.
+
+Why this matters:
+
+1. the earlier parallel-rename variants proved that two rename histories can survive separate or octopus merges together
+2. this variant raises the difficulty by adding a later mainline rewrite to only one of those merged files
+3. it checks that the analyzer updates the rewritten file's attribution to the later mainline revision while preserving the untouched rename lineage from the other branch
+
+The mainline-reset variant uses this shape:
+
+1. pre-window baseline creates `src/alpha_reset_legacy.py` and `src/beta_reset_legacy.py`
+2. `feature-alpha` makes an in-window human rewrite on `src/alpha_reset_legacy.py`
+3. `feature-alpha` renames that file to `src/alpha_reset_final.py`
+4. `feature-alpha` adds a full-AI line after the rename
+5. `feature-beta` independently makes an in-window human rewrite on `src/beta_reset_legacy.py`
+6. `feature-beta` renames that file to `src/beta_reset_final.py`
+7. `feature-beta` adds a partial-AI line after the rename
+8. `main` merges `feature-alpha`
+9. `main` merges `feature-beta`
+10. `main` then rewrites the previously full-AI line in `src/alpha_reset_final.py`
+11. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 4`
+2. `fullGeneratedCodeLines = 0`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important lineage assertions are:
+
+1. `src/alpha_reset_final.py:2` must report `origin_file=src/alpha_reset_legacy.py`
+2. `src/alpha_reset_final.py:3` must report `origin_file=src/alpha_reset_final.py` with the later mainline revision
+3. `src/beta_reset_final.py:2` must report `origin_file=src/beta_reset_legacy.py`
+4. `src/beta_reset_final.py:3` must still report `origin_file=src/beta_reset_final.py`
+
+If this variant passes, it is strong evidence that one merged rename lineage can be reset on `main` without accidentally disturbing another merged rename lineage in the same final snapshot.
+
 ## Why This Exists
 
 US-8 proved that one merge should not flatten attribution.
