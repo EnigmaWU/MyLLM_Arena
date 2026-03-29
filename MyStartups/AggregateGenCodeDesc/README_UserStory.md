@@ -13,6 +13,7 @@ The final aggregate result may be returned in a report and may also be represent
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
 The `genCodeDesc` records used during analysis are revision-level external metadata, not files committed into the analyzed repository.
 The intended lookup key for one metadata record is `repoURL + repoBranch + revisionId`.
+Unless a story explicitly defines another metric, `SUMMARY.totalCodeLines` always means only the code lines represented by that record's scope. For the current Model A final result, this excludes deleted lines and counts only live lines still present at `endTime`.
 For fixture verification, `expected_result.json` should remain a minimal protocol-shaped output artifact. It should keep result fields such as `protocolName`, `protocolVersion`, `SUMMARY`, and `REPOSITORY`, and should not duplicate query-only fields such as `metric`, `model`, `scope`, `startTime`, or `endTime`.
 
 Each story is paired with scenario-based test data under `testdata/`.

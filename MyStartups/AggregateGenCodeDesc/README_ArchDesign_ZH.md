@@ -152,6 +152,12 @@ flowchart LR
 - `REPOSITORY.repoBranch`
 - `REPOSITORY.revisionId`
 
+字段语义：
+
+- `SUMMARY.totalCodeLines`：只统计该最终结果实际表示的代码行。对于当前 Model A 指标，它表示在 `endTime` 仍然存活、且其当前形态起源于 `startTime~endTime` 内的源码行数。
+- `SUMMARY.fullGeneratedCodeLines`：这些被表示代码行中，AI 完全生成的行数。
+- `SUMMARY.partialGeneratedCodeLines`：这些被表示代码行中，AI 部分生成的行数。
+
 这一层回答：
 
 - 给定仓库时间窗口的最终聚合结果是什么

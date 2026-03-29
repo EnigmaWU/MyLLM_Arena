@@ -227,6 +227,12 @@ Scope C 和 Scope D 是后续可加的更宽统计视图，而不改变核心行
 - `fullGeneratedCodeLines`
 - `partialGeneratedCodeLines`
 
+这些字段建议采用如下语义：
+
+- `totalCodeLines`：只统计当前记录所表示的代码行，不包含已经删除、因而不再被该记录表示的历史代码行。对于修订级 `genCodeDesc`，它表示该修订快照中被该记录描述的代码行数。对于当前最终聚合指标，它表示 `endTime` 时仍然存活、且其当前形态是在 `startTime~endTime` 内新增或修改的源码行数。
+- `fullGeneratedCodeLines`：当前记录所表示代码行中，`genRatio = 100` 的行数。
+- `partialGeneratedCodeLines`：当前记录所表示代码行中，`0 < genRatio < 100` 的行数。
+
 像 weighted AI lines、AI ratio、AI ratio percent 这样的派生值，如果能由 summary totals 和详细行元数据计算得到，则不需要强制写入协议。
 
 像 `metric`、`startTime`、`endTime` 或 credentials 这样的字段，如果它们属于外部查询或运行环境，而不是生成代码描述本身，则不必写入协议。

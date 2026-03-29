@@ -152,6 +152,12 @@ Important output fields:
 - `REPOSITORY.repoBranch`
 - `REPOSITORY.revisionId`
 
+Field semantics:
+
+- `SUMMARY.totalCodeLines`: only the code lines represented by that final result. For the current Model A metric, this means live source lines that still exist at `endTime` and whose current form originated inside `startTime~endTime`.
+- `SUMMARY.fullGeneratedCodeLines`: represented lines whose AI attribution is full.
+- `SUMMARY.partialGeneratedCodeLines`: represented lines whose AI attribution is partial.
+
 This layer answers:
 
 - what the final aggregate result is for the requested repository window

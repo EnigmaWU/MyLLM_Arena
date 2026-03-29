@@ -13,6 +13,7 @@
 用户查询与最终记录是两个不同工件：`query.json` 表示分析输入，而 `genCodeDescProtocol.json` 表示最终结果记录。
 分析过程中使用的 `genCodeDesc` 记录是修订级别的外部元数据，而不是提交进被分析仓库中的文件。
 单条元数据记录的目标查找键是 `repoURL + repoBranch + revisionId`。
+除非某个故事明确规定了另一种指标，否则 `SUMMARY.totalCodeLines` 一律表示该记录作用域内真正被该记录表示的代码行数。对于当前 Model A 的最终结果，这意味着只统计在 `endTime` 仍然存活的行，不包含已经删除的历史代码行。
 在夹具验证中，`expected_result.json` 应保持为最小化的协议形态输出工件。它应保留 `protocolName`、`protocolVersion`、`SUMMARY`、`REPOSITORY` 等结果字段，而不应重复 `metric`、`model`、`scope`、`startTime`、`endTime` 这类只属于查询的字段。
 
 每个故事都配有位于 `testdata/` 下的场景化测试夹具。

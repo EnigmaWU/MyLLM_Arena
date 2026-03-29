@@ -1,5 +1,10 @@
 {
     "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
+    "_summarySemantics": {
+        "totalCodeLines": "Count only the code lines represented by this record. Do not include deleted historical lines.",
+        "fullGeneratedCodeLines": "Subset of represented code lines whose genRatio is 100.",
+        "partialGeneratedCodeLines": "Subset of represented code lines whose genRatio is greater than 0 and less than 100."
+    },
 
     "protocolName": "generatedTextDesc",
     "protocolVersion": "26.03",
