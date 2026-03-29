@@ -32,6 +32,20 @@ The real repository itself is the authoritative source of history, file evolutio
 - `tests/` is the preferred place for validating real `Model A` behavior against actual Git or SVN commands
 - new real repository tests should not require `*.diff` files unless a diff is intentionally added as an explanatory artifact
 
+## Manual Verification
+
+For end-to-end `US-*` test cases, keep a matching manual verification guide so the same scenario can be checked by hand outside the automated test harness.
+
+Current example:
+
+- `US-1` automated test: `test_us1_live_changed_source_ratio_tdd.py`
+- `US-1` manual guide: `README_US1_ManualInstruction.md`
+
+Recommended convention for future cases:
+
+- one `test_usX_*.py` file for the automated contract
+- one `README_USX_ManualInstruction.md` file for hand verification steps
+
 ## Run
 
 ```bash
