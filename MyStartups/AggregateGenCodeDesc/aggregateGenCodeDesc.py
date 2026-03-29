@@ -183,6 +183,14 @@ def resolve_end_revision(repo_dir: Path, branch: str, end_time: str) -> str:
     return revision_id
 
 
+def get_commit_time(repo_dir: Path, revision_id: str, commit_times: dict[str, datetime]) -> datetime:
+    commit_time = commit_times.get(revision_id)
+    if commit_time is None:
+        commit_time = parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", revision_id]))
+        commit_times[revision_id] = commit_time
+    return commit_time
+
+
 def list_source_files(repo_dir: Path, revision_id: str) -> list[str]:
     output = run_git(repo_dir, ["ls-tree", "-r", "--name-only", revision_id])
     files = [line for line in output.splitlines() if Path(line).suffix in SOURCE_EXTENSIONS]
@@ -334,6 +342,7 @@ def build_result(args: argparse.Namespace) -> dict:
 
     protocols: dict[str, dict] = {}
     parent_revisions: dict[str, str | None] = {}
+    commit_times: dict[str, datetime] = {}
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
@@ -348,7 +357,7 @@ def build_result(args: argparse.Namespace) -> dict:
                 logger.debug(f"Skip non-code line {relative_path}:{blame_line.final_line}")
                 continue
 
-            commit_time = parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", blame_line.revision_id]))
+            commit_time = get_commit_time(repo_dir, blame_line.revision_id, commit_times)
             # WHY: the current primary metric is defined over live lines whose
             # current form originated within the query window. Blame gives that
             # origin revision, so the time filter must be applied to the

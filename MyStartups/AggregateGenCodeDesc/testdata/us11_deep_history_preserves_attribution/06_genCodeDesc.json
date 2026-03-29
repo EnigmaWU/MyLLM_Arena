@@ -1,0 +1,24 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 5,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/deep_history.py",
+      "codeLines": [
+        {"lineLocation": 4, "genRatio": 60, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us11-demo",
+    "repoBranch": "main",
+    "revisionId": "us11-r6"
+  }
+}
