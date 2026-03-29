@@ -45,6 +45,12 @@ class BlameLine:
     content: str
 
 
+@dataclass
+class IndexedFileDetail:
+    line_locations: dict[int, int]
+    line_ranges: list[tuple[int, int, int]]
+
+
 class RuntimeLogger:
     def __init__(self, level: str):
         self.level = level
@@ -263,6 +269,26 @@ def describe_ratio(ratio: int) -> str:
     return "human/unattributed"
 
 
+def build_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
+    indexed_detail: dict[str, IndexedFileDetail] = {}
+    for file_entry in protocol.get("DETAIL", []):
+        exact_lines: dict[int, int] = {}
+        ranges: list[tuple[int, int, int]] = []
+        for code_line in file_entry.get("codeLines", []):
+            line_location = code_line.get("lineLocation")
+            if line_location is not None:
+                exact_lines[int(line_location)] = int(code_line.get("genRatio", 0))
+                continue
+            line_range = code_line.get("lineRange")
+            if line_range:
+                ranges.append((int(line_range.get("from")), int(line_range.get("to")), int(code_line.get("genRatio", 0))))
+        indexed_detail[file_entry.get("fileName", "")] = IndexedFileDetail(
+            line_locations=exact_lines,
+            line_ranges=ranges,
+        )
+    return indexed_detail
+
+
 def resolve_parent_revision(repo_dir: Path, revision_id: str) -> str | None:
     result = subprocess.run(
         ["git", "rev-parse", f"{revision_id}^"],
@@ -283,6 +309,7 @@ def best_effort_transition_hint(
     blame_line: BlameLine,
     current_ratio: int,
     protocols: dict[str, dict],
+    protocol_indexes: dict[str, dict[str, IndexedFileDetail]],
     parent_revisions: dict[str, str | None],
 ) -> str | None:
     if logger.level != "debug":
@@ -300,23 +327,24 @@ def best_effort_transition_hint(
     if parent_protocol is None:
         parent_protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, parent_revision, args.vcsType)
         protocols[parent_revision] = parent_protocol
+        protocol_indexes[parent_revision] = build_protocol_index(parent_protocol)
 
-    parent_ratio = line_ratio(parent_protocol, blame_line.origin_file, blame_line.origin_line)
+    parent_ratio = line_ratio(protocol_indexes[parent_revision], blame_line.origin_file, blame_line.origin_line)
     if parent_ratio == current_ratio:
         return None
     return f"best_effort_transition={describe_ratio(parent_ratio)}->{describe_ratio(current_ratio)}"
 
 
-def line_ratio(protocol: dict, origin_file: str, origin_line: int) -> int:
-    for file_entry in protocol.get("DETAIL", []):
-        if file_entry.get("fileName") != origin_file:
-            continue
-        for code_line in file_entry.get("codeLines", []):
-            if code_line.get("lineLocation") == origin_line:
-                return int(code_line.get("genRatio", 0))
-            line_range = code_line.get("lineRange")
-            if line_range and line_range.get("from") <= origin_line <= line_range.get("to"):
-                return int(code_line.get("genRatio", 0))
+def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, origin_line: int) -> int:
+    indexed_file = protocol_index.get(origin_file)
+    if indexed_file is None:
+        return 0
+    exact_ratio = indexed_file.line_locations.get(origin_line)
+    if exact_ratio is not None:
+        return exact_ratio
+    for range_start, range_end, ratio in indexed_file.line_ranges:
+        if range_start <= origin_line <= range_end:
+            return ratio
     return 0
 
 
@@ -341,6 +369,7 @@ def build_result(args: argparse.Namespace) -> dict:
     )
 
     protocols: dict[str, dict] = {}
+    protocol_indexes: dict[str, dict[str, IndexedFileDetail]] = {}
     parent_revisions: dict[str, str | None] = {}
     commit_times: dict[str, datetime] = {}
     total_code_lines = 0
@@ -376,10 +405,11 @@ def build_result(args: argparse.Namespace) -> dict:
                 # revision model instead of repeating the same fetch per line.
                 protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, blame_line.revision_id, args.vcsType)
                 protocols[blame_line.revision_id] = protocol
+                protocol_indexes[blame_line.revision_id] = build_protocol_index(protocol)
             else:
                 logger.debug(f"Reuse cached genCodeDesc for revision {blame_line.revision_id}")
 
-            ratio = line_ratio(protocol, blame_line.origin_file, blame_line.origin_line)
+            ratio = line_ratio(protocol_indexes[blame_line.revision_id], blame_line.origin_file, blame_line.origin_line)
             transition_hint = best_effort_transition_hint(
                 repo_dir,
                 provider,
@@ -388,6 +418,7 @@ def build_result(args: argparse.Namespace) -> dict:
                 blame_line,
                 ratio,
                 protocols,
+                protocol_indexes,
                 parent_revisions,
             )
             line_message = (

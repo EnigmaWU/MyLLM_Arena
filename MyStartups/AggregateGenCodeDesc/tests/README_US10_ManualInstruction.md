@@ -127,3 +127,15 @@ The most important transition hints in this scenario are:
 1. `100%-ai -> human/unattributed` for the later reset of `beta`
 2. `human/unattributed -> 50%-ai` for `gamma`
 3. `human/unattributed -> 60%-ai` for `epsilon`
+
+## Additional US-10 Scalability Check
+
+US-10 also now includes a focused scalability regression test in [tests/test_us10_large_snapshot_scalability_tdd.py](tests/test_us10_large_snapshot_scalability_tdd.py).
+
+That test does not build a real repository history. Instead, it directly exercises the product code and proves that broad snapshots reuse protocol indexing work per origin revision rather than rescanning one revision's `DETAIL` data for every live line.
+
+Why that matters:
+
+1. large snapshots often contain many files whose live lines come from a smaller set of shared revisions
+2. repeatedly rescanning the same protocol payload per line is avoidable overhead in exactly the US-10 scale shape
+3. indexing revision metadata once per revision is a real product improvement aligned with large-snapshot performance pressure
