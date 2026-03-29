@@ -277,6 +277,43 @@ Its most important lineage assertions are:
 
 If this variant passes, it is strong evidence that the current implementation preserves multi-step rename lineage correctly across a later merge, at least for the non-conflict case.
 
+## Additional Hard Variant: Rename Lineage Across Branch Handoff Merges
+
+The next stronger non-conflict US-12 variant splits the rename chain across two different non-main branches before the final merge back to `main`.
+
+Why this matters:
+
+1. the earlier double-rename variant kept both renames on a single feature branch
+2. this handoff variant raises the difficulty by inserting an intermediate merge into a second branch before the final merge to `main`
+3. it checks that surviving lines still keep the correct historical path stage even when the rename chain spans more than one branch context
+
+The branch-handoff variant uses this shape:
+
+1. pre-window baseline creates `src/stage_one_name.py` and `src/main_anchor.py`
+2. `feature-alpha` makes an in-window human rewrite while the file is still named `src/stage_one_name.py`
+3. `feature-alpha` renames it to `src/stage_two_name.py`
+4. `feature-alpha` adds a full-AI line while the stage-two path is active
+5. `integration-handoff` is created from `main` and merges `feature-alpha`
+6. `integration-handoff` renames the file again to `src/stage_three_name.py`
+7. `integration-handoff` adds a partial-AI line after the second rename
+8. `main` independently makes a human rewrite in `src/main_anchor.py`
+9. `integration-handoff` merges back into `main` without conflicts
+10. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 4`
+2. `fullGeneratedCodeLines = 1`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important lineage assertions are:
+
+1. `src/stage_three_name.py:2` must report `origin_file=src/stage_one_name.py`
+2. `src/stage_three_name.py:3` must report `origin_file=src/stage_two_name.py`
+3. `src/stage_three_name.py:4` must report `origin_file=src/stage_three_name.py`
+
+If this variant passes, it is strong evidence that the current implementation preserves rename lineage not only across repeated renames, but also across an intermediate branch handoff and two separate merge boundaries.
+
 ## Why This Exists
 
 US-8 proved that one merge should not flatten attribution.

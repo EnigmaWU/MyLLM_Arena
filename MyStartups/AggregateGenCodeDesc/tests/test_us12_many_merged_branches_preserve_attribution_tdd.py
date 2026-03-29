@@ -1263,6 +1263,210 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                 classification="human/unattributed",
             )
 
+    def test_cli_preserves_rename_lineage_across_branch_handoff_merges_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us12-branch-handoff",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us12-bh-r10",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/stage_one_name.py",
+                "carry_pre_window = base\n"
+                "handoff_human = base + 1\n"
+                "handoff_full = base + 2\n"
+                "handoff_partial = base + 3\n",
+            )
+            repo.write(
+                "src/main_anchor.py",
+                "carry_pre_window = base\n"
+                "main_human = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r1 = repo.commit_all("us12-bh-r1", "2026-02-24T09:00:00Z")
+
+            repo.checkout_new_branch("feature-alpha")
+            repo.write(
+                "src/stage_one_name.py",
+                "carry_pre_window = base\n"
+                "handoff_human = sanitize(base + 1)\n"
+                "handoff_full = base + 2\n"
+                "handoff_partial = base + 3\n",
+            )
+            revision_id_r2 = repo.commit_all("us12-bh-r2", "2026-03-03T09:00:00Z")
+
+            repo.rename("src/stage_one_name.py", "src/stage_two_name.py")
+            revision_id_r3 = repo.commit_all("us12-bh-r3", "2026-03-04T09:00:00Z")
+
+            repo.write(
+                "src/stage_two_name.py",
+                "carry_pre_window = base\n"
+                "handoff_human = sanitize(base + 1)\n"
+                "handoff_full = helper(base + 2)\n"
+                "handoff_partial = base + 3\n",
+            )
+            revision_id_r4 = repo.commit_all("us12-bh-r4", "2026-03-05T09:00:00Z")
+
+            repo.checkout("main")
+            repo.checkout_new_branch("integration-handoff")
+            revision_id_r5 = repo.merge_no_ff("feature-alpha", "us12-bh-r5", "2026-03-07T09:00:00Z")
+
+            repo.rename("src/stage_two_name.py", "src/stage_three_name.py")
+            revision_id_r6 = repo.commit_all("us12-bh-r6", "2026-03-08T09:00:00Z")
+
+            repo.write(
+                "src/stage_three_name.py",
+                "carry_pre_window = base\n"
+                "handoff_human = sanitize(base + 1)\n"
+                "handoff_full = helper(base + 2)\n"
+                "handoff_partial = suggest(base + 3)\n",
+            )
+            revision_id_r7 = repo.commit_all("us12-bh-r7", "2026-03-09T09:00:00Z")
+
+            repo.checkout("main")
+            repo.write(
+                "src/main_anchor.py",
+                "carry_pre_window = base\n"
+                "main_human = normalize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r8 = repo.commit_all("us12-bh-r8", "2026-03-10T09:00:00Z")
+
+            revision_id_r9 = repo.merge_no_ff("integration-handoff", "us12-bh-r9", "2026-03-12T09:00:00Z")
+
+            repo.write("README.md", "us12 branch handoff docs update\n")
+            revision_id_r10 = repo.commit_all("us12-bh-r10", "2026-03-13T09:00:00Z")
+
+            baseline_protocol = self._inline_protocol(repo_branch="main", file_name="src/stage_one_name.py")
+            baseline_protocol["DETAIL"] = [
+                {"fileName": "src/stage_one_name.py", "codeLines": []},
+                {"fileName": "src/main_anchor.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, baseline_protocol, repo_dir, revision_id_r1)
+
+            first_change_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/stage_one_name.py")
+            first_change_protocol["DETAIL"].append({"fileName": "src/main_anchor.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, first_change_protocol, repo_dir, revision_id_r2)
+
+            first_rename_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/stage_two_name.py")
+            first_rename_protocol["DETAIL"].append({"fileName": "src/main_anchor.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, first_rename_protocol, repo_dir, revision_id_r3)
+
+            first_ai_protocol = self._inline_protocol(repo_branch="feature-alpha", file_name="src/stage_two_name.py", full_lines=[3])
+            first_ai_protocol["DETAIL"].append({"fileName": "src/main_anchor.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, first_ai_protocol, repo_dir, revision_id_r4)
+
+            handoff_merge_protocol = self._inline_protocol(repo_branch="integration-handoff", file_name="src/stage_two_name.py")
+            handoff_merge_protocol["DETAIL"] = [
+                {"fileName": "src/stage_two_name.py", "codeLines": []},
+                {"fileName": "src/main_anchor.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, handoff_merge_protocol, repo_dir, revision_id_r5)
+
+            second_rename_protocol = self._inline_protocol(repo_branch="integration-handoff", file_name="src/stage_three_name.py")
+            second_rename_protocol["DETAIL"].append({"fileName": "src/main_anchor.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, second_rename_protocol, repo_dir, revision_id_r6)
+
+            second_ai_protocol = self._inline_protocol(repo_branch="integration-handoff", file_name="src/stage_three_name.py", partial_lines={4: 60})
+            second_ai_protocol["DETAIL"].append({"fileName": "src/main_anchor.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, second_ai_protocol, repo_dir, revision_id_r7)
+
+            main_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_anchor.py")
+            main_protocol["DETAIL"] = [
+                {"fileName": "src/stage_three_name.py", "codeLines": []},
+                {"fileName": "src/main_anchor.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, main_protocol, repo_dir, revision_id_r8)
+
+            final_merge_protocol = self._inline_protocol(repo_branch="main", file_name="src/stage_three_name.py")
+            final_merge_protocol["DETAIL"] = [
+                {"fileName": "src/stage_three_name.py", "codeLines": []},
+                {"fileName": "src/main_anchor.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, final_merge_protocol, repo_dir, revision_id_r9)
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                json.loads(output_file.read_text(encoding="utf-8")),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 4,
+                        "fullGeneratedCodeLines": 1,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r10,
+                    },
+                },
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/stage_three_name.py",
+                final_line=2,
+                origin_file="src/stage_one_name.py",
+                origin_line=2,
+                revision_id=revision_id_r2,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/stage_three_name.py",
+                final_line=3,
+                origin_file="src/stage_two_name.py",
+                origin_line=3,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/stage_three_name.py",
+                final_line=4,
+                origin_file="src/stage_three_name.py",
+                origin_line=4,
+                revision_id=revision_id_r7,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_anchor.py",
+                final_line=2,
+                origin_file="src/main_anchor.py",
+                origin_line=2,
+                revision_id=revision_id_r8,
+                classification="human/unattributed",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
