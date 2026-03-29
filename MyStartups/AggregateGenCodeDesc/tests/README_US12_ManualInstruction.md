@@ -314,6 +314,45 @@ Its most important lineage assertions are:
 
 If this variant passes, it is strong evidence that the current implementation preserves rename lineage not only across repeated renames, but also across an intermediate branch handoff and two separate merge boundaries.
 
+## Additional Hard Variant: Parallel Rename Lineages From Two Merged Branches
+
+The next stronger non-conflict US-12 variant keeps two independent rename histories alive at the same time and merges both back into `main`.
+
+Why this matters:
+
+1. all earlier rename variants focused on one renamed file lineage at a time
+2. this variant raises the difficulty by forcing the final snapshot to preserve two distinct rename chains from two different feature branches
+3. it checks that attribution stays attached to each line's own historical path instead of collapsing around whichever merge happened last
+
+The parallel-rename variant uses this shape:
+
+1. pre-window baseline creates `src/alpha_legacy.py`, `src/beta_legacy.py`, and `src/main_parallel.py`
+2. `feature-alpha` makes an in-window human rewrite on `src/alpha_legacy.py`
+3. `feature-alpha` renames that file to `src/alpha_final.py`
+4. `feature-alpha` adds a full-AI line after the rename
+5. `feature-beta` independently makes an in-window human rewrite on `src/beta_legacy.py`
+6. `feature-beta` renames that file to `src/beta_final.py`
+7. `feature-beta` adds a partial-AI line after the rename
+8. `main` merges `feature-alpha`
+9. `main` merges `feature-beta`
+10. `main` then performs an independent human rewrite in `src/main_parallel.py`
+11. a docs-only commit becomes the final repository revision
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 5`
+2. `fullGeneratedCodeLines = 1`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important lineage assertions are:
+
+1. `src/alpha_final.py:2` must report `origin_file=src/alpha_legacy.py`
+2. `src/alpha_final.py:3` must report `origin_file=src/alpha_final.py`
+3. `src/beta_final.py:2` must report `origin_file=src/beta_legacy.py`
+4. `src/beta_final.py:3` must report `origin_file=src/beta_final.py`
+
+If this variant passes, it is strong evidence that the current implementation can preserve multiple independent rename histories in the same end snapshot after separate feature-branch merges.
+
 ## Why This Exists
 
 US-8 proved that one merge should not flatten attribution.
