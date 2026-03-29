@@ -7,7 +7,7 @@ This implementation is intentionally narrow:
 - JSON output only
 - external revision metadata resolved through the current genCodeDesc provider path
 
-The tested story coverage now includes at least US-1 through US-3 on this runtime path.
+The tested story coverage now includes at least US-1 through US-4 on this runtime path.
 """
 
 import argparse
