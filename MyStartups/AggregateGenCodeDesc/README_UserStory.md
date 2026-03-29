@@ -7,6 +7,7 @@ This document defines the first user stories for AggregateGenCodeDesc and the ac
 All stories assume the analysis request includes `repo + branch + startTime + endTime`.
 For the current primary metric, `startTime~endTime` defines which live lines are in scope, and the result is calculated from the live snapshot at `endTime`.
 The current baseline is `P0 / Scope A: pure source code` using `Model A (preferred): blame-based end-snapshot attribution`.
+Unless explicitly stated otherwise, the current user stories apply to both Git and SVN targets. VCS-specific differences may affect repository identity, branch or path conventions, and revision identifiers, but should not change the metric semantics or the protocol-shaped result contract.
 At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
 The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
@@ -15,8 +16,11 @@ For fixture verification, `expected_result.json` should remain a minimal protoco
 Each story is paired with scenario-based test data under `testdata/`.
 Each scenario contains:
 
-- one or more unified diff files that describe repository history
 - one `genCodeDesc` file per revision that describes AI attribution for that revision
+
+Those `testdata/` scenarios are design-oriented fixtures.
+The earlier diff artifacts have been removed from `testdata` to keep the fixture contract small and focused.
+For real repository verification of `Model A`, the preferred test layer is under `tests/`, where actual Git or SVN repositories are created and `*.diff` files are not required.
 
 ## Scenario Mapping
 
