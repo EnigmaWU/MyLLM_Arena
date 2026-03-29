@@ -825,6 +825,261 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                 classification="human/unattributed",
             )
 
+    def test_cli_preserves_rename_lineage_inside_octopus_merge_variant(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/us12-rename-octopus",
+            "repoBranch": "main",
+            "metric": "live_changed_source_ratio",
+            "model": "A",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "endRevisionId": "us12-ro-r8",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            repo_dir = root_dir / "repo"
+            protocol_dir = root_dir / "protocols"
+            output_file = root_dir / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/legacy_alpha.py",
+                "carry_pre_window = base\n"
+                "rename_human = base + 1\n"
+                "rename_ai = base + 2\n"
+                "stable_pre_window = base + 3\n",
+            )
+            repo.write(
+                "src/beta_branch.py",
+                "carry_pre_window = base\n"
+                "beta_ai = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            repo.write(
+                "src/gamma_branch.py",
+                "carry_pre_window = base\n"
+                "gamma_ai = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            repo.write(
+                "src/main_side.py",
+                "carry_pre_window = base\n"
+                "main_human = base + 1\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r1 = repo.commit_all("us12-ro-r1", "2026-02-24T09:00:00Z")
+
+            repo.checkout_new_branch("feature-rename")
+            repo.write(
+                "src/legacy_alpha.py",
+                "carry_pre_window = base\n"
+                "rename_human = sanitize(base + 1)\n"
+                "rename_ai = base + 2\n"
+                "stable_pre_window = base + 3\n",
+            )
+            revision_id_r2 = repo.commit_all("us12-ro-r2", "2026-03-03T09:00:00Z")
+            repo.rename("src/legacy_alpha.py", "src/merged_alpha.py")
+            revision_id_r3 = repo.commit_all("us12-ro-r3", "2026-03-04T09:00:00Z")
+            repo.write(
+                "src/merged_alpha.py",
+                "carry_pre_window = base\n"
+                "rename_human = sanitize(base + 1)\n"
+                "rename_ai = helper(base + 2)\n"
+                "stable_pre_window = base + 3\n",
+            )
+            revision_id_r4 = repo.commit_all("us12-ro-r4", "2026-03-05T09:00:00Z")
+
+            repo.checkout("main")
+            repo.checkout_new_branch("feature-beta")
+            repo.write(
+                "src/beta_branch.py",
+                "carry_pre_window = base\n"
+                "beta_ai = suggest(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r5 = repo.commit_all("us12-ro-r5", "2026-03-06T09:00:00Z")
+
+            repo.checkout("main")
+            repo.checkout_new_branch("feature-gamma")
+            repo.write(
+                "src/gamma_branch.py",
+                "carry_pre_window = base\n"
+                "gamma_ai = synthesize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            revision_id_r6 = repo.commit_all("us12-ro-r6", "2026-03-07T09:00:00Z")
+
+            repo.checkout("main")
+            revision_id_r7 = repo.merge_octopus(
+                ["feature-rename", "feature-beta", "feature-gamma"],
+                "us12-ro-r7",
+                "2026-03-10T09:00:00Z",
+            )
+            repo.write(
+                "src/main_side.py",
+                "carry_pre_window = base\n"
+                "main_human = normalize(base + 1)\n"
+                "stable_pre_window = base + 2\n",
+            )
+            repo.commit_all("us12-ro-r7b", "2026-03-11T09:00:00Z")
+            repo.write("README.md", "us12 rename octopus docs update\n")
+            revision_id_r8 = repo.commit_all("us12-ro-r8", "2026-03-12T09:00:00Z")
+
+            baseline_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_side.py")
+            baseline_protocol["DETAIL"] = [
+                {"fileName": "src/legacy_alpha.py", "codeLines": []},
+                {"fileName": "src/beta_branch.py", "codeLines": []},
+                {"fileName": "src/gamma_branch.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, baseline_protocol, repo_dir, revision_id_r1)
+
+            rename_human_protocol = self._inline_protocol(repo_branch="feature-rename", file_name="src/legacy_alpha.py")
+            rename_human_protocol["DETAIL"] = [
+                {"fileName": "src/legacy_alpha.py", "codeLines": []},
+                {"fileName": "src/beta_branch.py", "codeLines": []},
+                {"fileName": "src/gamma_branch.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, rename_human_protocol, repo_dir, revision_id_r2)
+
+            rename_only_protocol = self._inline_protocol(repo_branch="feature-rename", file_name="src/merged_alpha.py")
+            rename_only_protocol["DETAIL"] = [
+                {"fileName": "src/merged_alpha.py", "codeLines": []},
+                {"fileName": "src/beta_branch.py", "codeLines": []},
+                {"fileName": "src/gamma_branch.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, rename_only_protocol, repo_dir, revision_id_r3)
+
+            rename_ai_protocol = self._inline_protocol(repo_branch="feature-rename", file_name="src/merged_alpha.py", full_lines=[3])
+            rename_ai_protocol["DETAIL"].append({"fileName": "src/beta_branch.py", "codeLines": []})
+            rename_ai_protocol["DETAIL"].append({"fileName": "src/gamma_branch.py", "codeLines": []})
+            rename_ai_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, rename_ai_protocol, repo_dir, revision_id_r4)
+
+            beta_protocol = self._inline_protocol(repo_branch="feature-beta", file_name="src/beta_branch.py", partial_lines={2: 60})
+            beta_protocol["DETAIL"].append({"fileName": "src/merged_alpha.py", "codeLines": []})
+            beta_protocol["DETAIL"].append({"fileName": "src/gamma_branch.py", "codeLines": []})
+            beta_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, beta_protocol, repo_dir, revision_id_r5)
+
+            gamma_protocol = self._inline_protocol(repo_branch="feature-gamma", file_name="src/gamma_branch.py", full_lines=[2])
+            gamma_protocol["DETAIL"].append({"fileName": "src/merged_alpha.py", "codeLines": []})
+            gamma_protocol["DETAIL"].append({"fileName": "src/beta_branch.py", "codeLines": []})
+            gamma_protocol["DETAIL"].append({"fileName": "src/main_side.py", "codeLines": []})
+            write_revision_protocol(protocol_dir, gamma_protocol, repo_dir, revision_id_r6)
+
+            octopus_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_side.py")
+            octopus_protocol["DETAIL"] = [
+                {"fileName": "src/merged_alpha.py", "codeLines": []},
+                {"fileName": "src/beta_branch.py", "codeLines": []},
+                {"fileName": "src/gamma_branch.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, octopus_protocol, repo_dir, revision_id_r7)
+
+            main_protocol = self._inline_protocol(repo_branch="main", file_name="src/main_side.py")
+            main_protocol["DETAIL"] = [
+                {"fileName": "src/merged_alpha.py", "codeLines": []},
+                {"fileName": "src/beta_branch.py", "codeLines": []},
+                {"fileName": "src/gamma_branch.py", "codeLines": []},
+                {"fileName": "src/main_side.py", "codeLines": []},
+            ]
+            write_revision_protocol(protocol_dir, main_protocol, repo_dir, repo.commit_ids["us12-ro-r7b"])
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--logLevel", "debug"],
+            )
+
+            self.assertEqual(
+                json.loads(output_file.read_text(encoding="utf-8")),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": "26.03",
+                    "SUMMARY": {
+                        "totalCodeLines": 5,
+                        "fullGeneratedCodeLines": 2,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": revision_id_r8,
+                    },
+                },
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/merged_alpha.py",
+                final_line=2,
+                origin_file="src/legacy_alpha.py",
+                origin_line=2,
+                revision_id=revision_id_r2,
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/merged_alpha.py",
+                final_line=3,
+                origin_file="src/merged_alpha.py",
+                origin_line=3,
+                revision_id=revision_id_r4,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/beta_branch.py",
+                final_line=2,
+                origin_file="src/beta_branch.py",
+                origin_line=2,
+                revision_id=revision_id_r5,
+                classification="60%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/gamma_branch.py",
+                final_line=2,
+                origin_file="src/gamma_branch.py",
+                origin_line=2,
+                revision_id=revision_id_r6,
+                classification="100%-ai",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_side.py",
+                final_line=2,
+                origin_file="src/main_side.py",
+                origin_line=2,
+                revision_id=repo.commit_ids["us12-ro-r7b"],
+                classification="human/unattributed",
+            )
+            assert_live_line_log(
+                self,
+                result.stderr,
+                relative_path="src/main_side.py",
+                final_line=2,
+                origin_file="src/main_side.py",
+                origin_line=2,
+                revision_id=repo.commit_ids["us12-ro-r7b"],
+                classification="human/unattributed",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

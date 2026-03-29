@@ -159,7 +159,7 @@ The octopus variant uses multiple source files so the merge itself stays conflic
 
 Its expected final aggregate is:
 
-1. `totalCodeLines = 4`
+1. `totalCodeLines = 5`
 2. `fullGeneratedCodeLines = 2`
 3. `partialGeneratedCodeLines = 1`
 
@@ -206,6 +206,37 @@ Its most important path assertions are:
 2. `src/merged_name.py:3` and `src/merged_name.py:4` must report `origin_file=src/merged_name.py` because those lines were last changed after the rename
 
 If this variant passes, it is strong evidence that the current implementation handles feature-branch rename lineage correctly across a later merge, at least for the non-conflict case.
+
+## Additional Hard Variant: Feature-Branch Rename Inside Octopus Merge
+
+The strongest non-conflict US-12 variant currently combines both of the previous hard cases:
+
+1. one feature branch performs an in-window human rewrite before a rename
+2. that same branch then renames the file and adds an AI rewrite after the rename
+3. two other feature branches independently add AI-attributed changes in different files
+4. all three feature branches are merged into `main` through a single conflict-free octopus merge
+5. `main` then performs a later human rewrite in a separate file
+
+Why this matters:
+
+1. it checks that rename lineage is preserved even when the renamed branch is not merged back through a simple one-branch merge
+2. it checks that the rename branch and two other feature branches can all survive one multi-parent merge without flattening origin revisions
+3. it simultaneously requires the analyzer to get path lineage and merge topology correct
+
+Its expected final aggregate is:
+
+1. `totalCodeLines = 4`
+2. `fullGeneratedCodeLines = 2`
+3. `partialGeneratedCodeLines = 1`
+
+Its most important assertions are:
+
+1. the pre-rename branch line still reports the old path, `src/legacy_alpha.py`
+2. the post-rename AI line reports the new path, `src/merged_alpha.py`
+3. the other octopus-merged feature branches keep their own origin revisions in `src/beta_branch.py` and `src/gamma_branch.py`
+4. the later mainline human line in `src/main_side.py` remains independently attributed to its post-merge mainline revision
+
+If this variant passes, it is strong evidence that the present implementation handles one of the most demanding non-conflict Git topologies currently in scope for Model A.
 
 ## Why This Exists
 
