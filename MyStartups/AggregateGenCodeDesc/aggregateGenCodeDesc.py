@@ -68,6 +68,14 @@ class ProtocolValidationError(AggregateGenCodeDescError):
     pass
 
 
+class UnsupportedConfigurationError(AggregateGenCodeDescError):
+    pass
+
+
+class RepositoryStateError(AggregateGenCodeDescError):
+    pass
+
+
 class RuntimeLogger:
     def __init__(self, level: str):
         self.level = level
@@ -293,7 +301,7 @@ def resolve_end_revision(repo_dir: Path, branch: str, end_time: str) -> str:
     end_value = parse_day_end(end_time).isoformat()
     revision_id = run_git(repo_dir, ["rev-list", "-1", f"--before={end_value}", branch])
     if not revision_id:
-        raise RuntimeError("No revision found at or before endTime")
+        raise RepositoryStateError("No revision found at or before endTime")
     return revision_id
 
 
@@ -311,10 +319,10 @@ def resolve_svn_end_revision(repo_url: str, branch: str, end_time: str) -> str:
     root = ET.fromstring(log_xml)
     log_entry = root.find("logentry")
     if log_entry is None:
-        raise RuntimeError("No revision found at or before endTime")
+        raise RepositoryStateError("No revision found at or before endTime")
     revision_id = log_entry.attrib.get("revision")
     if not revision_id:
-        raise RuntimeError("Unable to resolve SVN end revision")
+        raise RepositoryStateError("Unable to resolve SVN end revision")
     return revision_id
 
 
@@ -333,10 +341,10 @@ def get_svn_commit_time(repo_url: str, branch: str, revision_id: str, commit_tim
         root = ET.fromstring(log_xml)
         log_entry = root.find("logentry")
         if log_entry is None:
-            raise RuntimeError(f"Unable to resolve SVN revision timestamp for revision {revision_id}")
+            raise RepositoryStateError(f"Unable to resolve SVN revision timestamp for revision {revision_id}")
         date_node = log_entry.find("date")
         if date_node is None or not date_node.text:
-            raise RuntimeError(f"Missing SVN revision timestamp for revision {revision_id}")
+            raise RepositoryStateError(f"Missing SVN revision timestamp for revision {revision_id}")
         commit_time = parse_git_timestamp(date_node.text)
         commit_times[revision_id] = commit_time
     return commit_time
@@ -455,7 +463,9 @@ def build_gen_code_desc_provider(args: argparse.Namespace, logger: RuntimeLogger
             return GenCodeDescSetDirProvider(Path(args.genCodeDescSetDir), args.failOnMissingProtocol, logger)
         return EmptyGenCodeDescProvider(args.failOnMissingProtocol, logger)
 
-    raise ValueError(f"Unsupported metadataSource: {args.metadataSource}. Only 'genCodeDesc' is supported in the current slice.")
+    raise UnsupportedConfigurationError(
+        f"Unsupported metadataSource: {args.metadataSource}. Only 'genCodeDesc' is supported in the current slice."
+    )
 
 
 def describe_ratio(ratio: int) -> str:
@@ -627,13 +637,13 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 
 def build_result(args: argparse.Namespace) -> dict:
     if args.algorithm != "A":
-        raise NotImplementedError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
+        raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
     if args.scope != "A":
-        raise NotImplementedError("Only Scope A is implemented in the current Git/SVN Algorithm A slice")
+        raise UnsupportedConfigurationError("Only Scope A is implemented in the current Git/SVN Algorithm A slice")
     if args.outputFormat != "json":
-        raise NotImplementedError("Only JSON output is implemented in the current Git/SVN Algorithm A slice")
+        raise UnsupportedConfigurationError("Only JSON output is implemented in the current Git/SVN Algorithm A slice")
     if args.vcsType not in {"git", "svn"}:
-        raise NotImplementedError("Only git and svn are implemented in the current Algorithm A slice")
+        raise UnsupportedConfigurationError("Only git and svn are implemented in the current Algorithm A slice")
 
     logger = RuntimeLogger(args.logLevel)
     repo_dir = Path(args.workingDir or args.repoURL)
