@@ -46,6 +46,27 @@ Recommended convention for future cases:
 - one `test_usX_*.py` file for the automated contract
 - one `README_USX_ManualInstruction.md` file for hand verification steps
 
+Current extended examples:
+
+- `US-10` Git manual guide: `README_US10_ManualInstruction.md`
+- `US-10` SVN manual guide: `README_US10_SVN_ManualInstruction.md`
+- `US-11` Git manual guide: `README_US11_ManualInstruction.md`
+- `US-11` SVN manual guide: `README_US11_SVN_ManualInstruction.md`
+- `US-12` Git manual guide: `README_US12_ManualInstruction.md`
+- `US-12` SVN manual guide: `README_US12_SVN_ManualInstruction.md`
+
+## Current SVN Notes
+
+- SVN US-10 and US-11 are close parity-style ports of the Git scenarios.
+- SVN US-12 is intentionally branch-heavy but multi-file, because real `svn blame -g` does not preserve a literal same-file Git-style repeated-merge topology cleanly enough for a trustworthy parity claim.
+- `test_real_svn_same_file_merge_limitation.py` captures that limitation directly against a real local SVN repository.
+
+## Current Scalability Coverage
+
+- `test_us10_large_snapshot_scalability_tdd.py` covers broad Git protocol-index reuse.
+- `test_us11_deep_history_scalability_tdd.py` covers deep-history Git commit-time lookup reuse.
+- `test_us12_svn_merged_branch_scalability_tdd.py` covers SVN reuse behavior for shared branch-origin revisions across merged-branch scenarios.
+
 ## Run
 
 ```bash

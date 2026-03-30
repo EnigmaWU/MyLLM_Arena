@@ -232,7 +232,7 @@ def get_commit_time(repo_dir: Path, revision_id: str, commit_times: dict[str, da
 def get_svn_commit_time(repo_url: str, branch: str, revision_id: str, commit_times: dict[str, datetime]) -> datetime:
     commit_time = commit_times.get(revision_id)
     if commit_time is None:
-        log_xml = run_svn(["log", "--xml", "-r", revision_id, build_svn_branch_target(repo_url, branch)])
+        log_xml = run_svn(["log", "--xml", "-r", revision_id, repo_url])
         root = ET.fromstring(log_xml)
         log_entry = root.find("logentry")
         if log_entry is None:
@@ -300,7 +300,7 @@ def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[Bl
 
 def parse_svn_blame(repo_url: str, branch: str, revision_id: str, relative_path: str) -> list[BlameLine]:
     target = f"{build_svn_branch_target(repo_url, branch)}/{relative_path}"
-    blame_xml = run_svn(["blame", "--xml", "-r", revision_id, target])
+    blame_xml = run_svn(["blame", "--xml", "-g", "-r", revision_id, target])
     file_content = run_svn(["cat", "-r", revision_id, target])
     content_lines = file_content.splitlines()
     root = ET.fromstring(blame_xml)
@@ -312,16 +312,25 @@ def parse_svn_blame(repo_url: str, branch: str, revision_id: str, relative_path:
     origin_file = f"{branch.strip('/')}/{relative_path}"
     for final_line, (entry, content) in enumerate(zip(target_node.findall("entry"), content_lines), start=1):
         commit_node = entry.find("commit")
+        merged_node = entry.find("merged")
+        merged_commit_node = merged_node.find("commit") if merged_node is not None else None
         revision_value = commit_node.attrib.get("revision") if commit_node is not None else None
         if not revision_value:
             continue
+        merged_path = merged_node.attrib.get("path") if merged_node is not None else None
+        joined_origin_file = origin_file
+        merged_origin_file = merged_path.lstrip("/") if merged_path else None
+        if merged_origin_file and merged_origin_file != origin_file and merged_commit_node is not None:
+            joined_origin_file = merged_origin_file
+            revision_value = merged_commit_node.attrib.get("revision", revision_value)
         parsed.append(
             BlameLine(
                 revision_id=revision_value,
-                # WHY: current SVN support is intentionally narrow. Baseline
-                # parity stories use same-path lines without rename tracking, so
-                # we key metadata by branch-qualified final path for now.
-                origin_file=origin_file,
+                # WHY: svn blame -g exposes both the visible commit and an
+                # optional merged source. We only prefer the merged source when
+                # it points at a different branch path; otherwise the commit
+                # node already carries the effective originating revision.
+                origin_file=joined_origin_file,
                 # WHY: svn blame does not expose Git-style historical origin
                 # line numbers. The current SVN slice starts with same-path,
                 # no-line-shift scenarios where final line number is sufficient
