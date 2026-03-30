@@ -3,6 +3,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from aggregateGenCodeDesc import load_json_document
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 UTILITY_PATH = PROJECT_ROOT / "aggregateGenCodeDesc.py"
@@ -132,7 +134,7 @@ class SvnRepoHarness:
 
 
 def load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return load_json_document(path.read_text(encoding="utf-8"))
 
 
 def write_revision_protocol(

@@ -1,13 +1,14 @@
 """Current CLI slice for AggregateGenCodeDesc.
 
 This implementation is intentionally narrow:
-- Git only
+- Git and SVN
 - Model A only
 - Scope A only
 - JSON output only
 - external revision metadata resolved through the current genCodeDesc provider path
 
-The tested story coverage now includes at least US-1 through US-5 on this runtime path.
+The tested story coverage extends beyond the initial Git-only slice, but the
+runtime still intentionally implements only the current Scope A path.
 """
 
 import argparse
@@ -96,7 +97,7 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
                 raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
             self.logger.debug(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
             return {}
-        protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+        protocol = load_json_document(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
         self.logger.debug(f"Loaded genCodeDesc for revision {revision_id} from {protocol_path}")
 
@@ -133,6 +134,68 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
             )
 
         return protocol
+
+
+def strip_json_comments(raw_text: str) -> str:
+    result: list[str] = []
+    in_string = False
+    escaped = False
+    in_line_comment = False
+    in_block_comment = False
+    index = 0
+
+    while index < len(raw_text):
+        char = raw_text[index]
+        next_char = raw_text[index + 1] if index + 1 < len(raw_text) else ""
+
+        if in_line_comment:
+            if char == "\n":
+                in_line_comment = False
+                result.append(char)
+            index += 1
+            continue
+
+        if in_block_comment:
+            if char == "*" and next_char == "/":
+                in_block_comment = False
+                index += 2
+                continue
+            if char == "\n":
+                result.append(char)
+            index += 1
+            continue
+
+        if in_string:
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            index += 1
+            continue
+
+        if char == "/" and next_char == "/":
+            in_line_comment = True
+            index += 2
+            continue
+
+        if char == "/" and next_char == "*":
+            in_block_comment = True
+            index += 2
+            continue
+
+        result.append(char)
+        if char == '"':
+            in_string = True
+        index += 1
+
+    return "".join(result)
+
+
+def load_json_document(raw_text: str) -> dict:
+    return json.loads(strip_json_comments(raw_text))
 
 
 def parse_args() -> argparse.Namespace:

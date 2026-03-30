@@ -8,6 +8,15 @@
   - Protocol definition: [genCodeDescProtocol](genCodeDescProtocol.json)
 - In both revision-level metadata and final aggregate results, `SUMMARY.totalCodeLines` means only the code lines represented by that record. It does not include deleted historical lines that are no longer represented by the record scope.
 
+### Current Supported Contract vs Future Protocol
+
+- The current runtime implementation supports only `Model A + Scope A`, which means live source code lines only.
+- Revision-level metadata currently consumes `DETAIL[*].codeLines` for source files in the supported code-file set.
+- The broader `generatedTextDesc` protocol can describe more than source code, including future document-oriented fields such as `docLines` and document summary totals.
+- Those broader fields are forward-compatible at the protocol level, but they are not part of the current analyzer's implemented metric path.
+- Unknown top-level fields such as `CREDENTIAL` are treated as envelope metadata and ignored by the current analyzer.
+- Protocol samples may be written as JSONC for documentation convenience. The runtime loader now accepts `//` and `/* ... */` comments in revision-level metadata files, but the analyzer output remains standard JSON.
+
 ## ======>>>WHAT WE WANT<<<======
 
 - We want to calculate the AI ratio among live code lines whose current version was changed within a specific time period.
