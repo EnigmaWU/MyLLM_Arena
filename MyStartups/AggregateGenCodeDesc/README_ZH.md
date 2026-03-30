@@ -49,7 +49,7 @@
 
 ### 2. 推荐的计算模型
 
-`Model A（首选）：基于 blame 的 end-snapshot 归因`
+`Algorithm A（首选）：基于 blame 的 end-snapshot 归因`
 
 最直接的一线模型是：`end snapshot + blame + window filter + 外部元数据查找`
 
@@ -117,7 +117,7 @@
 
 当前有两个候选模型：
 
-- `Model A（首选）：基于 blame 的 end-snapshot 归因`
+- `Algorithm A（首选）：基于 blame 的 end-snapshot 归因`
   - 方法：
     - 从 `endTime` 的存活快照出发
     - 用 blame 找到每条最终存活代码行的来源修订
@@ -132,7 +132,7 @@
     - 严重依赖 VCS blame 的质量和行为
     - 不太适合处理已删除代码、churn 或中间历史状态类指标
 
-- `Model B（备选）：不依赖 blame 的增量谱系重建`
+- `Algorithm B（备选）：不依赖 blame 的增量谱系重建`
   - 方法：
     - 从 `startTime` 之前的快照出发
     - 一路重放 snapshot diff 和逐提交 diff，直到 `endTime`
@@ -160,7 +160,7 @@
 - 相比更丰富的历史分析，更看重正确性和实现简单度
 - 目标 VCS 环境中存在可靠的 rename-aware blame
 
-按照当前项目方向，应将 `Model A` 作为实现基线，并保留 `Model B` 作为显式备选架构。
+按照当前项目方向，应将 `Algorithm A` 作为实现基线，并保留 `Algorithm B` 作为显式备选架构。
 
 ### 7. 什么算作代码行
 
@@ -316,7 +316,7 @@ python aggregateGenCodeDesc.py \
 
 - `--vcsType <git|svn>`
   - 如果工具能从 `repoURL` 自动识别，则此参数可选
-- `--model <A|B>`
+- `--algorithm <A|B>`
   - 默认：`A`
   - `A` 表示基于 blame 的 end-snapshot 归因
   - `B` 表示不依赖 blame 的增量谱系重建
@@ -346,7 +346,7 @@ python aggregateGenCodeDesc.py \
 
 推荐默认行为：
 
-- 默认使用 `Model A`
+- 默认使用 `Algorithm A`
 - 默认使用 `Scope A`
 - 默认输出 JSON
 - 解析 `endTime` 对应的分支快照
@@ -386,7 +386,7 @@ python aggregateGenCodeDesc.py \
   --repoBranch release/1.0 \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
-  --model A \
+  --algorithm A \
   --scope A \
   --outputFile out.json
 ```
@@ -416,7 +416,7 @@ python aggregateGenCodeDesc.py \
 
 第一版实现建议：
 
-- 只实现 `Model A`
+- 只实现 `Algorithm A`
 - 只实现 `Scope A`
 - 只强制要求 `--repoURL`、`--repoBranch`、`--startTime`、`--endTime`
 - 仅把 `--genCodeDescSetDir` 保留为本地测试适配方式

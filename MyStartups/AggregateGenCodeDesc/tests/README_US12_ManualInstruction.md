@@ -236,7 +236,7 @@ Its most important assertions are:
 3. the other octopus-merged feature branches keep their own origin revisions in `src/beta_branch.py` and `src/gamma_branch.py`
 4. the later mainline human line in `src/main_side.py` remains independently attributed to its post-merge mainline revision
 
-If this variant passes, it is strong evidence that the present implementation handles one of the most demanding non-conflict Git topologies currently in scope for Model A.
+If this variant passes, it is strong evidence that the present implementation handles one of the most demanding non-conflict Git topologies currently in scope for Algorithm A.
 
 ## Additional Hard Variant: Double Rename On Feature Branch Before Merge
 

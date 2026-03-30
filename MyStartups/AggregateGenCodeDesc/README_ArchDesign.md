@@ -154,7 +154,7 @@ Important output fields:
 
 Field semantics:
 
-- `SUMMARY.totalCodeLines`: only the code lines represented by that final result. For the current Model A metric, this means live source lines that still exist at `endTime` and whose current form originated inside `startTime~endTime`.
+- `SUMMARY.totalCodeLines`: only the code lines represented by that final result. For the current Algorithm A metric, this means live source lines that still exist at `endTime` and whose current form originated inside `startTime~endTime`.
 - `SUMMARY.fullGeneratedCodeLines`: represented lines whose AI attribution is full.
 - `SUMMARY.partialGeneratedCodeLines`: represented lines whose AI attribution is partial.
 
@@ -277,7 +277,7 @@ If the metadata store has a canonical repository identifier in the future, the a
 
 Current state of the codebase:
 
-- `aggregateGenCodeDesc.py` implements a first narrow `Model A` Git slice
+- `aggregateGenCodeDesc.py` implements a first narrow `Algorithm A` Git/SVN slice
 - the current green `US-1` path uses a local directory-based lookup as a test seam
 - repository-backed tests under `tests/` already validate real Git and SVN history behavior
 

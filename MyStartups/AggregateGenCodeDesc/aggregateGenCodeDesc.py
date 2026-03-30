@@ -2,7 +2,7 @@
 
 This implementation is intentionally narrow:
 - Git and SVN
-- Model A only
+- Algorithm A only
 - Scope A only
 - JSON output only
 - external revision metadata resolved through the current genCodeDesc provider path
@@ -205,7 +205,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--startTime", required=True)
     parser.add_argument("--endTime", required=True)
     parser.add_argument("--vcsType", default="git")
-    parser.add_argument("--model", default="A")
+    parser.add_argument("--algorithm", default="A")
     parser.add_argument("--scope", default="A")
     parser.add_argument("--outputFile")
     parser.add_argument("--outputFormat", default="json")
@@ -521,14 +521,14 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 
 
 def build_result(args: argparse.Namespace) -> dict:
-    if args.model != "A":
-        raise NotImplementedError("Only Model A is implemented in the current Git/SVN Model A slice")
+    if args.algorithm != "A":
+        raise NotImplementedError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
     if args.scope != "A":
-        raise NotImplementedError("Only Scope A is implemented in the current Git/SVN Model A slice")
+        raise NotImplementedError("Only Scope A is implemented in the current Git/SVN Algorithm A slice")
     if args.outputFormat != "json":
-        raise NotImplementedError("Only JSON output is implemented in the current Git/SVN Model A slice")
+        raise NotImplementedError("Only JSON output is implemented in the current Git/SVN Algorithm A slice")
     if args.vcsType not in {"git", "svn"}:
-        raise NotImplementedError("Only git and svn are implemented in the current Model A slice")
+        raise NotImplementedError("Only git and svn are implemented in the current Algorithm A slice")
 
     logger = RuntimeLogger(args.logLevel)
     repo_dir = Path(args.workingDir or args.repoURL)

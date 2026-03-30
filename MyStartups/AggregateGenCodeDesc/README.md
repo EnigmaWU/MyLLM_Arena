@@ -10,7 +10,7 @@
 
 ### Current Supported Contract vs Future Protocol
 
-- The current runtime implementation supports only `Model A + Scope A`, which means live source code lines only.
+- The current runtime implementation supports only `Algorithm A + Scope A`, which means live source code lines only.
 - Revision-level metadata currently consumes `DETAIL[*].codeLines` for source files in the supported code-file set.
 - The broader `generatedTextDesc` protocol can describe more than source code, including future document-oriented fields such as `docLines` and document summary totals.
 - Those broader fields are forward-compatible at the protocol level, but they are not part of the current analyzer's implemented metric path.
@@ -57,11 +57,32 @@ Notes:
 - The metric is still evaluated on the live codebase state at `endTime`.
 - `startTime` is not only a label. It determines which live lines are in scope.
 
-### 2. Recommended calculation model
+### 2. Recommended calculation algorithm
 
-`Model A (preferred): blame-based end-snapshot attribution`
+`Algorithm A (preferred): blame-based end-snapshot attribution`
 
-The cleanest primary model is `end snapshot + blame + window filter + external metadata lookup`.
+The cleanest primary algorithm is `end snapshot + blame + window filter + external metadata lookup`.
+
+Workflow overview:
+
+```mermaid
+flowchart TD
+  Q[Query Input<br/>repoURL repoBranch startTime endTime] --> D{Choose Algorithm}
+  D -->|Algorithm A| A1[Resolve end snapshot at endTime]
+  A1 --> A2[List live source files]
+  A2 --> A3[Run blame with rename or move detection]
+  A3 --> A4[Collect origin revision, file, and line]
+  A4 --> A5[Filter live lines by startTime to endTime]
+  A5 --> A6[Fetch revision-level genCodeDesc by repoURL, repoBranch, revisionId]
+  A6 --> A7[Look up origin file plus origin line genRatio]
+  A7 --> A8[Aggregate weighted AI contribution and totals]
+  A8 --> O[Emit aggregate JSON result]
+  D -->|Algorithm B| B1[Resolve snapshot before startTime]
+  B1 --> B2[Replay per-commit diffs through endTime]
+  B2 --> B3[Maintain line-state lineage map]
+  B3 --> B4[Reconstruct final live snapshot ownership]
+  B4 --> A6
+```
 
 Steps:
 
@@ -87,7 +108,7 @@ Steps:
 This works because blame answers the real question: `which commit last introduced the current form of this live line?`
 Once that origin revision is known, the time window can be applied exactly to the live line set.
 
-### 3. Why this model matches the requirement
+### 3. Why this algorithm matches the requirement
 
 The requirement is not `how much AI code was ever added during the period regardless of whether it survived`.
 It is `within the live codebase at endTime, how much of the live changed code in startTime~endTime is AI-generated or partially AI-generated`.
@@ -121,11 +142,11 @@ That means:
 - live lines whose current form comes from before `startTime` are out of scope
 - deleted lines are out of scope because they are not live at `endTime`
 
-### 6. Candidate models
+### 6. Candidate algorithms
 
-There are two candidate models:
+There are two candidate algorithms:
 
-- `Model A (preferred): blame-based end-snapshot attribution`
+- `Algorithm A (preferred): blame-based end-snapshot attribution`
   - method:
     - start from the live snapshot at `endTime`
     - use blame to identify the origin revision of each final live line
@@ -140,7 +161,7 @@ There are two candidate models:
     - depends heavily on the quality and behavior of VCS blame support
     - is less suitable for metrics about deleted lines, churn, or intermediate history states
 
-- `Model B (alternative): incremental lineage reconstruction without blame`
+- `Algorithm B (alternative): incremental lineage reconstruction without blame`
   - method:
     - start from the snapshot just before `startTime`
     - replay snapshot diff and per-commit diffs through `endTime`
@@ -162,13 +183,13 @@ When the alternative model may be better:
 - commit diffs are already indexed and cheaply queryable, while blame is slow or operationally expensive
 - the team wants commit-by-commit attribution outputs in addition to the final ratio
 
-When the blame model remains better:
+When Algorithm A remains better:
 
 - the primary goal is the agreed `P0 / Scope A` metric on the live snapshot at `endTime`
 - correctness and implementation simplicity matter more than richer history analytics
 - rename-aware blame is available and reliable in the target VCS environment
 
-For the current project direction, choose `Model A` as the implementation baseline and keep `Model B` as the explicit alternative architecture.
+For the current project direction, choose `Algorithm A` as the implementation baseline and keep `Algorithm B` as the explicit alternative architecture.
 
 ### 7. What counts as code lines
 
@@ -324,10 +345,10 @@ Recommended optional arguments:
 
 - `--vcsType <git|svn>`
   - optional if the tool can auto-detect from `repoURL`
-- `--model <A|B>`
+- `--algorithm <A|B>`
   - default: `A`
-  - `A` means blame-based end-snapshot attribution
-  - `B` means incremental lineage reconstruction without blame
+  - `A` selects `Algorithm A`: blame-based end-snapshot attribution
+  - `B` selects `Algorithm B`: incremental lineage reconstruction without blame
 - `--scope <A|B|C|D>`
   - default: `A`
   - `A` pure source code
@@ -354,7 +375,7 @@ Recommended optional arguments:
 
 Recommended default behavior:
 
-- default to `Model A`
+- default to `Algorithm A`
 - default to `Scope A`
 - default to JSON output
 - resolve the branch snapshot at `endTime`
@@ -368,7 +389,7 @@ Recommended result shape:
 - use a protocol-shaped JSON output that contains:
   - repository identity
   - query window
-  - chosen model and scope
+  - chosen algorithm and scope
   - summary totals
   - optional breakdowns
   - execution warnings such as missing protocol files
@@ -394,7 +415,7 @@ python aggregateGenCodeDesc.py \
   --repoBranch release/1.0 \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
-  --model A \
+  --algorithm A \
   --scope A \
   --outputFile out.json
 ```
@@ -424,7 +445,7 @@ python aggregateGenCodeDesc.py \
 
 First implementation advice:
 
-- implement only `Model A`
+- implement only `Algorithm A`
 - implement only `Scope A`
 - require `--repoURL`, `--repoBranch`, `--startTime`, and `--endTime`
 - keep `--genCodeDescSetDir` only as a local test adapter

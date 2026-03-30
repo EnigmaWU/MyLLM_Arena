@@ -6,14 +6,14 @@
 
 所有故事都假定分析请求包含 `repo + branch + startTime + endTime`。
 对于当前主指标，`startTime~endTime` 用来定义哪些存活代码行属于统计范围，而结果则基于 `endTime` 时刻的存活快照计算。
-当前基线是 `P0 / Scope A: pure source code`，并使用 `Model A (preferred): blame-based end-snapshot attribution`。
+当前基线是 `P0 / Scope A: pure source code`，并使用 `Algorithm A (preferred): blame-based end-snapshot attribution`。
 除非另有明确说明，当前这些用户故事同时适用于 Git 和 SVN 目标。VCS 之间的差异可能影响仓库身份、分支或路径约定，以及修订标识符，但不应改变指标语义或协议形态的结果契约。
 在现阶段，验收标准有意定义在仓库查询级别，而不是内部文件级或行级实现细节层面。
 最终聚合结果可以通过报告返回，也可以直接由协议中的 `SUMMARY` 段表示。
 用户查询与最终记录是两个不同工件：`query.json` 表示分析输入，而 `genCodeDescProtocol.json` 表示最终结果记录。
 分析过程中使用的 `genCodeDesc` 记录是修订级别的外部元数据，而不是提交进被分析仓库中的文件。
 单条元数据记录的目标查找键是 `repoURL + repoBranch + revisionId`。
-除非某个故事明确规定了另一种指标，否则 `SUMMARY.totalCodeLines` 一律表示该记录作用域内真正被该记录表示的代码行数。对于当前 Model A 的最终结果，这意味着只统计在 `endTime` 仍然存活的行，不包含已经删除的历史代码行。
+除非某个故事明确规定了另一种指标，否则 `SUMMARY.totalCodeLines` 一律表示该记录作用域内真正被该记录表示的代码行数。对于当前 Algorithm A 的最终结果，这意味着只统计在 `endTime` 仍然存活的行，不包含已经删除的历史代码行。
 在夹具验证中，`expected_result.json` 应保持为最小化的协议形态输出工件。它应保留 `protocolName`、`protocolVersion`、`SUMMARY`、`REPOSITORY` 等结果字段，而不应重复 `metric`、`model`、`scope`、`startTime`、`endTime` 这类只属于查询的字段。
 
 每个故事都配有位于 `testdata/` 下的场景化测试夹具。
@@ -24,21 +24,21 @@
 这些 `testdata/` 场景是面向设计讨论的夹具。
 这些本地 `genCodeDesc` 文件用于模拟真实部署中的外部元数据存储。
 之前的 diff 工件已经从 `testdata/` 中移除，以保持夹具契约尽量小且聚焦。
-对于 `Model A` 的真实仓库验证，首选测试层是在 `tests/` 下，通过创建真实的 Git 或 SVN 仓库来验证，并且不要求 `*.diff` 文件。
+对于 `Algorithm A` 的真实仓库验证，首选测试层是在 `tests/` 下，通过创建真实的 Git 或 SVN 仓库来验证，并且不要求 `*.diff` 文件。
 
 对于偏生产的运行方式，分析器应先从仓库历史中发现相关修订，再从外部提供者中获取匹配的 `genCodeDesc` 记录。
 
 ## 场景映射
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Model A`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Model A`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Model A`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Model A`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Model A`)
-- `US-6` -> `testdata/us6_period_added_ratio` (`Model B`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Model A`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Model A`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Model A`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`)
+- `US-6` -> `testdata/us6_period_added_ratio` (`Algorithm B`)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`)
 
 ## 用户故事
 
@@ -152,7 +152,7 @@
 **我希望** 计算 `startTime~endTime` 期间新增的 AI 代码量，
 **以便** 将时间段内的新增贡献与期末存量区分开来。
 
-说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，更可能与 `Model B` 或未来的其他实现方式对齐。
+说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，更可能与 `Algorithm B` 或未来的其他实现方式对齐。
 
 #### US-6 验收标准
 

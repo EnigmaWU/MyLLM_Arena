@@ -6,15 +6,15 @@ This document defines the first user stories for AggregateGenCodeDesc and the ac
 
 All stories assume the analysis request includes `repo + branch + startTime + endTime`.
 For the current primary metric, `startTime~endTime` defines which live lines are in scope, and the result is calculated from the live snapshot at `endTime`.
-The current baseline is `P0 / Scope A: pure source code` using `Model A (preferred): blame-based end-snapshot attribution`.
+The current baseline is `P0 / Scope A: pure source code` using `Algorithm A (preferred): blame-based end-snapshot attribution`.
 Unless explicitly stated otherwise, the current user stories apply to both Git and SVN targets. VCS-specific differences may affect repository identity, branch or path conventions, and revision identifiers, but should not change the metric semantics or the protocol-shaped result contract.
 At this stage, the acceptance criteria are intentionally defined at the repository query level, not at the internal file-level or line-level implementation level.
 The final aggregate result may be returned in a report and may also be represented directly by the protocol `SUMMARY` section.
 The user query and the final record are different artifacts: `query.json` represents analysis input, while `genCodeDescProtocol.json` represents the final result record.
 The `genCodeDesc` records used during analysis are revision-level external metadata, not files committed into the analyzed repository.
 The intended lookup key for one metadata record is `repoURL + repoBranch + revisionId`.
-Unless a story explicitly defines another metric, `SUMMARY.totalCodeLines` always means only the code lines represented by that record's scope. For the current Model A final result, this excludes deleted lines and counts only live lines still present at `endTime`.
-For fixture verification, `expected_result.json` should remain a minimal protocol-shaped output artifact. It should keep result fields such as `protocolName`, `protocolVersion`, `SUMMARY`, and `REPOSITORY`, and should not duplicate query-only fields such as `metric`, `model`, `scope`, `startTime`, or `endTime`.
+Unless a story explicitly defines another metric, `SUMMARY.totalCodeLines` always means only the code lines represented by that record's scope. For the current Algorithm A final result, this excludes deleted lines and counts only live lines still present at `endTime`.
+For fixture verification, `expected_result.json` should remain a minimal protocol-shaped output artifact. It should keep result fields such as `protocolName`, `protocolVersion`, `SUMMARY`, and `REPOSITORY`, and should not duplicate query-only fields such as `metric`, `algorithm`, `scope`, `startTime`, or `endTime`.
 
 Each story is paired with scenario-based test data under `testdata/`.
 Each scenario contains:
@@ -26,24 +26,24 @@ For planned future stories, the scenario name defines the intended verification 
 Those `testdata/` scenarios are design-oriented fixtures.
 Those local `genCodeDesc` files simulate the external metadata store used in real deployments.
 The earlier diff artifacts have been removed from `testdata` to keep the fixture contract small and focused.
-For real repository verification of `Model A`, the preferred test layer is under `tests/`, where actual Git or SVN repositories are created and `*.diff` files are not required.
+For real repository verification of `Algorithm A`, the preferred test layer is under `tests/`, where actual Git or SVN repositories are created and `*.diff` files are not required.
 
 For production-oriented runs, the analyzer should discover relevant revisions from repository history first and then fetch matching `genCodeDesc` records from an external provider.
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Model A`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Model A`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Model A`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Model A`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Model A`)
-- `US-6` -> `testdata/us6_period_added_ratio` (`Model B`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Model A`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Model A`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Model A`)
-- `US-10` -> `testdata/us10_large_repository_snapshot` (`Model A`)
-- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Model A`)
-- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Model A`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`)
+- `US-6` -> `testdata/us6_period_added_ratio` (`Algorithm B`)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`)
+- `US-10` -> `testdata/us10_large_repository_snapshot` (`Algorithm A`)
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Algorithm A`)
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Algorithm A`)
 
 ## User Stories
 
@@ -157,7 +157,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 **I want** to calculate how much AI-generated code was added during `startTime~endTime`,
 **so that** I can distinguish period contribution from end-of-period inventory.
 
-Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that may align better with `Model B` or another future implementation.
+Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that may align better with `Algorithm B` or another future implementation.
 
 #### Acceptance Criteria For US-6
 

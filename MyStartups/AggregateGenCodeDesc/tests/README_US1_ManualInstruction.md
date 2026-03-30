@@ -16,7 +16,7 @@ The current goal is to prove that `aggregateGenCodeDesc.py` can:
 This manual flow matches the current implementation boundary:
 
 - Git only
-- `Model A` only
+- `Algorithm A` only
 - `Scope A` only
 - `metadataSource=genCodeDesc` only
 - `--genCodeDescSetDir` as the current local metadata adapter

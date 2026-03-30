@@ -1,6 +1,6 @@
 # Real Repository Tests
 
-These tests are intended to validate real VCS behavior behind Model A.
+These tests are intended to validate real VCS behavior behind Algorithm A.
 
 ## Purpose
 
@@ -12,7 +12,7 @@ These tests are intended to validate real VCS behavior behind Model A.
 These are integration-style tests for VCS behavior, even if they are run under `unittest`.
 They complement the scenario fixtures under `testdata/`, which are logic-level design fixtures.
 
-For the current project direction, real repository tests are the preferred verification path for `Model A` behavior.
+For the current project direction, real repository tests are the preferred verification path for `Algorithm A` behavior.
 
 ## Real Repo Fixture Contract
 
@@ -29,7 +29,7 @@ The real repository itself is the authoritative source of history, file evolutio
 ## Relationship To `testdata/`
 
 - `testdata/` remains useful for design discussion, fixture-level reasoning, and logic-oriented scenario examples
-- `tests/` is the preferred place for validating real `Model A` behavior against actual Git or SVN commands
+- `tests/` is the preferred place for validating real `Algorithm A` behavior against actual Git or SVN commands
 - new real repository tests should not require `*.diff` files unless a diff is intentionally added as an explanatory artifact
 
 ## Manual Verification

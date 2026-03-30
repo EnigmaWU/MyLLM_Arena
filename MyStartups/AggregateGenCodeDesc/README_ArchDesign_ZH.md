@@ -154,7 +154,7 @@ flowchart LR
 
 字段语义：
 
-- `SUMMARY.totalCodeLines`：只统计该最终结果实际表示的代码行。对于当前 Model A 指标，它表示在 `endTime` 仍然存活、且其当前形态起源于 `startTime~endTime` 内的源码行数。
+- `SUMMARY.totalCodeLines`：只统计该最终结果实际表示的代码行。对于当前 Algorithm A 指标，它表示在 `endTime` 仍然存活、且其当前形态起源于 `startTime~endTime` 内的源码行数。
 - `SUMMARY.fullGeneratedCodeLines`：这些被表示代码行中，AI 完全生成的行数。
 - `SUMMARY.partialGeneratedCodeLines`：这些被表示代码行中，AI 部分生成的行数。
 
@@ -275,7 +275,7 @@ flowchart LR
 
 当前代码库状态：
 
-- `aggregateGenCodeDesc.py` 已实现一个狭窄的 `Model A` Git 切片
+- `aggregateGenCodeDesc.py` 已实现一个狭窄的 `Algorithm A` Git/SVN 切片
 - 当前已通过的 `US-1` 路径使用本地目录查找作为测试缝隙
 - `tests/` 下基于真实仓库的测试已经验证了 Git 和 SVN 的历史行为
 
