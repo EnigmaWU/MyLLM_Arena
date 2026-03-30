@@ -37,7 +37,7 @@ class TestUs12SvnMergedBranchScalabilityTdd(unittest.TestCase):
             startTime="2026-03-01",
             endTime="2026-03-31",
             vcsType="svn",
-            model="A",
+            algorithm="A",
             scope="A",
             outputFile=None,
             outputFormat="json",

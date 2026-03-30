@@ -39,7 +39,7 @@ class TestUs10LargeSnapshotScalabilityTdd(unittest.TestCase):
             startTime="2026-03-01",
             endTime="2026-03-31",
             vcsType="git",
-            model="A",
+            algorithm="A",
             scope="A",
             outputFile=None,
             outputFormat="json",
