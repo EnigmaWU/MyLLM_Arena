@@ -22,6 +22,9 @@ from datetime import datetime, time, timezone
 from pathlib import Path
 
 
+COMMAND_TIMEOUT_SECONDS = 30
+
+
 SOURCE_EXTENSIONS = {
     ".c",
     ".cc",
@@ -53,6 +56,18 @@ class IndexedFileDetail:
     line_ranges: list[tuple[int, int, int]]
 
 
+class AggregateGenCodeDescError(RuntimeError):
+    pass
+
+
+class CommandExecutionError(AggregateGenCodeDescError):
+    pass
+
+
+class ProtocolValidationError(AggregateGenCodeDescError):
+    pass
+
+
 class RuntimeLogger:
     def __init__(self, level: str):
         self.level = level
@@ -79,7 +94,7 @@ class EmptyGenCodeDescProvider(GenCodeDescProvider):
 
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
         if self.fail_on_missing:
-            raise FileNotFoundError(f"Missing genCodeDesc provider data for revision {revision_id}")
+            raise ProtocolValidationError(f"Missing genCodeDesc provider data for revision {revision_id}")
         self.logger.debug(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
         return {}
 
@@ -94,7 +109,7 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         protocol_path = self.base_dir / f"{revision_id}_genCodeDesc.json"
         if not protocol_path.exists():
             if self.fail_on_missing:
-                raise FileNotFoundError(f"Protocol file not found: {protocol_path}")
+                raise ProtocolValidationError(f"Protocol file not found: {protocol_path}")
             self.logger.debug(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
             return {}
         protocol = load_json_document(protocol_path.read_text(encoding="utf-8"))
@@ -198,6 +213,38 @@ def load_json_document(raw_text: str) -> dict:
     return json.loads(strip_json_comments(raw_text))
 
 
+def run_command(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = COMMAND_TIMEOUT_SECONDS,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise CommandExecutionError(f"Required command not found: {command[0]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise CommandExecutionError(
+            f"Command timed out after {timeout}s: {' '.join(command)}"
+        ) from exc
+
+    if check and result.returncode != 0:
+        error_output = (result.stderr or result.stdout or "command failed without output").strip()
+        raise CommandExecutionError(
+            f"Command failed ({result.returncode}): {' '.join(command)}\n{error_output}"
+        )
+
+    return result
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repoURL", required=True)
@@ -219,14 +266,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_git(repo_dir: Path, args: list[str]) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo_dir,
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    return result.stdout.strip()
+    return run_command(["git", *args], cwd=repo_dir).stdout.strip()
 
 
 def parse_day_start(value: str) -> datetime:
@@ -262,13 +302,7 @@ def build_svn_branch_target(repo_url: str, branch: str) -> str:
 
 
 def run_svn(args: list[str]) -> str:
-    result = subprocess.run(
-        ["svn", *args],
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    return result.stdout.strip()
+    return run_command(["svn", *args]).stdout.strip()
 
 
 def resolve_svn_end_revision(repo_url: str, branch: str, end_time: str) -> str:
@@ -432,20 +466,96 @@ def describe_ratio(ratio: int) -> str:
     return "human/unattributed"
 
 
+def require_int(value: object, context: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise ProtocolValidationError(f"{context} must be an integer") from exc
+
+
+def validate_no_overlap(
+    file_name: str,
+    exact_lines: dict[int, int],
+    ranges: list[tuple[int, int, int]],
+    range_start: int,
+    range_end: int,
+) -> None:
+    if range_start > range_end:
+        raise ProtocolValidationError(
+            f"Protocol DETAIL entry for {file_name} has lineRange.from greater than lineRange.to"
+        )
+    for line_number in exact_lines:
+        if range_start <= line_number <= range_end:
+            raise ProtocolValidationError(
+                f"Protocol DETAIL entry for {file_name} has overlapping line coverage at line {line_number}"
+            )
+    for existing_start, existing_end, _ in ranges:
+        if not (range_end < existing_start or range_start > existing_end):
+            raise ProtocolValidationError(
+                f"Protocol DETAIL entry for {file_name} has overlapping line ranges {range_start}-{range_end} and {existing_start}-{existing_end}"
+            )
+
+
 def build_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
     indexed_detail: dict[str, IndexedFileDetail] = {}
-    for file_entry in protocol.get("DETAIL", []):
+    detail_entries = protocol.get("DETAIL", [])
+    if not isinstance(detail_entries, list):
+        raise ProtocolValidationError("Protocol DETAIL must be a list")
+
+    for file_entry in detail_entries:
+        if not isinstance(file_entry, dict):
+            raise ProtocolValidationError("Each Protocol DETAIL entry must be an object")
+
+        file_name = file_entry.get("fileName")
+        if not isinstance(file_name, str) or not file_name:
+            raise ProtocolValidationError("Protocol DETAIL entry missing fileName")
+
         exact_lines: dict[int, int] = {}
         ranges: list[tuple[int, int, int]] = []
-        for code_line in file_entry.get("codeLines", []):
+        code_lines = file_entry.get("codeLines", [])
+        if code_lines is None:
+            code_lines = []
+        if not isinstance(code_lines, list):
+            raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-list codeLines")
+
+        for code_line in code_lines:
+            if not isinstance(code_line, dict):
+                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} contains a non-object codeLines item")
+
+            gen_ratio = require_int(code_line.get("genRatio", 0), f"Protocol DETAIL entry for {file_name} genRatio")
+            if not 0 <= gen_ratio <= 100:
+                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has genRatio outside 0..100")
+
             line_location = code_line.get("lineLocation")
             if line_location is not None:
-                exact_lines[int(line_location)] = int(code_line.get("genRatio", 0))
+                line_number = require_int(line_location, f"Protocol DETAIL entry for {file_name} lineLocation")
+                if line_number in exact_lines:
+                    raise ProtocolValidationError(
+                        f"Protocol DETAIL entry for {file_name} duplicates lineLocation {line_number}"
+                    )
+                for range_start, range_end, _ in ranges:
+                    if range_start <= line_number <= range_end:
+                        raise ProtocolValidationError(
+                            f"Protocol DETAIL entry for {file_name} has overlapping line coverage at line {line_number}"
+                        )
+                exact_lines[line_number] = gen_ratio
                 continue
+
             line_range = code_line.get("lineRange")
             if line_range:
-                ranges.append((int(line_range.get("from")), int(line_range.get("to")), int(code_line.get("genRatio", 0))))
-        indexed_detail[file_entry.get("fileName", "")] = IndexedFileDetail(
+                if not isinstance(line_range, dict):
+                    raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-object lineRange")
+                range_start = require_int(line_range.get("from"), f"Protocol DETAIL entry for {file_name} lineRange.from")
+                range_end = require_int(line_range.get("to"), f"Protocol DETAIL entry for {file_name} lineRange.to")
+                validate_no_overlap(file_name, exact_lines, ranges, range_start, range_end)
+                ranges.append((range_start, range_end, gen_ratio))
+                continue
+
+            raise ProtocolValidationError(
+                f"Protocol DETAIL entry for {file_name} must define either lineLocation or lineRange"
+            )
+
+        indexed_detail[file_name] = IndexedFileDetail(
             line_locations=exact_lines,
             line_ranges=ranges,
         )
@@ -454,12 +564,7 @@ def build_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
 
 def resolve_parent_revision(vcs_type: str, repo_dir: Path, repo_url: str, branch: str, revision_id: str) -> str | None:
     if vcs_type == "git":
-        result = subprocess.run(
-            ["git", "rev-parse", f"{revision_id}^"],
-            cwd=repo_dir,
-            text=True,
-            capture_output=True,
-        )
+        result = run_command(["git", "rev-parse", f"{revision_id}^"], cwd=repo_dir, check=False)
         if result.returncode != 0:
             return None
         return result.stdout.strip() or None
@@ -650,13 +755,17 @@ def build_result(args: argparse.Namespace) -> dict:
 
 
 def main() -> None:
-    args = parse_args()
-    result = build_result(args)
-    output = json.dumps(result, indent=2)
-    if args.outputFile:
-        Path(args.outputFile).write_text(output, encoding="utf-8")
-    else:
-        print(output)
+    try:
+        args = parse_args()
+        result = build_result(args)
+        output = json.dumps(result, indent=2)
+        if args.outputFile:
+            Path(args.outputFile).write_text(output, encoding="utf-8")
+        else:
+            print(output)
+    except (AggregateGenCodeDescError, ValueError, json.JSONDecodeError) as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
