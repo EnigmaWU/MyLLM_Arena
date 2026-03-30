@@ -6,7 +6,7 @@
         "partialGeneratedCodeLines": "Subset of represented code lines whose genRatio is greater than 0 and less than 100."
     },
 
-    "protocolName": "generatedTextDesc",
+    "protocolName": "generatedTextDesc", //Text=Code(c/cxx,...) or Document(md,...)
     "protocolVersion": "26.03",
     "codeAgent": "HuayanCoder",
 
@@ -14,7 +14,10 @@
     {
         "totalCodeLines": 99,
         "fullGeneratedCodeLines": 19,
-        "partialGeneratedCodeLines": 29
+        "partialGeneratedCodeLines": 2,
+        "totalDocLines": 50,
+        "fullGeneratedDocLines": 10,
+        "partialGeneratedDocLines": 5
     },
 
     "DETAIL":
@@ -25,15 +28,20 @@
             [
                 {"lineLocation":  15, "genRatio": 100, "genMethod": "codeCompletion" },
                 {"lineLocation":  16, "genRatio": 95, "genMethod": "vibeCoding" },
-                 {"lineLocation":  17, "genRatio": 30, "genMethod": "vibeCoding" },
-                {"lineRange":  {"from":   20, "to": 25 }, "genRatio": 100, "genMethod": "vibeCoding"}
+                {"lineLocation":  17, "genRatio": 30, "genMethod": "vibeCoding" },
+                {"lineRange":  {"from":   20, "to": 26 }, "genRatio": 100, "genMethod": "vibeCoding"}
             ]
         },
         {
             "fileName": "relativePath/2/nameOfFileB.md",
-            "codeLines":
+            "docLines":
             [
-                {"lineLocation":  15, "genRatio": 100 , "genMethod": "vibeCoding"}
+                {"lineLocation":  15, "genRatio": 90 , "genMethod": "vibeCoding"},
+                {"lineLocation":  16, "genRatio": 80 , "genMethod": "vibeCoding"},
+                {"lineLocation":  17, "genRatio": 20 , "genMethod": "vibeCoding"},
+                {"lineRange":  {"from":   20, "to": 29 }, "genRatio": 100, "genMethod": "vibeCoding"},
+                {"lineLocation":  30, "genRatio": 50, "genMethod": "codeCompletion"},
+                {"lineLocation":  31, "genRatio": 20, "genMethod": "codeCompletion"}
             ]
         }
     ],
