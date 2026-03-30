@@ -300,3 +300,51 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 3. **GIVEN** the fixture `testdata/us12_many_merged_branches_preserve_attribution`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+### US-13: Git Production-Scale Local Repository Must Stay Correct Under Branch-Heavy Release Convergence
+
+**As a** repository analyst,
+**I want** Algorithm A and Scope A to remain correct on a production-scale local Git repository,
+**so that** large branch counts, deep history, and hybrid release merges do not distort the final live attribution result.
+
+#### Acceptance Criteria For US-13
+
+1. **GIVEN** a local Git repository that represents a production-like topology
+   **WHEN** it contains on the order of `100+` branches, `1000+` commits, and repeated feature-to-integration-to-release merge fan-in before `endTime`
+   **THEN** the system must still compute exactly one repository-level final result for the live changed source-code set at `endTime`
+
+2. **GIVEN** the same production-like local Git repository
+   **WHEN** surviving lines originate from different feature branches and reach the release branch through mixed direct merges, integration branches, and staged convergence
+   **THEN** the final attribution must be based on each surviving line's effective origin revision rather than merge commit shape, first-parent history alone, or branch naming conventions
+
+3. **GIVEN** the same production-like local Git repository
+   **WHEN** the repository is local rather than remote-hosted
+   **THEN** the scenario is still a valid production-readiness acceptance case for this analyzer because repository transport is out of scope and history semantics must remain identical apart from network access
+
+4. **GIVEN** the Git production-scale acceptance scenario
+   **WHEN** the analyzer completes successfully
+   **THEN** the test must verify both correctness of the final aggregate result and scalability-oriented behavior such as bounded metadata reuse, bounded revision-time lookup reuse, or other explicit reuse signals defined by the test harness
+
+### US-14: SVN Production-Scale Local Repository Must Stay Correct Under Branch And Merge Pressure
+
+**As a** repository analyst,
+**I want** Algorithm A and Scope A to remain correct on a production-scale local SVN repository,
+**so that** SVN branch copying, merges, and release reintegration at scale do not break live attribution.
+
+#### Acceptance Criteria For US-14
+
+1. **GIVEN** a local SVN repository that represents a production-like topology
+   **WHEN** it contains on the order of `100+` branches or branch copies, `1000+` revisions, and repeated branch-to-release merge activity before `endTime`
+   **THEN** the system must still compute exactly one repository-level final result for the live changed source-code set at `endTime`
+
+2. **GIVEN** the same production-like local SVN repository
+   **WHEN** surviving lines reach the release path through mixed direct work, branch copies, and merge or reintegration history
+   **THEN** the final attribution must preserve each surviving line's effective origin revision within the supported SVN blame semantics and must not collapse ownership to merge timing or final branch path alone
+
+3. **GIVEN** the same production-like local SVN repository
+   **WHEN** the repository is local rather than remote-hosted
+   **THEN** the scenario is still a valid production-readiness acceptance case for this analyzer because network transport is not part of the attribution contract
+
+4. **GIVEN** the SVN production-scale acceptance scenario
+   **WHEN** the analyzer completes successfully
+   **THEN** the test must verify both correctness of the final aggregate result and scalability-oriented behavior such as reuse of branch-origin metadata lookups, bounded revision-time queries, or other explicit reuse signals defined by the test harness

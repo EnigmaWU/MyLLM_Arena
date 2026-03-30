@@ -28,6 +28,12 @@
 - Architecture design: `README_ArchDesign.md`
 - Scenario-based test fixtures: `testdata/`
 
+## ======>>>PRODUCTION TARGET<<<======
+
+- The current implementation target is `Algorithm A + Scope A` at production quality for both Git and SVN.
+- Production validation should use real local repositories with production-like history shape, including large branch counts, deep commit history, and merge-heavy release convergence.
+- Remote hosting is not required for correctness validation. For this analyzer, a local repository is an acceptable production proxy for history, blame, merge topology, and metadata lookup behavior; only network transport is intentionally out of scope.
+
 ## ======>>>HOW TO GET IT<<<======
 
 ### 1. Exact meaning of the metric

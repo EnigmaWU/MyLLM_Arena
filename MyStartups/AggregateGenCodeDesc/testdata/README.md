@@ -47,6 +47,9 @@ They were not full repository exports and have now been removed from `testdata` 
 For `Algorithm A` real repository tests, `*.diff` files are not required.
 Real repo tests should use actual Git or SVN history plus revision-level `genCodeDesc.json`, `query.json`, and `expected_result.json`.
 
+Production-scale branch and merge topology scenarios should live under `tests/` with real local repositories rather than under `testdata/`.
+Those scenarios validate VCS semantics and scalability behavior directly and are intentionally different from the simplified design fixtures kept in this folder.
+
 If a future design task needs human-readable patch examples again, `*.diff` artifacts can be regenerated and reintroduced as optional explanatory material rather than required fixture input.
 
 `expected_result.json` is intended to be the golden repository-level output for each scenario.

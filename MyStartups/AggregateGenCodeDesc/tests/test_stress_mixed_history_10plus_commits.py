@@ -15,7 +15,7 @@ class TestStressMixedHistoryTenPlusCommits(unittest.TestCase):
             "repoURL": "https://example.local/repo/stress",
             "repoBranch": "main",
             "metric": "live_changed_source_ratio",
-            "model": "A",
+            "algorithm": "A",
             "scope": "A",
             "startTime": "2026-03-01",
             "endTime": "2026-03-31",

@@ -67,6 +67,18 @@ Current extended examples:
 - `test_us11_deep_history_scalability_tdd.py` covers deep-history Git commit-time lookup reuse.
 - `test_us12_svn_merged_branch_scalability_tdd.py` covers SVN reuse behavior for shared branch-origin revisions across merged-branch scenarios.
 
+## Production-Readiness Target
+
+- Production readiness for the current implementation means `Algorithm A + Scope A` must hold for both Git and SVN.
+- Real local repositories are the preferred acceptance vehicle for production-like validation, because they exercise the same history, blame, rename, copy, and merge semantics as remote repositories without adding network variability.
+- The target topology includes large branch counts, deep revision history, and hybrid merge fan-in toward a release branch or release path.
+- Production-scale tests should verify both final-result correctness and at least one explicit scalability or reuse property so the suite guards against correctness-only regressions that hide pathological command growth.
+
+## Current Gap
+
+- The existing real-repo and scalability tests prove important behaviors, but they do not yet meet the full production bar of roughly `100+` branches and `1000+` commits or revisions for both Git and SVN.
+- New `US-13` and `US-14` style real-repository scenarios should be added in `tests/` rather than `testdata/`, because these are VCS-topology acceptance tests, not simplified fixture-only examples.
+
 ## Run
 
 ```bash
