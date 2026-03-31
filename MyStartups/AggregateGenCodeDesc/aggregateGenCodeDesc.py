@@ -13,8 +13,11 @@ runtime still intentionally implements only the current Scope A path.
 
 import argparse
 import json
+import re
+import signal
 import subprocess
 import sys
+import time as time_mod
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -22,7 +25,13 @@ from datetime import datetime, time, timezone
 from pathlib import Path
 
 
+__version__ = "0.1.0"
+PROTOCOL_VERSION = "26.03"
+
 COMMAND_TIMEOUT_SECONDS = 30
+DEFAULT_MAX_RUNTIME_SECONDS = 3600
+
+_VALID_URL_SCHEMES = re.compile(r"^(https?://|svn://|svn\+ssh://|file://|/)", re.IGNORECASE)
 
 
 SOURCE_EXTENSIONS = {
@@ -76,17 +85,35 @@ class RepositoryStateError(AggregateGenCodeDescError):
     pass
 
 
+class InputValidationError(AggregateGenCodeDescError):
+    pass
+
+
 class RuntimeLogger:
+    _LEVELS = {"quiet": 0, "info": 1, "debug": 2}
+
     def __init__(self, level: str):
         self.level = level
+        self._level_num = self._LEVELS.get(level, 0)
+
+    def _emit(self, severity: str, message: str) -> None:
+        ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        print(f"{ts} [{severity}] [agg] {message}", file=sys.stderr)
+
+    def error(self, message: str) -> None:
+        self._emit("ERROR", message)
+
+    def warn(self, message: str) -> None:
+        if self._level_num >= 1:
+            self._emit("WARN", message)
 
     def info(self, message: str) -> None:
-        if self.level in {"info", "debug"}:
-            print(f"[agg] {message}", file=sys.stderr)
+        if self._level_num >= 1:
+            self._emit("INFO", message)
 
     def debug(self, message: str) -> None:
-        if self.level == "debug":
-            print(f"[agg] {message}", file=sys.stderr)
+        if self._level_num >= 2:
+            self._emit("DEBUG", message)
 
 
 class GenCodeDescProvider(ABC):
@@ -253,8 +280,44 @@ def run_command(
     return result
 
 
+def validate_url(value: str, label: str) -> None:
+    if not _VALID_URL_SCHEMES.match(value):
+        raise InputValidationError(
+            f"{label} must start with a valid scheme (http://, https://, svn://, svn+ssh://, file://) or be an absolute path"
+        )
+    if ".." in value.split("//", 1)[-1]:
+        raise InputValidationError(f"{label} must not contain path traversal sequences (..)")
+
+
+def validate_directory(value: str, label: str) -> Path:
+    resolved = Path(value).resolve()
+    if not resolved.is_dir():
+        raise InputValidationError(f"{label} does not exist or is not a directory: {value}")
+    return resolved
+
+
+def validate_iso_date(value: str, label: str) -> None:
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise InputValidationError(f"{label} must be a valid ISO-8601 date: {value}") from exc
+
+
+def validate_inputs(args: argparse.Namespace) -> None:
+    validate_url(args.repoURL, "--repoURL")
+    validate_iso_date(args.startTime, "--startTime")
+    validate_iso_date(args.endTime, "--endTime")
+    if args.workingDir:
+        validate_directory(args.workingDir, "--workingDir")
+    if args.genCodeDescSetDir:
+        validate_directory(args.genCodeDescSetDir, "--genCodeDescSetDir")
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Aggregate AI-generated code ratio from VCS blame and genCodeDesc metadata.",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__} (protocol {PROTOCOL_VERSION})")
     parser.add_argument("--repoURL", required=True)
     parser.add_argument("--repoBranch", required=True)
     parser.add_argument("--startTime", required=True)
@@ -270,6 +333,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--failOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
     parser.add_argument("--logLevel", choices=["quiet", "info", "debug"], default="quiet")
+    parser.add_argument("--timeout", type=int, default=COMMAND_TIMEOUT_SECONDS, help="Per-command timeout in seconds")
+    parser.add_argument("--maxRuntime", type=int, default=DEFAULT_MAX_RUNTIME_SECONDS, help="Overall analysis timeout in seconds")
     return parser.parse_args()
 
 
@@ -646,6 +711,7 @@ def build_result(args: argparse.Namespace) -> dict:
         raise UnsupportedConfigurationError("Only git and svn are implemented in the current Algorithm A slice")
 
     logger = RuntimeLogger(args.logLevel)
+    analysis_start = time_mod.monotonic()
     repo_dir = Path(args.workingDir or args.repoURL)
     provider = build_gen_code_desc_provider(args, logger)
     start_bound = parse_day_start(args.startTime)
@@ -741,15 +807,17 @@ def build_result(args: argparse.Namespace) -> dict:
             elif ratio > 0:
                 partial_generated_code_lines += 1
 
+    elapsed = time_mod.monotonic() - analysis_start
     logger.info(
         "Finished analysis with "
         f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
-        f"partialGeneratedCodeLines={partial_generated_code_lines}"
+        f"partialGeneratedCodeLines={partial_generated_code_lines} "
+        f"elapsed={elapsed:.2f}s"
     )
 
     return {
         "protocolName": "generatedTextDesc",
-        "protocolVersion": "26.03",
+        "protocolVersion": PROTOCOL_VERSION,
         "SUMMARY": {
             "totalCodeLines": total_code_lines,
             "fullGeneratedCodeLines": full_generated_code_lines,
@@ -764,18 +832,54 @@ def build_result(args: argparse.Namespace) -> dict:
     }
 
 
+# Exit codes for distinct failure categories.
+EXIT_SUCCESS = 0
+EXIT_INPUT_ERROR = 1
+EXIT_REPOSITORY_ERROR = 2
+EXIT_PROTOCOL_ERROR = 3
+EXIT_TIMEOUT = 4
+
+
 def main() -> None:
+    args = None
     try:
         args = parse_args()
+        validate_inputs(args)
+
+        def _timeout_handler(signum: int, frame: object) -> None:
+            raise SystemExit(EXIT_TIMEOUT)
+
+        if hasattr(signal, "SIGALRM"):
+            signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.alarm(args.maxRuntime)
+
         result = build_result(args)
         output = json.dumps(result, indent=2)
         if args.outputFile:
             Path(args.outputFile).write_text(output, encoding="utf-8")
         else:
             print(output)
-    except (AggregateGenCodeDescError, ValueError, json.JSONDecodeError) as exc:
+    except InputValidationError as exc:
         print(str(exc), file=sys.stderr)
-        raise SystemExit(1) from exc
+        raise SystemExit(EXIT_INPUT_ERROR) from exc
+    except UnsupportedConfigurationError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(EXIT_INPUT_ERROR) from exc
+    except RepositoryStateError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(EXIT_REPOSITORY_ERROR) from exc
+    except (ProtocolValidationError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(EXIT_PROTOCOL_ERROR) from exc
+    except CommandExecutionError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(EXIT_REPOSITORY_ERROR) from exc
+    except json.JSONDecodeError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(EXIT_PROTOCOL_ERROR) from exc
+    finally:
+        if hasattr(signal, "SIGALRM"):
+            signal.alarm(0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "aggregate-gen-code-desc"
+version = "0.1.0"
+description = "Aggregate AI-generated code ratio from VCS blame and genCodeDesc metadata."
+requires-python = ">=3.10"
+license = "MIT"
+
+[project.scripts]
+aggregate-gen-code-desc = "aggregateGenCodeDesc:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "production_scale: production-scale Git or SVN acceptance coverage.",
+    "long_running: long-running scenarios intended for dedicated gating tiers.",
+    "experimental_svn: exploratory SVN lineage experiments that are informative but not part of the accepted production contract.",
+]
