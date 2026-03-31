@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalCodeLines": 200,
+    "fullGeneratedCodeLines": 80,
+    "partialGeneratedCodeLines": 60
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/us13-production-scale",
+    "repoBranch": "main",
+    "revisionId": "us13-main-final"
+  }
+}

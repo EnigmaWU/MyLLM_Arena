@@ -21,6 +21,8 @@ Each scenario directory contains:
 - `us7_mixed_multi_commit_window` (`Algorithm A`): mixed multi-commit history with human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines, expected final summary `total=5, full=1, partial=1`
 - `us8_merge_commit_preserves_attribution` (`Algorithm A`): merge commit keeps effective attribution of surviving lines, expected final summary `total=4, full=1, partial=0`
 - `us9_svn_contract_parity` (`Algorithm A`): SVN target follows the same protocol-shaped result contract as Git for the primary metric, expected final summary `total=4, full=2, partial=1`
+- `us13_git_production_scale_local_repo` (`Algorithm A`): production-scale Git golden query and expected aggregate result for a `100+` branch and `1000+` commit local repository, expected final summary `total=200, full=80, partial=60`
+- `us14_svn_production_scale_local_repo` (`Algorithm A`): production-scale SVN golden query and expected aggregate result for a `100+` branch-copy and `1000+` revision local repository, expected final summary `total=200, full=80, partial=60`
 
 ## Supplementary VCS Parity Fixture
 
@@ -36,7 +38,7 @@ Each scenario directory contains:
 - `Algorithm A`: end-snapshot attribution fixtures for the current primary metric
 - `Algorithm B`: period-contribution or history-oriented fixtures
 - Current mapping in `testdata`:
-  - `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, and `US-9` are `Algorithm A`
+  - `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-9`, `US-13`, and `US-14` are `Algorithm A`
   - `US-6` is `Algorithm B`
 
 ## Note

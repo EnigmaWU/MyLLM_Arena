@@ -33,6 +33,8 @@
 - The current implementation target is `Algorithm A + Scope A` at production quality for both Git and SVN.
 - Production validation should use real local repositories with production-like history shape, including large branch counts, deep commit history, and merge-heavy release convergence.
 - Remote hosting is not required for correctness validation. For this analyzer, a local repository is an acceptable production proxy for history, blame, merge topology, and metadata lookup behavior; only network transport is intentionally out of scope.
+- The dedicated long-running production gate is `bash run_production_gate.sh`, which currently runs the US-13 Git and US-14 SVN production-scale acceptance tests.
+- Exploratory SVN lineage behavior that goes beyond the accepted production contract should live in the separate experimental test track, not in the production gate.
 
 ## ======>>>HOW TO GET IT<<<======
 

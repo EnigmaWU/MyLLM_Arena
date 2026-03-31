@@ -54,6 +54,9 @@ Current extended examples:
 - `US-11` SVN manual guide: `README_US11_SVN_ManualInstruction.md`
 - `US-12` Git manual guide: `README_US12_ManualInstruction.md`
 - `US-12` SVN manual guide: `README_US12_SVN_ManualInstruction.md`
+- `US-13` Git manual guide: `README_US13_ManualInstruction.md`
+- `US-14` SVN manual guide: `README_US14_SVN_ManualInstruction.md`
+- `SVN lineage experiments`: `README_SVN_Lineage_Experiments.md`
 
 ## Current SVN Notes
 
@@ -74,10 +77,31 @@ Current extended examples:
 - The target topology includes large branch counts, deep revision history, and hybrid merge fan-in toward a release branch or release path.
 - Production-scale tests should verify both final-result correctness and at least one explicit scalability or reuse property so the suite guards against correctness-only regressions that hide pathological command growth.
 
+## Production Gate
+
+- The repository now has an explicit long-running production gate script at `run_production_gate.sh`.
+- The production-scale acceptance tier is also selectable through pytest markers: `production_scale` and `long_running`.
+- Current production-gate members are `test_us13_git_production_scale_local_repo_tdd.py` and `test_us14_svn_production_scale_local_repo_tdd.py`.
+
+Recommended commands:
+
+```bash
+bash run_production_gate.sh
+```
+
+```bash
+python3 -m pytest -q -m "production_scale" tests/test_us13_git_production_scale_local_repo_tdd.py tests/test_us14_svn_production_scale_local_repo_tdd.py
+```
+
 ## Current Gap
 
-- The existing real-repo and scalability tests prove important behaviors, but they do not yet meet the full production bar of roughly `100+` branches and `1000+` commits or revisions for both Git and SVN.
-- New `US-13` and `US-14` style real-repository scenarios should be added in `tests/` rather than `testdata/`, because these are VCS-topology acceptance tests, not simplified fixture-only examples.
+- The repository now includes explicit US-13 and US-14 production-scale contracts and real-repository tests, but the broader full-suite runtime budget and release-gate expectations for those cases still need to be established explicitly.
+- SVN production-scale validation is currently defined around stable trunk reintegration revisions, which is the strongest large-scale contract the current SVN blame semantics support without overclaiming same-file merge lineage.
+
+## SVN Experimental Track
+
+- Exploratory SVN lineage work now lives in `test_real_svn_lineage_experiments.py` and is marked with `experimental_svn`.
+- That track is intentionally separate from the production gate so experimental same-file merge findings do not silently change the accepted US-14 contract.
 
 ## Run
 

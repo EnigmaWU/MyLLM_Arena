@@ -1,0 +1,11 @@
+{
+  "vcsType": "svn",
+  "repoURL": "file:///example/local/repo/us14-production-scale",
+  "repoBranch": "trunk",
+  "metric": "live_changed_source_ratio",
+  "algorithm": "A",
+  "scope": "A",
+  "startTime": "2026-03-01",
+  "endTime": "2026-03-31",
+  "endRevisionId": "us14-final-docs"
+}

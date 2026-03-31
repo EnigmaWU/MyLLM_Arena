@@ -1,0 +1,11 @@
+{
+  "vcsType": "git",
+  "repoURL": "https://example.local/repo/us13-production-scale",
+  "repoBranch": "main",
+  "metric": "live_changed_source_ratio",
+  "algorithm": "A",
+  "scope": "A",
+  "startTime": "2026-03-01",
+  "endTime": "2026-03-31",
+  "endRevisionId": "us13-main-final"
+}
