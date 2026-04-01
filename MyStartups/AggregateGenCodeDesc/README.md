@@ -25,6 +25,7 @@
 ## ======>>>RELATED DOCS<<<======
 
 - User stories and acceptance criteria: `README_UserStory.md`
+- User guide and typical usage examples: `README_UserGuide.md`
 - Shared-US convergence roadmap: `README_SharedUS_Convergence.md`
 - Architecture design: `README_ArchDesign.md`
 - Test run guide: `README_RunTestCase.md`
