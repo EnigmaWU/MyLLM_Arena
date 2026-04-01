@@ -704,8 +704,6 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
 
 
 def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
-    if args.vcsType != "git":
-        raise UnsupportedConfigurationError("Current Algorithm B live-snapshot slice only supports git")
     if not args.commitDiffSetDir:
         raise UnsupportedConfigurationError("Current Algorithm B live-snapshot slice requires --commitDiffSetDir")
 

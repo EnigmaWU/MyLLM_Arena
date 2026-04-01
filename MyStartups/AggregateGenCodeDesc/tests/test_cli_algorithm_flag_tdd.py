@@ -226,6 +226,50 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
             actual_result = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertEqual(actual_result, expected_result)
 
+    def test_cli_executes_algorithm_b_live_snapshot_path_for_us1_svn_fixture(self) -> None:
+        fixture_dir = Path(__file__).resolve().parent.parent / "testdata" / "us1_live_changed_source_ratio_svn"
+        query = json.loads((fixture_dir / "query.json").read_text(encoding="utf-8"))
+        expected_result = json.loads((fixture_dir / "expected_result.json").read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_file = Path(temp_dir) / "out.json"
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--metric",
+                    "live_changed_source_ratio",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--genCodeDescSetDir",
+                    str(fixture_dir),
+                    "--commitDiffSetDir",
+                    str(fixture_dir / "commitDiffSet"),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            actual_result = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertEqual(actual_result, expected_result)
     def test_cli_rejects_algorithm_b_offline_first_patch_with_multiple_files(self) -> None:
         query = {
             "vcsType": "git",

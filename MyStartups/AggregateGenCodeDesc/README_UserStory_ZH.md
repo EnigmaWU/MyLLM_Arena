@@ -51,7 +51,7 @@
 
 ## 场景映射
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前矩阵状态：`Algorithm A` 覆盖 Git 与 SVN，`Algorithm B` 目前只覆盖一条狭义的 Git 存活快照路径，`Fast`）
+- `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前矩阵状态：`Algorithm A` 覆盖 Git 与 SVN，`Algorithm B` 已覆盖该批准基线形态下的狭义 Git 与 SVN 存活快照路径，`Fast`）
 - `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-4` -> `testdata/us4_deleted_lines_excluded`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
@@ -82,7 +82,7 @@
 **我希望** 计算当前版本落在请求时间段 `startTime~endTime` 内的存活源码行的加权 AI 占比，
 **以便** 我了解当前仍然存活的变更源码中，有多少可归因于 AI。
 
-说明：该故事应视为共享的存活快照契约故事。当前仓库已经具备获批的 `Algorithm A` 证据，以及一条面向基线夹具形状的狭义 `Algorithm B` Git 存活快照验收切片。
+说明：该故事应视为共享的存活快照契约故事。当前仓库已经在批准的 `US-1` 基线形态上具备完整 2x2 矩阵证据：`Algorithm A`/`Algorithm B` 与 Git/SVN 的四个单元都已有验收路径，但 `Algorithm B` 两个单元仍然是有意保持狭义范围的存活快照回放切片。
 
 #### US-1 共享验收标准
 
@@ -115,12 +115,16 @@
 #### US-1 的 Algorithm B 验收轨道
 
 1. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio` 及其 `commitDiffSet/` 回放工件
-   **WHEN** 当前狭义 `Algorithm B` 存活快照路径以指标 `live_changed_source_ratio` 运行
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径以指标 `live_changed_source_ratio` 在 Git 上运行
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前 `US-1` 的 `Algorithm B` 验收证据
+2. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio_svn` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径以指标 `live_changed_source_ratio` 在 SVN 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+3. **GIVEN** 当前 `US-1` 的 `Algorithm B` 验收证据
    **WHEN** 在文档或路线图讨论中描述该证据
-   **THEN** 它必须被表述为针对已批准基线夹具形状的狭义 Git 存活快照切片，而不是所有 `Algorithm A` 历史处理能力的通用替代
+   **THEN** 它必须被表述为针对已批准基线夹具形状的狭义存活快照回放切片，而不是所有 `Algorithm A` 历史处理能力的通用替代
 
 ### US-2：人工重写会移除之前的 AI 归因
 

@@ -53,7 +53,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` currently covers only a narrow Git live-snapshot path, `Fast`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` covers narrow Git and SVN live-snapshot paths for the approved baseline shape, `Fast`)
 - `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
 - `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
 - `US-4` -> `testdata/us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
@@ -109,7 +109,7 @@ Recommended future scenario names:
 **I want** to calculate the weighted AI ratio for live source code lines whose current version falls in a requested period `startTime~endTime`,
 **so that** I can know how much of the current live changed source code is attributable to AI.
 
-Note: this should be treated as a shared live-snapshot contract story. The current repository now has accepted `Algorithm A` evidence plus a narrow `Algorithm B` Git live-snapshot acceptance slice for the baseline fixture shape.
+Note: this should be treated as a shared live-snapshot contract story. The current repository now has accepted evidence across the full 2x2 `Algorithm A`/`Algorithm B` x Git/SVN matrix for the approved `US-1` baseline shape, with the `Algorithm B` cells still intentionally narrow live-snapshot replay slices.
 
 #### Shared Acceptance Criteria For US-1
 
@@ -142,12 +142,16 @@ Note: this should be treated as a shared live-snapshot contract story. The curre
 #### Algorithm B Acceptance Track For US-1
 
 1. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio` together with its `commitDiffSet/` replay artifacts
-   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed for metric `live_changed_source_ratio`
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed for metric `live_changed_source_ratio` on Git
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-1`
+2. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio_svn` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed for metric `live_changed_source_ratio` on SVN
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+3. **GIVEN** the current `Algorithm B` acceptance evidence for `US-1`
    **WHEN** that evidence is described in docs or roadmap discussions
-   **THEN** it must be described as a narrow Git live-snapshot slice for the approved baseline fixture shape, not as a general-purpose replacement for all `Algorithm A` history handling
+   **THEN** it must be described as a narrow live-snapshot replay slice for the approved baseline fixture shape, not as a general-purpose replacement for all `Algorithm A` history handling
 
 ### US-2: Human Rewrite Removes Prior AI Attribution
 

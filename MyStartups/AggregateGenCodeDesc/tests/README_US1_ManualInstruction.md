@@ -11,15 +11,24 @@ The current goal is to prove that `aggregateGenCodeDesc.py` can:
 - load revision-level `genCodeDesc` metadata from `--genCodeDescSetDir`
 - produce the expected protocol-shaped aggregate output
 
+It also documents the current manual checks for the other `US-1` matrix cells.
+
 ## Current Scope
 
-This manual flow matches the current implementation boundary:
+`US-1` is now the first fully covered 2x2 shared-story example:
 
-- Git only
-- `Algorithm A` only
-- `Scope A` only
-- `metadataSource=genCodeDesc` only
-- `--genCodeDescSetDir` as the current local metadata adapter
+- `Algorithm A + Git`
+- `Algorithm A + SVN`
+- `Algorithm B + Git`
+- `Algorithm B + SVN`
+
+But the manual verification modes are not identical across all four cells:
+
+- `Algorithm A` is still best verified with real local repositories
+- `Algorithm B` is currently a narrow live-snapshot replay slice verified through `commitDiffSet/` artifacts plus revision-level metadata
+- all flows remain `Scope A` only
+- all flows remain `metadataSource=genCodeDesc` only
+- `--genCodeDescSetDir` remains the current local metadata adapter
 
 ## Files Used As Reference
 
@@ -27,6 +36,23 @@ This manual flow matches the current implementation boundary:
 - `testdata/us1_live_changed_source_ratio/query.json`
 - `testdata/us1_live_changed_source_ratio/01_genCodeDesc.json`
 - `testdata/us1_live_changed_source_ratio/expected_result.json`
+- `testdata/us1_live_changed_source_ratio/commitDiffSet/us1-r1_commitDiff.patch`
+- `testdata/us1_live_changed_source_ratio_svn/query.json`
+- `testdata/us1_live_changed_source_ratio_svn/01_genCodeDesc.json`
+- `testdata/us1_live_changed_source_ratio_svn/expected_result.json`
+- `testdata/us1_live_changed_source_ratio_svn/commitDiffSet/17_commitDiff.patch`
+
+## Verification Matrix
+
+Use this document in four different ways:
+
+1. `Algorithm A + Git`: real local Git repository plus local metadata set
+2. `Algorithm A + SVN`: real local SVN repository plus local metadata set
+3. `Algorithm B + Git`: fixture-driven offline replay using Git-shaped `commitDiffSet/`
+4. `Algorithm B + SVN`: fixture-driven offline replay using SVN-shaped `commitDiffSet/`
+
+The detailed step-by-step walkthrough below remains the primary manual path for `Algorithm A + Git`.
+Additional shorter sections near the end document the other three cells.
 
 ## Step 1: Create A Temporary Working Area
 
@@ -131,6 +157,7 @@ From the project root:
 cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
 
 python3 aggregateGenCodeDesc.py \
+  --vcsType git \
   --repoURL /tmp/agg-us1-manual/repo \
   --repoBranch main \
   --startTime 2026-03-01 \
@@ -212,3 +239,158 @@ Do not mix different path spellings for the same directory such as:
 - `/private/var/...`
 
 If the metadata file stores one form and the CLI query uses the other, the current identity validation will treat that as a mismatch.
+
+## Additional Manual Flow: `Algorithm A + SVN`
+
+This is the real-repository manual counterpart of [test_us1_live_changed_source_ratio_svn_tdd.py](/Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc/tests/test_us1_live_changed_source_ratio_svn_tdd.py).
+
+### Step A1: Create A Temporary SVN Working Area
+
+```bash
+mkdir -p /tmp/agg-us1-manual-svn/repo
+mkdir -p /tmp/agg-us1-manual-svn/wc
+mkdir -p /tmp/agg-us1-manual-svn/genCodeDescSet
+```
+
+### Step A2: Create A Local SVN Repository And Working Copy
+
+```bash
+svnadmin create /tmp/agg-us1-manual-svn/repo
+printf '#!/bin/sh\nexit 0\n' > /tmp/agg-us1-manual-svn/repo/hooks/pre-revprop-change
+chmod +x /tmp/agg-us1-manual-svn/repo/hooks/pre-revprop-change
+svn checkout file:///tmp/agg-us1-manual-svn/repo /tmp/agg-us1-manual-svn/wc
+mkdir -p /tmp/agg-us1-manual-svn/wc/trunk
+svn add /tmp/agg-us1-manual-svn/wc/trunk
+svn commit -m 'create trunk' /tmp/agg-us1-manual-svn/wc
+```
+
+### Step A3: Create The US-1 Source File In `trunk`
+
+```bash
+mkdir -p /tmp/agg-us1-manual-svn/wc/trunk/src
+cat > /tmp/agg-us1-manual-svn/wc/trunk/src/demo.py <<'EOF'
+def calc(x):
+    value = x + 1
+    boosted = value * 2
+    return boosted
+EOF
+
+svn add --parents /tmp/agg-us1-manual-svn/wc/trunk/src/demo.py
+svn commit -m 'us1-svn-r2' /tmp/agg-us1-manual-svn/wc
+REVISION_ID="$(svn info --show-item revision /tmp/agg-us1-manual-svn/wc)"
+svn propset --revprop -r "$REVISION_ID" svn:date '2026-03-10T09:00:00.000000Z' file:///tmp/agg-us1-manual-svn/repo
+echo "$REVISION_ID"
+```
+
+### Step A4: Create The Revision-Level Metadata Record
+
+```bash
+cat > "/tmp/agg-us1-manual-svn/genCodeDescSet/${REVISION_ID}_genCodeDesc.json" <<EOF
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "trunk/src/demo.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 3, "genRatio": 100, "genMethod": "vibeCoding"},
+        {"lineLocation": 4, "genRatio": 50, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///tmp/agg-us1-manual-svn/repo",
+    "repoBranch": "trunk",
+    "revisionId": "${REVISION_ID}"
+  }
+}
+EOF
+```
+
+### Step A5: Run The CLI For `Algorithm A + SVN`
+
+```bash
+cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL file:///tmp/agg-us1-manual-svn/repo \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile /tmp/agg-us1-manual-svn/out.json \
+  --genCodeDescSetDir /tmp/agg-us1-manual-svn/genCodeDescSet
+```
+
+The expected final summary is still `4 / 2 / 1`.
+
+## Additional Manual Flow: `Algorithm B + Git`
+
+This is the current narrow replay-based manual check for the Git `Algorithm B` cell.
+
+```bash
+cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --metric live_changed_source_ratio \
+  --scope A \
+  --outputFile /tmp/agg-us1-manual-b-git-out.json \
+  --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
+  --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
+```
+
+Check that the output matches `testdata/us1_live_changed_source_ratio/expected_result.json`.
+
+Important boundary:
+
+- this is the current narrow replay baseline
+- it proves the approved `US-1` shape
+- it does not claim that all broader Git history topologies are already production-ready for `Algorithm B`
+
+## Additional Manual Flow: `Algorithm B + SVN`
+
+This is the current narrow replay-based manual check for the SVN `Algorithm B` cell.
+
+```bash
+cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL https://svn.example.com/repos/project \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --metric live_changed_source_ratio \
+  --scope A \
+  --outputFile /tmp/agg-us1-manual-b-svn-out.json \
+  --genCodeDescSetDir testdata/us1_live_changed_source_ratio_svn \
+  --commitDiffSetDir testdata/us1_live_changed_source_ratio_svn/commitDiffSet
+```
+
+Check that the output matches `testdata/us1_live_changed_source_ratio_svn/expected_result.json`.
+
+## What This Document Means Now
+
+This file used to describe only the original `Algorithm A + Git` manual path.
+That is why it fell behind when `US-1` became a full 2x2 matrix example.
+
+The current intended interpretation is:
+
+1. `Algorithm A + Git` and `Algorithm A + SVN` are the real-repository manual checks.
+2. `Algorithm B + Git` and `Algorithm B + SVN` are the current narrow replay-baseline manual checks.
+3. All four cells should produce the same `US-1` observable contract for the approved baseline shape.

@@ -9,7 +9,7 @@ It is intentionally not a pure idea list. Each phase below names the specific co
 ## Current Starting Point
 
 - `US-6` is the first active shared user story with an executable `Algorithm B` path.
-- `US-1` now has an initial narrow `Algorithm B` Git live-snapshot acceptance slice for the approved baseline fixture shape.
+- `US-1` is now the first primary-metric shared story with explicit 2x2 matrix evidence: `Algorithm A` Git, `Algorithm A` SVN, `Algorithm B` Git, and `Algorithm B` SVN all have an approved `US-1` acceptance path, with the `Algorithm B` cells still intentionally narrow live-snapshot replay slices.
 - `Algorithm A` currently provides the accepted implementation evidence for the remaining primary live-snapshot metric stories: `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`.
 - `US-9` is a shared contract story whose first split is by VCS target, not by algorithm.
 - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories.
@@ -82,16 +82,16 @@ The main shared stories after `US-6` are not period-contribution stories. They a
 
 ### Phase 2 Goal
 
-Make `US-1` the first primary-metric shared story that starts moving from dual-algorithm intent toward the full 2x2 production matrix.
+Make `US-1` the first primary-metric shared story that demonstrates the full 2x2 production matrix.
 
 ### Phase 2 Required Work
 
 1. Reuse the existing `US-1` golden result as the shared contract target.
 2. Keep the existing `Algorithm A` Git and `Algorithm A` SVN evidence aligned to one shared `US-1` contract.
 3. Add an `Algorithm B` Git acceptance path for the same `US-1` observable semantics.
-4. Add an `Algorithm B` SVN acceptance path only when the replay semantics are defensible under real SVN behavior.
-5. Until the full 2x2 matrix exists, keep every missing cell explicit rather than implying production convergence.
-6. Keep the current `Algorithm B` support claim narrow where the implementation is still narrow: approved baseline fixture shape, Git, live-snapshot replay, and explicit unsupported topology boundaries.
+4. Add an `Algorithm B` SVN acceptance path when the replay semantics are defensible for the approved `US-1` baseline shape.
+5. Once the full 2x2 matrix exists, keep the supported baseline explicit and keep broader unsupported topology boundaries explicit rather than implying universal convergence.
+6. Keep the current `Algorithm B` support claim narrow where the implementation is still narrow: approved baseline fixture shape, live-snapshot replay, and explicit unsupported topology boundaries.
 
 ### Phase 2 Required Tests
 
@@ -103,7 +103,7 @@ Make `US-1` the first primary-metric shared story that starts moving from dual-a
 
 ### Phase 2 Exit Condition
 
-- `US-1` has explicit matrix accounting: `Algorithm A` Git, `Algorithm A` SVN, `Algorithm B` Git, and `Algorithm B` SVN are each either approved or explicitly documented as unsupported.
+- `US-1` has approved acceptance evidence for all four cells in the 2x2 matrix, with the supported `Algorithm B` cells explicitly scoped to the approved narrow baseline shape.
 
 ## Phase 3: Rewrite And Deletion Cluster
 

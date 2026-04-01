@@ -19,7 +19,7 @@ For `Algorithm B`, the fixture contract is stricter:
 
 ## Scenarios
 
-- `us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` currently covers only a narrow Git live-snapshot path): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
+- `us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` covers narrow Git and SVN live-snapshot paths for the approved baseline shape): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
 - `us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later human rewrite resets one live changed line to `0`, expected `66.67%`
 - `us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
 - `us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`): deleted lines are excluded from the live changed snapshot, expected `100%`
@@ -36,7 +36,7 @@ For `Algorithm B`, the fixture contract is stricter:
 
 ## Supplementary VCS Parity Fixture
 
-- `us1_live_changed_source_ratio_svn` (`Algorithm A`): SVN mirror of the `US-1` baseline metric, used to confirm that the primary live changed source ratio contract is not Git-specific
+- `us1_live_changed_source_ratio_svn` (`Shared US` supporting fixture for `Algorithm A` and `Algorithm B`): SVN mirror of the `US-1` baseline metric, used to confirm that the primary live changed source ratio contract is not Git-specific and to replay the narrow `Algorithm B` baseline on SVN
 
 ## Metrics Used In Fixtures
 
@@ -46,9 +46,9 @@ For `Algorithm B`, the fixture contract is stricter:
 ## Algorithm Mapping
 
 - `Algorithm A`: current active evidence for the primary live-snapshot metric and the present production gates
-- `Algorithm B`: current active evidence for the narrow `US-6` period-contribution baseline and a narrow Git live-snapshot `US-1` baseline; broader Git/SVN production convergence remains planned
+- `Algorithm B`: current active evidence for the narrow `US-6` period-contribution baseline and narrow Git/SVN live-snapshot `US-1` baselines; broader Git/SVN production convergence remains planned
 - Current convergence interpretation in `testdata`:
-  - `US-1` is the first primary-metric shared story with explicit matrix tracking; today `Algorithm A` covers Git and SVN, while `Algorithm B` covers only a narrow Git live-snapshot acceptance slice
+  - `US-1` is the first primary-metric shared story with a full accepted 2x2 matrix example; `Algorithm A` covers Git and SVN, while `Algorithm B` covers the approved narrow live-snapshot baseline on Git and SVN
   - `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12` are shared stories with current active evidence on the `Algorithm A` side
   - `US-9` is a shared contract story whose current active evidence is Git/SVN parity through `Algorithm A`
   - `US-6` is the first shared story with an executable `Algorithm B` acceptance track
