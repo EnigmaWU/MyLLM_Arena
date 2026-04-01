@@ -59,6 +59,9 @@
 - `US-7` -> `testdata/us7_mixed_multi_commit_window`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-8` -> `testdata/us8_merge_commit_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-9` -> `testdata/us9_svn_contract_parity`（`共享契约故事`，当前有效证据是通过 `Algorithm A` 建立的 Git/SVN 一致性，`Fast`）
+- `US-10` -> `testdata/us10_large_repository_snapshot`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-13` -> Git 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
 - `US-14` -> SVN 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
 
@@ -66,7 +69,7 @@
 
 - `第 1 步`：先把 `US-6` 作为首个共享故事打实，确保当前 `Algorithm B` 基线是可辩护的。
 - `第 2 步`：把当前围绕存活快照主指标的故事逐个改写为共享故事，但在对应 `Algorithm B` 路径真正存在前，继续只把 `Algorithm A` 视为当前验收证据。
-- `第 3 步`：当前主指标建议按如下顺序推进：`US-1`、`US-2`、`US-3`、`US-4`、`US-5`、`US-7`、`US-8`。
+- `第 3 步`：当前主指标建议按如下顺序推进：`US-1`、`US-2`、`US-3`、`US-4`、`US-5`、`US-7`、`US-8`、`US-10`、`US-11`、`US-12`。
 - `第 4 步`：`US-9` 应保持为先按 Git/SVN 拆分的共享契约故事。只有当两个算法都真正能满足该契约时，再补充算法层的收敛。
 - `第 5 步`：`US-13` 与 `US-14` 保持为 `Heavy` 生产 gate，不强行套入普通共享故事模式。
 
@@ -435,3 +438,185 @@
 1. **GIVEN** 一个未来声明支持与 `US-9` 相同跨 VCS 一致性契约的 `Algorithm B` 路径
    **WHEN** 该路径被引入
    **THEN** 它应建立在现有 Git/SVN 拆分之上，而不是替代当前 VCS-first 的验收结构
+
+### US-10：大型仓库快照必须保持结果语义稳定
+
+**作为** 一名仓库分析者，
+**我希望** 当仓库包含很多源码文件和很多存活代码行时，分析器仍然保持相同的结果语义，
+**以便** 最终聚合结果在真实大型代码库中依然正确。
+
+说明：该故事应视为共享的规模语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-10 共享验收标准
+
+1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
+   **WHEN** `endTime` 时刻的最终存活快照横跨大量源码文件和大量存活代码行
+   **THEN** 系统仍必须产出且只产出一个仓库级最终结果，并且其指标语义与协议形态结构应与小型仓库保持一致
+
+2. **GIVEN** 一个包含很多处于统计范围内代码行、并分布在很多文件中的大型仓库快照
+   **WHEN** 分析器执行聚合
+   **THEN** 文件数量或仓库规模不得改变逐行归因规则、仓库身份规则，或最终 `SUMMARY` 字段的含义
+
+3. **GIVEN** 任一声称支持 `US-10` 的算法路径
+   **WHEN** 该路径针对批准的 `US-10` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-10 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us10_large_repository_snapshot`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-10 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-10` 相同大型快照可观察契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-10` 的共享验收标准，且不能改变最终 `SUMMARY` 字段的含义
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-10`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-10` 仍必须被视为当前仅由 `Algorithm A` 证明
+
+### US-11：深历史链必须保持最新有效归因
+
+**作为** 一名仓库分析者，
+**我希望** 长修订链能够保持每条存活代码行的最新有效归因，
+**以便** 大量中间重写不会扭曲最终的存活结果。
+
+说明：该故事应视为共享的深历史故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-11 共享验收标准
+
+1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
+   **WHEN** `endTime` 时刻处于统计范围内的存活代码行依赖于包含大量中间重写的长修订链
+   **THEN** 系统必须按每条存活代码行最新的有效归因进行解析，而不能回退到链路中更早但已被取代的修订
+
+2. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
+   **WHEN** 长历史链中在 `endTime` 前同时存在人类到 AI、以及 AI 到人类的转换
+   **THEN** 已删除或已被覆盖的中间状态不得泄漏到最终聚合结果中
+
+3. **GIVEN** 任一声称支持 `US-11` 的算法路径
+   **WHEN** 该路径针对批准的 `US-11` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-11 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us11_deep_history_preserves_attribution`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-11 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-11` 相同深历史存活结果契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-11` 的共享验收标准，而不能让已被覆盖的中间状态泄漏到最终结果中
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-11`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-11` 仍必须被视为当前仅由 `Algorithm A` 证明
+
+### US-12：单个窗口内的多分支合并必须保持逐行归因
+
+**作为** 一名仓库分析者，
+**我希望** 单个请求窗口内的高分支密度历史仍能保持逐行有效归因，
+**以便** 多个功能分支集成回目标分支时不会扭曲最终结果。
+
+说明：该故事应视为共享的高分支故事。当前仓库只有 `Algorithm A` 一侧的验收证据，而且对于同一广义主张的 SVN 一致性，可能需要一个可辩护的类比场景，而不是直接照搬 Git 形态。
+
+#### US-12 共享验收标准
+
+1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
+   **WHEN** 在 `endTime` 前有很多分支被合并到目标分支
+   **THEN** 系统仍必须针对 `endTime` 的存活变更源码集合产出且只产出一个仓库级最终结果
+
+2. **GIVEN** 单个请求窗口内存在多个合并分支
+   **WHEN** 不同存活代码行来自不同分支，且这些分支各自带有不同的有效归因历史
+   **THEN** 系统必须独立保留每条存活代码行的有效归因，而不能把归属塌缩到 merge commit、分支标签或合并顺序本身
+
+3. **GIVEN** 任一声称支持 `US-12` 的算法路径
+   **WHEN** 该路径针对批准的 `US-12` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-12 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us12_many_merged_branches_preserve_attribution`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+2. **GIVEN** 针对同一广义契约的 SVN 高分支一致性验证
+   **WHEN** 真实 SVN blame 语义使“同文件 Git 场景的逐字照搬”变得具有误导性
+   **THEN** 可以使用一个可辩护的 SVN 特定类比场景，只要 `US-12` 的共享可观察契约保持不变
+
+#### US-12 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-12` 相同高分支存活结果契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-12` 的共享验收标准，而不能把归属塌缩到合并顺序、merge commit 或分支标签本身
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-12`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-12` 仍必须被视为当前仅由 `Algorithm A` 证明
+
+## Heavy 生产 Gates
+
+以下条目被有意视为 `Heavy` 生产 gate，而不是普通共享功能故事。它们应继续作为明确的运行级验收目标存在，而共享故事收敛则优先从 `US-6` 以及较小的 `Fast` 故事继续推进。
+
+### US-13：Git 生产规模本地仓库在高分支发布收敛下仍必须保持正确
+
+**作为** 一名仓库分析者，
+**我希望** `Algorithm A + Scope A` 在生产规模的本地 Git 仓库上仍然保持正确，
+**以便** 大量分支、深历史以及混合发布合并不会扭曲最终的存活归因结果。
+
+#### US-13 验收标准
+
+1. **GIVEN** 一个代表生产拓扑的本地 Git 仓库
+   **WHEN** 它在 `endTime` 前包含大约 `100+` 个分支、`1000+` 个提交，以及重复的 feature 到 integration 再到 release 的扇入式合并
+   **THEN** 系统仍必须针对 `endTime` 的存活变更源码集合计算且只计算一个仓库级最终结果
+
+2. **GIVEN** 同一个代表生产拓扑的本地 Git 仓库
+   **WHEN** 不同存活代码行来自不同功能分支，并通过直接合并、集成分支和分阶段收敛等方式到达 release 分支
+   **THEN** 最终归因必须基于每条存活代码行的有效来源修订，而不是 merge 形态、仅 first-parent 历史或分支命名规则
+
+3. **GIVEN** 同一个代表生产拓扑的本地 Git 仓库
+   **WHEN** 该仓库是本地仓库而非远端托管仓库
+   **THEN** 该场景仍然是本分析器有效的生产就绪性验收案例，因为仓库传输不在契约范围内，而历史语义除网络访问外必须保持一致
+
+4. **GIVEN** Git 生产规模验收场景
+   **WHEN** 分析器成功完成运行
+   **THEN** 该测试必须同时验证最终聚合结果的正确性，以及诸如受控的元数据复用、受控的修订时间查询复用或测试框架定义的其它显式复用信号等偏扩展性行为
+
+### US-14：SVN 生产规模本地仓库在分支与合并压力下仍必须保持正确
+
+**作为** 一名仓库分析者，
+**我希望** `Algorithm A + Scope A` 在生产规模的本地 SVN 仓库上仍然保持正确，
+**以便** SVN 的分支复制、合并以及大规模 release reintegration 不会破坏存活归因。
+
+#### US-14 验收标准
+
+1. **GIVEN** 一个代表生产拓扑的本地 SVN 仓库
+   **WHEN** 它在 `endTime` 前包含大约 `100+` 个分支或分支复制、`1000+` 个修订，以及重复的 branch 到 release 合并活动
+   **THEN** 系统仍必须针对 `endTime` 的存活变更源码集合计算且只计算一个仓库级最终结果
+
+2. **GIVEN** 同一个代表生产拓扑的本地 SVN 仓库
+   **WHEN** 不同存活代码行通过直接工作、分支复制以及合并或 reintegration 历史到达 release 路径
+   **THEN** 最终归因必须在当前受支持的 SVN blame 语义范围内保留每条存活代码行的有效来源修订，而不能塌缩到合并时机或最终分支路径本身
+
+3. **GIVEN** 同一个代表生产拓扑的本地 SVN 仓库
+   **WHEN** 该仓库是本地仓库而非远端托管仓库
+   **THEN** 该场景仍然是本分析器有效的生产就绪性验收案例，因为网络传输不属于归因契约的一部分
+
+4. **GIVEN** SVN 生产规模验收场景
+   **WHEN** 分析器成功完成运行
+   **THEN** 该测试必须同时验证最终聚合结果的正确性，以及诸如分支来源元数据查找复用、受控的修订时间查询或测试框架定义的其它显式复用信号等偏扩展性行为
+
+### Future Algorithm-B Story Intent
+
+下一批计划中的 `Algorithm B` 用户故事是：
+
+1. `US-15`：无 merge、无 rename 的单分支 period-added 基线
+2. `US-16`：单个窗口内带删除、回退与混合重写的 period-added 计量
+3. `US-17`：Git 下 period contribution 的 rename 与 move 处理
+4. `US-18`：单个请求窗口内面向 merge 的 Git period contribution
+5. `US-19`：Algorithm-B period contribution 的 SVN 可支持子集
+
+这些故事必须逐个在 TDD 下引入，并配套显式的 `query.json` 与 `expected_result.json` 工件，然后才能讨论任何 `Algorithm B` 生产就绪性主张。
