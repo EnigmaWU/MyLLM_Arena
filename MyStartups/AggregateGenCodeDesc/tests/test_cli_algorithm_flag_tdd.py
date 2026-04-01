@@ -270,6 +270,28 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             actual_result = json.loads(output_file.read_text(encoding="utf-8"))
             self.assertEqual(actual_result, expected_result)
+
+    def test_cli_rejects_invalid_vcs_type_for_algorithm_b_live_snapshot_path(self) -> None:
+        query = {
+            "vcsType": "hg",
+            "repoURL": "https://example.local/repo/demo",
+            "repoBranch": "main",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_dir = Path(__file__).resolve().parent.parent / "testdata" / "us1_live_changed_source_ratio"
+            result = self._run_algorithm_b_live_snapshot_cli(
+                query,
+                fixture_dir,
+                fixture_dir / "commitDiffSet",
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--vcsType must be one of: git, svn", result.stderr)
+
     def test_cli_rejects_algorithm_b_offline_first_patch_with_multiple_files(self) -> None:
         query = {
             "vcsType": "git",

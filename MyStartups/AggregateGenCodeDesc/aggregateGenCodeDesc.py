@@ -872,6 +872,8 @@ def validate_inputs(args: argparse.Namespace) -> None:
     validate_url(args.repoURL, "--repoURL")
     validate_iso_date(args.startTime, "--startTime")
     validate_iso_date(args.endTime, "--endTime")
+    if args.vcsType not in {"git", "svn"}:
+        raise InputValidationError("--vcsType must be one of: git, svn")
     if args.commitDiffSetDir:
         validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
         if args.algorithm != "B":
