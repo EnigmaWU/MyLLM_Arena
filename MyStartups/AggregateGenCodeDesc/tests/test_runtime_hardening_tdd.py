@@ -282,7 +282,7 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
             )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Algorithm B offline diff mode via --commitDiffSetDir is not implemented", result.stderr)
+        self.assertIn("No commit diff patch files found", result.stderr)
         self.assertNotIn("--workingDir is required for git", result.stderr)
 
     def test_parse_svn_blame_fails_when_blame_entries_and_file_lines_diverge(self) -> None:

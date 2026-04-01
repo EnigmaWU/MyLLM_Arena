@@ -184,7 +184,7 @@ Recommended future scenario names:
 **I want** to calculate how much AI-generated code was added during `startTime~endTime`,
 **so that** I can distinguish period contribution from end-of-period inventory.
 
-Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that may align better with `Algorithm B` or another future implementation.
+Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric aligned with `Algorithm B`. The current implementation now includes a narrow executable offline Git baseline for the `US-6` fixture shape, but it should not yet be treated as broad Algorithm-B coverage.
 
 #### Acceptance Criteria For US-6
 
@@ -199,6 +199,10 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 3. **GIVEN** the fixture `testdata/us6_period_added_ratio`
    **WHEN** the analyzer produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+4. **GIVEN** the current CLI slice with `--algorithm B --commitDiffSetDir`
+   **WHEN** the input follows the current narrow fixture contract for a single-file, single-branch Git replay sequence
+   **THEN** the analyzer may execute the `US-6` offline Algorithm-B baseline without requiring `--workingDir`
 
 ### US-7: Resolve Mixed Multi-Commit History In One Requested Window
 

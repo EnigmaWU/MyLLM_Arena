@@ -215,7 +215,7 @@ Recommended staged plan:
 
 1. `B0: contract lock` Keep the same query/result shape as Algorithm A where possible, document exactly which fields stay stable and which semantics change, require explicit golden `query.json` and `expected_result.json` artifacts for every Algorithm-B scenario, and require raw `testdata` commit diff patch artifacts for every replayed revision. Each artifact should be plain unified diff text rather than a custom JSON schema. If any diff is missing inside the replay sequence, the fixture contract must fail fast.
 
-1. `B1: single-branch period-added baseline` The first executable target should be a one-branch, no-rename, no-merge period contribution metric. Prove `period_added_ai_ratio` on simple add-only and overwrite-only histories before any large-history optimization work.
+1. `B1: single-branch period-added baseline` The first executable target should be a one-branch, no-rename, no-merge period contribution metric. A narrow Git offline baseline for the current `US-6` fixture shape now exists through `--algorithm B --commitDiffSetDir`, but broader histories still need dedicated TDD before they should be treated as implemented.
 
 1. `B2: mixed survival and deletion rules` Add TDD scenarios where AI-added lines are later deleted, partially overwritten, or superseded by human edits inside the same requested window. Make the period metric explicit about what counts as added contribution even if the line is not live at `endTime`.
 
@@ -414,11 +414,13 @@ Recommended optional arguments:
   - expected file naming contract: one `<revisionId>_commitDiff.patch` file per replayed revision
   - this is a diff-source override, not a replacement for `--repoURL`
   - currently only valid with `--algorithm B`
-  - current boundary: the CLI accepts and validates the flag contract, but execution currently fails explicitly because Algorithm-B offline diff mode is not implemented yet
+  - current boundary: a narrow Git offline Algorithm-B baseline is implemented for the current single-file, single-branch fixture style used by `US-6`
+  - explicit unsupported cases in the current CLI path include multi-file first patches, first-patch multi-hunk base reconstruction, file-path changes during replay, and merge-aware accounting
+  - broader Algorithm-B histories such as deletes, renames, multi-file replay, and merge-aware accounting are still not implemented in the CLI path yet
 - `--workingDir <path>`
   - local checkout or temporary workspace directory
   - required for Git when `--repoURL` is a logical repository identity such as `https://...` instead of a local absolute path
-  - intended future exception: Algorithm-B offline diff mode via `--commitDiffSetDir` can avoid local Git history access
+  - Algorithm-B offline diff mode via `--commitDiffSetDir` can avoid local Git history access for the current narrow baseline slice
 - `--failOnMissingProtocol`
   - fail immediately if a required revision-level protocol file is missing
 - `--includeBreakdown <genMethod|directory|none>`

@@ -338,15 +338,17 @@ python aggregateGenCodeDesc.py \
   - 本地测试专用适配方式，用于从一个目录中解析一组修订级别的 `genCodeDesc` 文件
   - 这适用于夹具与离线测试，但不是目标生产存储模型
 - `--commitDiffSetDir <dir>`
-  - 未来面向 `Algorithm B` 的本地适配方式，用于从一个目录中解析一组预先计算好的逐提交原始 patch 工件
+  - 面向 `Algorithm B` 的本地适配方式，用于从一个目录中解析一组预先计算好的逐提交原始 patch 工件
   - 期望命名契约：每个需要回放的修订对应一个 `<revisionId>_commitDiff.patch` 文件
   - 它是 diff 数据源覆盖项，不是 `--repoURL` 的替代品
   - 当前只允许与 `--algorithm B` 一起出现
-  - 当前边界：CLI 已接受并校验该参数契约，但执行会显式失败，因为 `Algorithm B` 的离线 diff 模式尚未实现
+  - 当前边界：针对 `US-6` 这种单文件、单分支的 Git 离线 Algorithm-B 基线已经可执行
+  - 当前已显式拒绝的场景包括：首个 patch 涉及多个文件、首个 patch 含多个 hunk 的基线重建、回放过程中发生文件路径变化，以及 merge 感知归因
+  - 更宽的 Algorithm-B 场景，例如删除、重命名、多文件回放、merge 感知归因，当前 CLI 路径仍未实现
 - `--workingDir <path>`
   - 本地 checkout 或临时工作目录
   - 当 `--repoURL` 是 `https://...` 这类逻辑仓库标识而不是本地绝对路径时，Git 目前仍要求提供该参数
-  - 未来预期例外：通过 `--commitDiffSetDir` 进入 `Algorithm B` 离线 diff 模式时，可以避免本地 Git 历史访问
+  - 通过 `--commitDiffSetDir` 进入当前这条窄化的 `Algorithm B` 离线 diff 基线路径时，可以避免本地 Git 历史访问
 - `--failOnMissingProtocol`
   - 如果缺少所需的修订级协议文件则立即失败
 - `--includeBreakdown <genMethod|directory|none>`

@@ -65,6 +65,48 @@ class IndexedFileDetail:
     line_ranges: list[tuple[int, int, int]]
 
 
+@dataclass
+class CommitDiffLine:
+    kind: str
+    content: str
+    old_line_number: int | None
+    new_line_number: int | None
+
+
+@dataclass
+class CommitDiffHunk:
+    old_start: int
+    old_length: int
+    new_start: int
+    new_length: int
+    lines: list[CommitDiffLine]
+
+
+@dataclass
+class CommitDiffFile:
+    old_path: str
+    new_path: str
+    hunks: list[CommitDiffHunk]
+
+
+@dataclass
+class ParsedCommitDiff:
+    files: list[CommitDiffFile]
+
+
+@dataclass
+class RevisionCommitDiff:
+    revision_id: str
+    parsed_patch: ParsedCommitDiff
+
+
+@dataclass
+class LineState:
+    content: str
+    origin_revision_id: str | None
+    gen_ratio: int = 0
+
+
 class AggregateGenCodeDescError(RuntimeError):
     pass
 
@@ -159,12 +201,32 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         self.fail_on_missing = fail_on_missing
         self.logger = logger
 
+    def _find_protocol_path(self, revision_id: str) -> Path | None:
+        direct_path = self.base_dir / f"{revision_id}_genCodeDesc.json"
+        if direct_path.exists():
+            return direct_path
+
+        for candidate_path in sorted(self.base_dir.glob("*_genCodeDesc.json")):
+            try:
+                candidate_protocol = load_json_document(candidate_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            candidate_revision_id = candidate_protocol.get("REPOSITORY", {}).get("revisionId")
+            if candidate_revision_id == revision_id:
+                return candidate_path
+
+        return None
+
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
-        protocol_path = self.base_dir / f"{revision_id}_genCodeDesc.json"
-        if not protocol_path.exists():
+        protocol_path = self._find_protocol_path(revision_id)
+        if protocol_path is None:
             if self.fail_on_missing:
-                raise ProtocolValidationError(f"Protocol file not found: {protocol_path}")
-            self.logger.debug(f"No genCodeDesc file found at {protocol_path}; treating revision {revision_id} as human/unattributed")
+                raise ProtocolValidationError(
+                    f"Protocol file not found for revision {revision_id} in {self.base_dir}"
+                )
+            self.logger.debug(
+                f"No genCodeDesc file found for revision {revision_id} in {self.base_dir}; treating revision as human/unattributed"
+            )
             return {}
         protocol = load_json_document(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
@@ -221,6 +283,357 @@ class CommitDiffSetDirProvider(CommitDiffProvider):
 
         self.logger.debug(f"Loaded commit diff patch for revision {revision_id} from {patch_path}")
         return patch_text
+
+
+_HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def parse_commit_diff_patch(patch_text: str) -> ParsedCommitDiff:
+    lines = patch_text.splitlines()
+    parsed_files: list[CommitDiffFile] = []
+    current_file: CommitDiffFile | None = None
+    current_hunk: CommitDiffHunk | None = None
+    old_line_cursor: int | None = None
+    new_line_cursor: int | None = None
+
+    for raw_line in lines:
+        if raw_line.startswith("diff --git "):
+            if current_file is not None:
+                parsed_files.append(current_file)
+            current_file = CommitDiffFile(old_path="", new_path="", hunks=[])
+            current_hunk = None
+            old_line_cursor = None
+            new_line_cursor = None
+            continue
+
+        if current_file is None:
+            if not raw_line.strip():
+                continue
+            raise ProtocolValidationError("Commit diff patch content must start with a diff --git file header")
+
+        if raw_line.startswith("--- "):
+            current_file.old_path = raw_line.removeprefix("--- ").removeprefix("a/")
+            continue
+
+        if raw_line.startswith("+++ "):
+            current_file.new_path = raw_line.removeprefix("+++ ").removeprefix("b/")
+            continue
+
+        if raw_line.startswith("@@ "):
+            hunk_match = _HUNK_HEADER_RE.match(raw_line)
+            if hunk_match is None:
+                raise ProtocolValidationError(f"Malformed commit diff hunk header: {raw_line}")
+            old_start = int(hunk_match.group(1))
+            old_length = int(hunk_match.group(2) or "1")
+            new_start = int(hunk_match.group(3))
+            new_length = int(hunk_match.group(4) or "1")
+            current_hunk = CommitDiffHunk(
+                old_start=old_start,
+                old_length=old_length,
+                new_start=new_start,
+                new_length=new_length,
+                lines=[],
+            )
+            current_file.hunks.append(current_hunk)
+            old_line_cursor = old_start
+            new_line_cursor = new_start
+            continue
+
+        if current_hunk is None:
+            continue
+
+        if raw_line.startswith("\\ No newline at end of file"):
+            continue
+
+        if raw_line.startswith("+"):
+            current_hunk.lines.append(
+                CommitDiffLine(
+                    kind="add",
+                    content=raw_line[1:],
+                    old_line_number=None,
+                    new_line_number=new_line_cursor,
+                )
+            )
+            if new_line_cursor is None:
+                raise ProtocolValidationError("Commit diff parser lost new-file line cursor state")
+            new_line_cursor += 1
+            continue
+
+        if raw_line.startswith("-"):
+            current_hunk.lines.append(
+                CommitDiffLine(
+                    kind="delete",
+                    content=raw_line[1:],
+                    old_line_number=old_line_cursor,
+                    new_line_number=None,
+                )
+            )
+            if old_line_cursor is None:
+                raise ProtocolValidationError("Commit diff parser lost old-file line cursor state")
+            old_line_cursor += 1
+            continue
+
+        if raw_line.startswith(" "):
+            current_hunk.lines.append(
+                CommitDiffLine(
+                    kind="context",
+                    content=raw_line[1:],
+                    old_line_number=old_line_cursor,
+                    new_line_number=new_line_cursor,
+                )
+            )
+            if old_line_cursor is None or new_line_cursor is None:
+                raise ProtocolValidationError("Commit diff parser lost line cursor state")
+            old_line_cursor += 1
+            new_line_cursor += 1
+            continue
+
+        raise ProtocolValidationError(f"Unsupported commit diff patch line: {raw_line}")
+
+    if current_file is not None:
+        parsed_files.append(current_file)
+
+    if not parsed_files:
+        raise ProtocolValidationError("Commit diff patch did not contain any diff --git file sections")
+
+    for parsed_file in parsed_files:
+        if not parsed_file.old_path or not parsed_file.new_path:
+            raise ProtocolValidationError("Commit diff patch file section is missing ---/+++ path headers")
+
+    return ParsedCommitDiff(files=parsed_files)
+
+
+def load_commit_diff_sequence(
+    provider: CommitDiffProvider,
+    repo_url: str,
+    repo_branch: str,
+    revision_ids: list[str],
+    vcs_type: str,
+) -> list[RevisionCommitDiff]:
+    loaded_sequence: list[RevisionCommitDiff] = []
+    for revision_id in revision_ids:
+        patch_text = provider.get_commit_diff_patch(repo_url, repo_branch, revision_id, vcs_type)
+        if patch_text is None:
+            raise ProtocolValidationError(f"Commit diff provider returned no patch for revision {revision_id}")
+        loaded_sequence.append(
+            RevisionCommitDiff(
+                revision_id=revision_id,
+                parsed_patch=parse_commit_diff_patch(patch_text),
+            )
+        )
+    return loaded_sequence
+
+
+def resolve_added_line_gen_ratios(
+    commit_diff_file: CommitDiffFile,
+    hunk: CommitDiffHunk,
+    protocol_index: dict[str, IndexedFileDetail] | None,
+) -> list[int]:
+    added_lines = [line for line in hunk.lines if line.kind == "add"]
+    if not added_lines:
+        return []
+    if protocol_index is None:
+        return [0 for _ in added_lines]
+
+    direct_ratios = [
+        line_ratio(protocol_index, commit_diff_file.new_path, added_line.new_line_number or 0)
+        for added_line in added_lines
+    ]
+    indexed_file = protocol_index.get(commit_diff_file.new_path)
+    if indexed_file is None or indexed_file.line_ranges:
+        return direct_ratios
+
+    if any(direct_ratios) and sum(1 for ratio in direct_ratios if ratio > 0) == len(indexed_file.line_locations):
+        return direct_ratios
+
+    if len(indexed_file.line_locations) == len(added_lines):
+        return [ratio for _, ratio in sorted(indexed_file.line_locations.items())]
+
+    return direct_ratios
+
+
+def apply_commit_diff_file_to_line_states(
+    current_lines: list[LineState],
+    commit_diff_file: CommitDiffFile,
+    revision_id: str,
+    protocol_index: dict[str, IndexedFileDetail] | None = None,
+) -> list[LineState]:
+    updated_lines = list(current_lines)
+    line_offset = 0
+
+    for hunk in commit_diff_file.hunks:
+        insertion_index = hunk.old_start - 1 + line_offset
+        if insertion_index < 0 or insertion_index > len(updated_lines):
+            raise ProtocolValidationError(
+                f"Commit diff hunk starts outside current file bounds for {commit_diff_file.new_path}: {hunk.old_start}"
+            )
+
+        scan_index = insertion_index
+        added_line_gen_ratios = resolve_added_line_gen_ratios(commit_diff_file, hunk, protocol_index)
+        added_line_index = 0
+        for diff_line in hunk.lines:
+            if diff_line.kind == "context":
+                if scan_index >= len(updated_lines) or updated_lines[scan_index].content != diff_line.content:
+                    raise ProtocolValidationError(
+                        f"Commit diff context mismatch for {commit_diff_file.new_path} at line {diff_line.old_line_number}"
+                    )
+                scan_index += 1
+                continue
+
+            if diff_line.kind == "delete":
+                if scan_index >= len(updated_lines) or updated_lines[scan_index].content != diff_line.content:
+                    raise ProtocolValidationError(
+                        f"Commit diff delete mismatch for {commit_diff_file.new_path} at line {diff_line.old_line_number}"
+                    )
+                del updated_lines[scan_index]
+                line_offset -= 1
+                continue
+
+            if diff_line.kind == "add":
+                added_gen_ratio = added_line_gen_ratios[added_line_index] if added_line_index < len(added_line_gen_ratios) else 0
+                updated_lines.insert(
+                    scan_index,
+                    LineState(content=diff_line.content, origin_revision_id=revision_id, gen_ratio=added_gen_ratio),
+                )
+                scan_index += 1
+                line_offset += 1
+                added_line_index += 1
+                continue
+
+            raise ProtocolValidationError(f"Unsupported commit diff line kind: {diff_line.kind}")
+
+    return updated_lines
+
+
+def apply_commit_diff_file_to_lines(current_lines: list[str], commit_diff_file: CommitDiffFile) -> list[str]:
+    stateful_lines = [LineState(content=line, origin_revision_id=None, gen_ratio=0) for line in current_lines]
+    replayed_lines = apply_commit_diff_file_to_line_states(stateful_lines, commit_diff_file, revision_id="<added>")
+    return [line_state.content for line_state in replayed_lines]
+
+
+def summarize_period_added_line_states(
+    line_states: list[LineState],
+    included_revision_ids: list[str],
+) -> dict[str, int]:
+    included_revision_id_set = set(included_revision_ids)
+    total_code_lines = 0
+    full_generated_code_lines = 0
+    partial_generated_code_lines = 0
+
+    for line_state in line_states:
+        if line_state.origin_revision_id not in included_revision_id_set:
+            continue
+        if not is_code_line(line_state.content):
+            continue
+
+        total_code_lines += 1
+        if line_state.gen_ratio == 100:
+            full_generated_code_lines += 1
+        elif line_state.gen_ratio > 0:
+            partial_generated_code_lines += 1
+
+    return {
+        "totalCodeLines": total_code_lines,
+        "fullGeneratedCodeLines": full_generated_code_lines,
+        "partialGeneratedCodeLines": partial_generated_code_lines,
+    }
+
+
+def list_commit_diff_revision_ids(commit_diff_set_dir: Path) -> list[str]:
+    revision_ids = [
+        patch_path.name.removesuffix("_commitDiff.patch")
+        for patch_path in sorted(commit_diff_set_dir.glob("*_commitDiff.patch"))
+    ]
+    if not revision_ids:
+        raise ProtocolValidationError(f"No commit diff patch files found in {commit_diff_set_dir}")
+    return revision_ids
+
+
+def reconstruct_base_line_states_from_patch(commit_diff_file: CommitDiffFile) -> list[LineState]:
+    if len(commit_diff_file.hunks) != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports a single hunk in the first patch when reconstructing the base file"
+        )
+
+    first_hunk = commit_diff_file.hunks[0]
+    if first_hunk.old_start != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports first-patch base reconstruction starting at line 1"
+        )
+
+    base_lines: list[LineState] = []
+    for diff_line in first_hunk.lines:
+        if diff_line.kind in {"context", "delete"}:
+            base_lines.append(LineState(content=diff_line.content, origin_revision_id=None, gen_ratio=0))
+    return base_lines
+
+
+def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
+    if args.vcsType != "git":
+        raise UnsupportedConfigurationError("Current Algorithm B offline slice only supports git")
+    if not args.commitDiffSetDir:
+        raise UnsupportedConfigurationError("Current Algorithm B offline slice requires --commitDiffSetDir")
+
+    provider = build_gen_code_desc_provider(args, logger)
+    diff_provider = build_commit_diff_provider(args, logger)
+    revision_ids = list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
+    commit_diff_sequence = load_commit_diff_sequence(
+        diff_provider,
+        args.repoURL,
+        args.repoBranch,
+        revision_ids,
+        args.vcsType,
+    )
+    if not commit_diff_sequence:
+        raise ProtocolValidationError("Algorithm B offline slice requires at least one replayable commit diff patch")
+
+    first_patch_files = commit_diff_sequence[0].parsed_patch.files
+    if len(first_patch_files) != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports a single file in the first patch sequence"
+        )
+
+    target_file = first_patch_files[0].new_path
+    current_lines = reconstruct_base_line_states_from_patch(first_patch_files[0])
+
+    for revision_diff in commit_diff_sequence:
+        if len(revision_diff.parsed_patch.files) != 1:
+            raise UnsupportedConfigurationError(
+                "Current Algorithm B offline slice only supports one changed file per revision patch"
+            )
+        commit_diff_file = revision_diff.parsed_patch.files[0]
+        if commit_diff_file.new_path != target_file:
+            raise UnsupportedConfigurationError(
+                "Current Algorithm B offline slice only supports a single replayed file path across the diff sequence"
+            )
+
+        protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        protocol_index = build_protocol_index(protocol)
+        current_lines = apply_commit_diff_file_to_line_states(
+            current_lines,
+            commit_diff_file,
+            revision_diff.revision_id,
+            protocol_index,
+        )
+
+    summary = summarize_period_added_line_states(current_lines, revision_ids)
+    end_revision_id = revision_ids[-1]
+    logger.info(
+        f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
+        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
+        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+    )
+    return {
+        "protocolName": "generatedTextDesc",
+        "protocolVersion": PROTOCOL_VERSION,
+        "SUMMARY": summary,
+        "REPOSITORY": {
+            "vcsType": args.vcsType,
+            "repoURL": args.repoURL,
+            "repoBranch": args.repoBranch,
+            "revisionId": end_revision_id,
+        },
+    }
 
 
 def strip_json_comments(raw_text: str) -> str:
@@ -760,10 +1173,9 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 
 
 def build_result(args: argparse.Namespace) -> dict:
+    logger = RuntimeLogger(args.logLevel)
     if args.algorithm == "B" and args.commitDiffSetDir:
-        raise UnsupportedConfigurationError(
-            "Algorithm B offline diff mode via --commitDiffSetDir is not implemented in the current slice"
-        )
+        return build_result_algorithm_b_offline(args, logger)
     if args.algorithm != "A":
         raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
     if args.scope != "A":
@@ -773,7 +1185,6 @@ def build_result(args: argparse.Namespace) -> dict:
     if args.vcsType not in {"git", "svn"}:
         raise UnsupportedConfigurationError("Only git and svn are implemented in the current Algorithm A slice")
 
-    logger = RuntimeLogger(args.logLevel)
     analysis_start = time_mod.monotonic()
     logical_repo_url = args.repoURL
     repo_dir = Path(args.workingDir or args.repoURL)

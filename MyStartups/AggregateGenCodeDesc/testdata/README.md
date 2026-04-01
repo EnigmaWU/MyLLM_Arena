@@ -24,7 +24,7 @@ For `Algorithm B`, the fixture contract is stricter:
 - `us3_ai_overwrites_human_live_changed` (`Algorithm A`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
 - `us4_deleted_lines_excluded` (`Algorithm A`): deleted lines are excluded from the live changed snapshot, expected `100%`
 - `us5_rename_preserves_lineage` (`Algorithm A`): rename preserves original attribution lineage, expected `66.67%`
-- `us6_period_added_ratio` (`Algorithm B`): true period contribution ratio inside `startTime~endTime`, expected `60.0%`, with required `commitDiffSet/` artifacts for the replayed revisions
+- `us6_period_added_ratio` (`Algorithm B`): true period contribution ratio inside `startTime~endTime`, expected `60.0%`, with required `commitDiffSet/` artifacts for the replayed revisions; this is the current narrow executable Algorithm-B baseline fixture
 - `us7_mixed_multi_commit_window` (`Algorithm A`): mixed multi-commit history with human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines, expected final summary `total=5, full=1, partial=1`
 - `us8_merge_commit_preserves_attribution` (`Algorithm A`): merge commit keeps effective attribution of surviving lines, expected final summary `total=4, full=1, partial=0`
 - `us9_svn_contract_parity` (`Algorithm A`): SVN target follows the same protocol-shaped result contract as Git for the primary metric, expected final summary `total=4, full=2, partial=1`

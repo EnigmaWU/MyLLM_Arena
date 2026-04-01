@@ -156,7 +156,7 @@
 **我希望** 计算 `startTime~endTime` 期间新增的 AI 代码量，
 **以便** 将时间段内的新增贡献与期末存量区分开来。
 
-说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，更可能与 `Algorithm B` 或未来的其他实现方式对齐。
+说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，并与 `Algorithm B` 对齐。当前实现已经包含针对 `US-6` 夹具形态的一条窄化可执行 Git 离线基线路径，但这还不能被视为广义的 Algorithm-B 覆盖。
 
 #### US-6 验收标准
 
@@ -171,6 +171,10 @@
 3. **GIVEN** 夹具 `testdata/us6_period_added_ratio`
    **WHEN** 分析器产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+4. **GIVEN** 当前 CLI 切片配合 `--algorithm B --commitDiffSetDir`
+   **WHEN** 输入满足当前这种单文件、单分支 Git 回放序列的窄化夹具契约
+   **THEN** 分析器可以在不要求 `--workingDir` 的情况下执行 `US-6` 的离线 Algorithm-B 基线
 
 ### US-7：在单个请求窗口内正确处理混合多提交历史
 
