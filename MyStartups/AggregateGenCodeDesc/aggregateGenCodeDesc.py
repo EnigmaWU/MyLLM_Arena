@@ -126,6 +126,12 @@ class GenCodeDescProvider(ABC):
         raise NotImplementedError
 
 
+class CommitDiffProvider(ABC):
+    @abstractmethod
+    def get_commit_diff_patch(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> str | None:
+        raise NotImplementedError
+
+
 class EmptyGenCodeDescProvider(GenCodeDescProvider):
     def __init__(self, fail_on_missing: bool, logger: RuntimeLogger):
         self.fail_on_missing = fail_on_missing
@@ -136,6 +142,15 @@ class EmptyGenCodeDescProvider(GenCodeDescProvider):
             raise ProtocolValidationError(f"Missing genCodeDesc provider data for revision {revision_id}")
         self.logger.debug(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
         return {}
+
+
+class EmptyCommitDiffProvider(CommitDiffProvider):
+    def __init__(self, logger: RuntimeLogger):
+        self.logger = logger
+
+    def get_commit_diff_patch(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> str | None:
+        self.logger.debug(f"No external commit diff provider configured for revision {revision_id}")
+        return None
 
 
 class GenCodeDescSetDirProvider(GenCodeDescProvider):
@@ -188,6 +203,24 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
             )
 
         return protocol
+
+
+class CommitDiffSetDirProvider(CommitDiffProvider):
+    def __init__(self, base_dir: Path, logger: RuntimeLogger):
+        self.base_dir = base_dir
+        self.logger = logger
+
+    def get_commit_diff_patch(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> str:
+        patch_path = self.base_dir / f"{revision_id}_commitDiff.patch"
+        if not patch_path.exists():
+            raise ProtocolValidationError(f"Commit diff patch file not found: {patch_path}")
+
+        patch_text = patch_path.read_text(encoding="utf-8")
+        if not patch_text.strip():
+            raise ProtocolValidationError(f"Commit diff patch file is empty: {patch_path}")
+
+        self.logger.debug(f"Loaded commit diff patch for revision {revision_id} from {patch_path}")
+        return patch_text
 
 
 def strip_json_comments(raw_text: str) -> str:
@@ -551,6 +584,12 @@ def build_gen_code_desc_provider(args: argparse.Namespace, logger: RuntimeLogger
     raise UnsupportedConfigurationError(
         f"Unsupported metadataSource: {args.metadataSource}. Only 'genCodeDesc' is supported in the current slice."
     )
+
+
+def build_commit_diff_provider(args: argparse.Namespace, logger: RuntimeLogger) -> CommitDiffProvider:
+    if args.commitDiffSetDir:
+        return CommitDiffSetDirProvider(Path(args.commitDiffSetDir), logger)
+    return EmptyCommitDiffProvider(logger)
 
 
 def describe_ratio(ratio: int) -> str:

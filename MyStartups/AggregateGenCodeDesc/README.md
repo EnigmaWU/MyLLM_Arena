@@ -411,6 +411,7 @@ Recommended optional arguments:
   - this is useful for fixtures and offline tests, not the intended production storage model
 - `--commitDiffSetDir <dir>`
   - future Algorithm-B local adapter for resolving a set of precomputed per-commit raw patch artifacts from one directory
+  - expected file naming contract: one `<revisionId>_commitDiff.patch` file per replayed revision
   - this is a diff-source override, not a replacement for `--repoURL`
   - currently only valid with `--algorithm B`
   - current boundary: the CLI accepts and validates the flag contract, but execution currently fails explicitly because Algorithm-B offline diff mode is not implemented yet

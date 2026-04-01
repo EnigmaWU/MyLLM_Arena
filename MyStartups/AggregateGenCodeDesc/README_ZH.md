@@ -339,6 +339,7 @@ python aggregateGenCodeDesc.py \
   - 这适用于夹具与离线测试，但不是目标生产存储模型
 - `--commitDiffSetDir <dir>`
   - 未来面向 `Algorithm B` 的本地适配方式，用于从一个目录中解析一组预先计算好的逐提交原始 patch 工件
+  - 期望命名契约：每个需要回放的修订对应一个 `<revisionId>_commitDiff.patch` 文件
   - 它是 diff 数据源覆盖项，不是 `--repoURL` 的替代品
   - 当前只允许与 `--algorithm B` 一起出现
   - 当前边界：CLI 已接受并校验该参数契约，但执行会显式失败，因为 `Algorithm B` 的离线 diff 模式尚未实现
