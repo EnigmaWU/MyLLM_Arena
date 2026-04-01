@@ -89,6 +89,10 @@ class InputValidationError(AggregateGenCodeDescError):
     pass
 
 
+def is_local_repository_path(value: str) -> bool:
+    return Path(value).is_absolute()
+
+
 class RuntimeLogger:
     _LEVELS = {"quiet": 0, "info": 1, "debug": 2}
 
@@ -307,8 +311,16 @@ def validate_inputs(args: argparse.Namespace) -> None:
     validate_url(args.repoURL, "--repoURL")
     validate_iso_date(args.startTime, "--startTime")
     validate_iso_date(args.endTime, "--endTime")
+    if args.commitDiffSetDir:
+        validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
+        if args.algorithm != "B":
+            raise InputValidationError("--commitDiffSetDir is only supported with --algorithm B")
     if args.workingDir:
         validate_directory(args.workingDir, "--workingDir")
+    elif args.vcsType == "git" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
+        raise InputValidationError(
+            "--workingDir is required for git when --repoURL is a logical repository URL rather than a local absolute path"
+        )
     if args.genCodeDescSetDir:
         validate_directory(args.genCodeDescSetDir, "--genCodeDescSetDir")
 
@@ -329,6 +341,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--outputFormat", default="json")
     parser.add_argument("--metadataSource", default="genCodeDesc")
     parser.add_argument("--genCodeDescSetDir")
+    parser.add_argument("--commitDiffSetDir")
     parser.add_argument("--workingDir")
     parser.add_argument("--failOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
@@ -478,9 +491,16 @@ def parse_svn_blame(repo_url: str, branch: str, revision_id: str, relative_path:
     if target_node is None:
         return []
 
+    blame_entries = target_node.findall("entry")
+    if len(blame_entries) != len(content_lines):
+        raise RepositoryStateError(
+            f"SVN blame/content line count mismatch for {relative_path} at revision {revision_id}: "
+            f"blameEntries={len(blame_entries)} contentLines={len(content_lines)}"
+        )
+
     parsed: list[BlameLine] = []
     origin_file = f"{branch.strip('/')}/{relative_path}"
-    for final_line, (entry, content) in enumerate(zip(target_node.findall("entry"), content_lines), start=1):
+    for final_line, (entry, content) in enumerate(zip(blame_entries, content_lines), start=1):
         commit_node = entry.find("commit")
         merged_node = entry.find("merged")
         merged_commit_node = merged_node.find("commit") if merged_node is not None else None
@@ -701,6 +721,10 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 
 
 def build_result(args: argparse.Namespace) -> dict:
+    if args.algorithm == "B" and args.commitDiffSetDir:
+        raise UnsupportedConfigurationError(
+            "Algorithm B offline diff mode via --commitDiffSetDir is not implemented in the current slice"
+        )
     if args.algorithm != "A":
         raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
     if args.scope != "A":
@@ -712,6 +736,7 @@ def build_result(args: argparse.Namespace) -> dict:
 
     logger = RuntimeLogger(args.logLevel)
     analysis_start = time_mod.monotonic()
+    logical_repo_url = args.repoURL
     repo_dir = Path(args.workingDir or args.repoURL)
     provider = build_gen_code_desc_provider(args, logger)
     start_bound = parse_day_start(args.startTime)
@@ -719,11 +744,11 @@ def build_result(args: argparse.Namespace) -> dict:
     if args.vcsType == "git":
         end_revision_id = resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
         source_files = list_source_files(repo_dir, end_revision_id)
-        repo_identity_url = str(repo_dir)
+        repo_identity_url = logical_repo_url
     else:
         end_revision_id = resolve_svn_end_revision(args.repoURL, args.repoBranch, args.endTime)
         source_files = list_svn_source_files(args.repoURL, args.repoBranch, end_revision_id)
-        repo_identity_url = args.repoURL
+        repo_identity_url = logical_repo_url
     logger.info(
         f"Starting analysis for repo={repo_identity_url} branch={args.repoBranch} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
     )

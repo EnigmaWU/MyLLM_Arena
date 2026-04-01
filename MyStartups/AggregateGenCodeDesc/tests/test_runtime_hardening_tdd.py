@@ -2,7 +2,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+import aggregateGenCodeDesc
 from tests.cli_test_support import GitRepoHarness, load_json, run_cli, write_revision_protocol
 
 
@@ -199,6 +201,108 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
 
             self.assertIn("No revision found at or before endTime", context.exception.stderr)
             self.assertNotIn("Traceback", context.exception.stderr)
+
+    def test_cli_requires_working_dir_for_git_when_repo_url_is_logical_url(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                "--repoURL",
+                "https://example.local/repo/demo.git",
+                "--repoBranch",
+                "main",
+                "--startTime",
+                "2026-03-01",
+                "--endTime",
+                "2026-03-31",
+                "--vcsType",
+                "git",
+            ],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--workingDir is required for git", result.stderr)
+
+    def test_cli_rejects_commit_diff_set_dir_for_algorithm_a(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                    "--repoURL",
+                    "/tmp/local-repo",
+                    "--repoBranch",
+                    "main",
+                    "--startTime",
+                    "2026-03-01",
+                    "--endTime",
+                    "2026-03-31",
+                    "--vcsType",
+                    "git",
+                    "--algorithm",
+                    "A",
+                    "--commitDiffSetDir",
+                    temp_dir,
+                ],
+                cwd=Path(__file__).resolve().parent.parent,
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--commitDiffSetDir is only supported with --algorithm B", result.stderr)
+
+    def test_cli_allows_algorithm_b_commit_diff_set_dir_without_git_working_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                    "--repoURL",
+                    "https://example.local/repo/demo.git",
+                    "--repoBranch",
+                    "main",
+                    "--startTime",
+                    "2026-03-01",
+                    "--endTime",
+                    "2026-03-31",
+                    "--vcsType",
+                    "git",
+                    "--algorithm",
+                    "B",
+                    "--commitDiffSetDir",
+                    temp_dir,
+                ],
+                cwd=Path(__file__).resolve().parent.parent,
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Algorithm B offline diff mode via --commitDiffSetDir is not implemented", result.stderr)
+        self.assertNotIn("--workingDir is required for git", result.stderr)
+
+    def test_parse_svn_blame_fails_when_blame_entries_and_file_lines_diverge(self) -> None:
+        def fake_run_svn(args: list[str]) -> str:
+            if args[:3] == ["blame", "--xml", "-g"]:
+                return (
+                    '<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<blame><target path="file:///repo/trunk/src/demo.py">'
+                    '<entry line-number="1"><commit revision="11"/></entry>'
+                    '</target></blame>'
+                )
+            if args[:2] == ["cat", "-r"]:
+                return "line one\nline two\n"
+            raise AssertionError(f"Unexpected svn invocation: {args}")
+
+        with patch.object(aggregateGenCodeDesc, "run_svn", side_effect=fake_run_svn):
+            with self.assertRaises(aggregateGenCodeDesc.RepositoryStateError) as context:
+                aggregateGenCodeDesc.parse_svn_blame("file:///repo", "trunk", "11", "src/demo.py")
+
+        self.assertIn("SVN blame/content line count mismatch", str(context.exception))
 
 
 if __name__ == "__main__":

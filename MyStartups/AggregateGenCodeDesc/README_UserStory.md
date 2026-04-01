@@ -21,11 +21,15 @@ Each scenario contains:
 
 - one `genCodeDesc` file per revision that describes AI attribution for that revision
 
+For `Algorithm B`, each scenario must also carry a complete commit diff sequence in `commitDiffSet/`.
+If a scenario expects revisions `r1..rn` to be replayed, every required replayed revision must have a matching raw patch artifact such as `<revisionId>_commitDiff.patch`.
+A missing diff in the middle of a long sequence is a fixture contract failure, not an ignorable gap.
+
 For planned future stories, the scenario name defines the intended verification target even if the concrete fixture or integration test has not been added yet.
 
 Those `testdata/` scenarios are design-oriented fixtures.
 Those local `genCodeDesc` files simulate the external metadata store used in real deployments.
-The earlier diff artifacts have been removed from `testdata` to keep the fixture contract small and focused.
+For `Algorithm B`, local raw commit diff patch artifacts are also required in `testdata/` so replay completeness can be verified explicitly.
 For real repository verification of `Algorithm A`, the preferred test layer is under `tests/`, where actual Git or SVN repositories are created and `*.diff` files are not required.
 
 For production-oriented runs, the analyzer should discover relevant revisions from repository history first and then fetch matching `genCodeDesc` records from an external provider.
@@ -44,6 +48,29 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - `US-10` -> `testdata/us10_large_repository_snapshot` (`Algorithm A`)
 - `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Algorithm A`)
 - `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Algorithm A`)
+
+## Algorithm-B TDD Roadmap
+
+The current repository has only one explicit Algorithm-B story today: `US-6`.
+That is not enough to treat Algorithm B as implementation-ready.
+
+Algorithm B should be expanded in TDD order with scenario-first contracts:
+
+- `B0` contract lock: preserve the query/result envelope and define the exact semantic delta from Algorithm A.
+- `B1` single-branch baseline: implement `period_added_ai_ratio` for one-branch histories with no merges or renames.
+- `B2` mixed additions and deletions: prove how deleted, superseded, and partially rewritten in-window lines contribute to the period metric.
+- `B3` rename handling: add Git rename and move scenarios before any copy-detection claim.
+- `B4` merge-aware contribution accounting: add Git merge-window scenarios that force explicit contribution rules.
+- `B5` SVN parity subset: add only the subset of SVN Algorithm-B behavior that can be defended under real SVN history semantics.
+- `B6` scalability gate: add dedicated performance and large-history tests only after the correctness contract is stable.
+
+Recommended future scenario names:
+
+- `US-15` -> `testdata/us15_period_added_single_branch_baseline` (`Algorithm B`)
+- `US-16` -> `testdata/us16_period_added_with_deletions_and_resets` (`Algorithm B`)
+- `US-17` -> `testdata/us17_period_added_git_rename_handling` (`Algorithm B`)
+- `US-18` -> `testdata/us18_period_added_git_merge_window` (`Algorithm B`)
+- `US-19` -> `testdata/us19_period_added_svn_supported_subset` (`Algorithm B`)
 
 ## User Stories
 
@@ -348,3 +375,15 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 4. **GIVEN** the SVN production-scale acceptance scenario
    **WHEN** the analyzer completes successfully
    **THEN** the test must verify both correctness of the final aggregate result and scalability-oriented behavior such as reuse of branch-origin metadata lookups, bounded revision-time queries, or other explicit reuse signals defined by the test harness
+
+### Future Algorithm-B Story Intent
+
+The next intended Algorithm-B user stories are:
+
+1. `US-15`: single-branch period-added baseline without merges or renames
+2. `US-16`: period-added accounting with deletions, resets, and mixed rewrites inside one window
+3. `US-17`: Git rename and move handling for period contribution
+4. `US-18`: merge-aware Git period contribution inside one requested window
+5. `US-19`: SVN-supported subset for Algorithm-B period contribution
+
+These should be introduced one by one under TDD with explicit `query.json` and `expected_result.json` artifacts before any Algorithm-B production-readiness claim is made.

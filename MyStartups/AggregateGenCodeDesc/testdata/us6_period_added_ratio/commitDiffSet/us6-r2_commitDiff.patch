@@ -1,0 +1,9 @@
+diff --git a/src/report.py b/src/report.py
+index 1111111..2222222 100644
+--- a/src/report.py
++++ b/src/report.py
+@@ -1,2 +1,4 @@
+ def build_report(data):
+     report = []
++    draft = summarize(data)
++    publish(draft)

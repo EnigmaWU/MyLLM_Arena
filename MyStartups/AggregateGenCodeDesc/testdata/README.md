@@ -10,6 +10,13 @@ Each scenario directory contains:
 - one `query.json` file describing the requested `vcsType`, `repoURL`, `repoBranch`, `metric`, `algorithm`, `scope`, and `startTime~endTime`
 - one `expected_result.json` file describing the expected aggregate final result using the same field structure as `genCodeDescProtocol.json` where applicable
 
+For `Algorithm B`, the fixture contract is stricter:
+
+- the scenario must also contain a `commitDiffSet/` directory
+- the directory must contain one raw patch artifact such as `<revisionId>_commitDiff.patch` for every revision that the scenario expects the implementation to replay
+- each patch artifact should be plain unified diff text, conceptually equivalent to `git diff > commitDiff.patch`, not a custom JSON protocol
+- if the replay sequence is long, a missing commit diff in the middle of the sequence is a contract error and must fail fixture validation rather than being silently skipped
+
 ## Scenarios
 
 - `us1_live_changed_source_ratio` (`Algorithm A`): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
@@ -17,7 +24,7 @@ Each scenario directory contains:
 - `us3_ai_overwrites_human_live_changed` (`Algorithm A`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
 - `us4_deleted_lines_excluded` (`Algorithm A`): deleted lines are excluded from the live changed snapshot, expected `100%`
 - `us5_rename_preserves_lineage` (`Algorithm A`): rename preserves original attribution lineage, expected `66.67%`
-- `us6_period_added_ratio` (`Algorithm B`): true period contribution ratio inside `startTime~endTime`, expected `60.0%`
+- `us6_period_added_ratio` (`Algorithm B`): true period contribution ratio inside `startTime~endTime`, expected `60.0%`, with required `commitDiffSet/` artifacts for the replayed revisions
 - `us7_mixed_multi_commit_window` (`Algorithm A`): mixed multi-commit history with human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines, expected final summary `total=5, full=1, partial=1`
 - `us8_merge_commit_preserves_attribution` (`Algorithm A`): merge commit keeps effective attribution of surviving lines, expected final summary `total=4, full=1, partial=0`
 - `us9_svn_contract_parity` (`Algorithm A`): SVN target follows the same protocol-shaped result contract as Git for the primary metric, expected final summary `total=4, full=2, partial=1`
@@ -44,10 +51,13 @@ Each scenario directory contains:
 ## Note
 
 The earlier `*.diff` files were simplified fixtures for product design and algorithm verification.
-They were not full repository exports and have now been removed from `testdata` to keep the fixture layer minimal.
+That earlier removal rule no longer applies to `Algorithm B`.
+For `Algorithm B`, raw commit diff patch artifacts are required fixture input, not optional explanatory material.
 
 For `Algorithm A` real repository tests, `*.diff` files are not required.
 Real repo tests should use actual Git or SVN history plus revision-level `genCodeDesc.json`, `query.json`, and `expected_result.json`.
+
+For `Algorithm B` fixture-driven tests, `testdata/` must carry both revision-level `genCodeDesc` records and raw commit diff patch artifacts so that replay completeness is explicit and verifiable.
 
 Production-scale branch and merge topology scenarios should live under `tests/` with real local repositories rather than under `testdata/`.
 Those scenarios validate VCS semantics and scalability behavior directly and are intentionally different from the simplified design fixtures kept in this folder.

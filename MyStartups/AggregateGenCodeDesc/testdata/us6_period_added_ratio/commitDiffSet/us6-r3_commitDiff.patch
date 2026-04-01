@@ -1,0 +1,9 @@
+diff --git a/src/report.py b/src/report.py
+index 2222222..3333333 100644
+--- a/src/report.py
++++ b/src/report.py
+@@ -4,1 +4,4 @@
+     publish(draft)
++    status = "done"
++    notify(status)
++    return publish_result

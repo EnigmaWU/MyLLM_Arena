@@ -36,6 +36,14 @@
 - The dedicated long-running production gate is `bash run_production_gate.sh`, which currently runs the US-13 Git and US-14 SVN production-scale acceptance tests.
 - Exploratory SVN lineage behavior that goes beyond the accepted production contract should live in the separate experimental test track, not in the production gate.
 
+## ======>>>CURRENT REPOURL SUPPORT BOUNDARY<<<======
+
+- Yes, the runtime now supports a logical Git `repoURL` that is different from the local checkout path.
+- For Git, `--repoURL` is treated as the logical repository identity used for metadata validation and for the final `REPOSITORY.repoURL` output.
+- For Git, VCS commands still run only against a local checkout directory, so when `--repoURL` is something like `https://path/2/repo.git`, `--workingDir` is required and must point at an already checked-out local repository.
+- That means the current implementation does **not** clone or fetch a real remote HTTP repository by itself, and it has **not** been validated as a network-accessing remote-repository client.
+- For SVN, `repoURL` already serves as both the logical repository identity and the live repository access target because the current implementation invokes `svn` commands directly against that URL.
+
 ## ======>>>HOW TO GET IT<<<======
 
 ### 1. Exact meaning of the metric
@@ -198,6 +206,33 @@ When Algorithm A remains better:
 - rename-aware blame is available and reliable in the target VCS environment
 
 For the current project direction, choose `Algorithm A` as the implementation baseline and keep `Algorithm B` as the explicit alternative architecture.
+
+### 8. Algorithm B TDD Plan
+
+`Algorithm B` should be developed as a separate TDD track rather than as an opportunistic extension of the current `Algorithm A` code path.
+
+Recommended staged plan:
+
+1. `B0: contract lock` Keep the same query/result shape as Algorithm A where possible, document exactly which fields stay stable and which semantics change, require explicit golden `query.json` and `expected_result.json` artifacts for every Algorithm-B scenario, and require raw `testdata` commit diff patch artifacts for every replayed revision. Each artifact should be plain unified diff text rather than a custom JSON schema. If any diff is missing inside the replay sequence, the fixture contract must fail fast.
+
+1. `B1: single-branch period-added baseline` The first executable target should be a one-branch, no-rename, no-merge period contribution metric. Prove `period_added_ai_ratio` on simple add-only and overwrite-only histories before any large-history optimization work.
+
+1. `B2: mixed survival and deletion rules` Add TDD scenarios where AI-added lines are later deleted, partially overwritten, or superseded by human edits inside the same requested window. Make the period metric explicit about what counts as added contribution even if the line is not live at `endTime`.
+
+1. `B3: rename and move handling` Add focused Git scenarios for path-only renames and moved files. Defer copy-detection claims until rename behavior is proven stable.
+
+1. `B4: merge-aware Git lineage replay` Add merge-window scenarios that force the implementation to choose a defensible replay policy for first-parent vs merged-parent contribution accounting. Do not claim production readiness until this rule is explicit in tests and docs.
+
+1. `B5: SVN parity subset` Add SVN Algorithm-B coverage only for the subset that can be defended under real SVN history semantics, and keep SVN exploratory behavior separate if blame, mergeinfo, or path-history limitations make a broader parity claim unsafe.
+
+1. `B6: scalability gate` Only after correctness is stable, add separate scalability tests and then a dedicated long-running Algorithm-B gate. Do not reuse Algorithm-A production readiness as evidence for Algorithm-B production readiness.
+
+Recommended first concrete deliverables:
+
+- one `README_AlgorithmB_TDD.md` design-and-test roadmap document
+- one `testdata/us6_period_added_ratio` contract refresh if needed
+- one real Git baseline test for Algorithm-B single-branch period contribution
+- one negative-path test proving unsupported Algorithm-B cases fail clearly before they are implemented
 
 ### 7. What counts as code lines
 
@@ -374,8 +409,15 @@ Recommended optional arguments:
 - `--genCodeDescSetDir <dir>`
   - local test-only adapter for resolving a set of revision-level `genCodeDesc` files from one directory
   - this is useful for fixtures and offline tests, not the intended production storage model
+- `--commitDiffSetDir <dir>`
+  - future Algorithm-B local adapter for resolving a set of precomputed per-commit raw patch artifacts from one directory
+  - this is a diff-source override, not a replacement for `--repoURL`
+  - currently only valid with `--algorithm B`
+  - current boundary: the CLI accepts and validates the flag contract, but execution currently fails explicitly because Algorithm-B offline diff mode is not implemented yet
 - `--workingDir <path>`
   - local checkout or temporary workspace directory
+  - required for Git when `--repoURL` is a logical repository identity such as `https://...` instead of a local absolute path
+  - intended future exception: Algorithm-B offline diff mode via `--commitDiffSetDir` can avoid local Git history access
 - `--failOnMissingProtocol`
   - fail immediately if a required revision-level protocol file is missing
 - `--includeBreakdown <genMethod|directory|none>`

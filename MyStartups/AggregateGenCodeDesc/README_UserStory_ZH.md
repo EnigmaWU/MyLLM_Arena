@@ -21,9 +21,13 @@
 
 - 每个修订对应一个 `genCodeDesc` 文件，用于描述该修订的 AI 归因
 
+对于 `Algorithm B`，每个场景还必须在 `commitDiffSet/` 中携带一条完整的 commit diff 序列。
+如果某个场景要求回放 `r1..rn` 这些修订，则每个需要回放的修订都必须有对应的原始 patch 工件，例如 `<revisionId>_commitDiff.patch`。
+长序列中间缺少某个 commit diff 属于夹具契约失败，不能被静默跳过。
+
 这些 `testdata/` 场景是面向设计讨论的夹具。
 这些本地 `genCodeDesc` 文件用于模拟真实部署中的外部元数据存储。
-之前的 diff 工件已经从 `testdata/` 中移除，以保持夹具契约尽量小且聚焦。
+对于 `Algorithm B`，本地原始 commit diff patch 工件也必须放在 `testdata/` 中，以便显式验证回放链条的完整性。
 对于 `Algorithm A` 的真实仓库验证，首选测试层是在 `tests/` 下，通过创建真实的 Git 或 SVN 仓库来验证，并且不要求 `*.diff` 文件。
 
 对于偏生产的运行方式，分析器应先从仓库历史中发现相关修订，再从外部提供者中获取匹配的 `genCodeDesc` 记录。
