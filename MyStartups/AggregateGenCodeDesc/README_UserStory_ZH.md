@@ -38,6 +38,9 @@
 - 共享验收标准应覆盖无论由 `Algorithm A` 还是 `Algorithm B` 满足时都必须成立的可观察契约。
 - 只有当 `Algorithm A` 与 `Algorithm B` 在支持边界、边缘语义或运行约束上不一致时，才应该拆出算法专属验收轨道。
 - 如果某个共享故事当前只由一种算法实现，则另一种算法的验收轨道可以先以规划形式存在，但不能被当作当前已验证的验收证据。
+- 对当前收敛计划而言，`US-6` 是第一个真正进入双轨收敛的共享故事。其它共享候选故事应逐个转换，在对应 `Algorithm B` 路径真正落地前，继续把 `Algorithm A` 作为当前验收证据。
+- 有些共享故事首先是跨 VCS 共享，而不是先跨算法共享。在这种情况下，第一层验收拆分应优先是 Git 与 SVN，而算法专属轨道仍保留为规划状态。
+- `US-13` 与 `US-14` 应继续被视为 `Heavy` 生产 gate，而不是普通共享功能故事的模板。
 
 ## 验证分层
 
@@ -47,17 +50,25 @@
 
 ## 场景映射
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`, `Fast`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`, `Fast`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`, `Fast`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`, `Fast`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`, `Fast`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-4` -> `testdata/us4_deleted_lines_excluded`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-5` -> `testdata/us5_rename_preserves_lineage`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-6` -> `testdata/us6_period_added_ratio`（`共享 US`，当前可执行路径是 `Algorithm B`，`Fast`）
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`, `Fast`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`, `Fast`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`, `Fast`)
-- `US-13` -> Git 生产规模本地仓库 gate（`Algorithm A`, `Heavy`, 可作为每日集成）
-- `US-14` -> SVN 生产规模本地仓库 gate（`Algorithm A`, `Heavy`, 可作为每日集成）
+- `US-7` -> `testdata/us7_mixed_multi_commit_window`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-9` -> `testdata/us9_svn_contract_parity`（`共享契约故事`，当前有效证据是通过 `Algorithm A` 建立的 Git/SVN 一致性，`Fast`）
+- `US-13` -> Git 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
+- `US-14` -> SVN 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
+
+## 共享故事收敛顺序
+
+- `第 1 步`：先把 `US-6` 作为首个共享故事打实，确保当前 `Algorithm B` 基线是可辩护的。
+- `第 2 步`：把当前围绕存活快照主指标的故事逐个改写为共享故事，但在对应 `Algorithm B` 路径真正存在前，继续只把 `Algorithm A` 视为当前验收证据。
+- `第 3 步`：当前主指标建议按如下顺序推进：`US-1`、`US-2`、`US-3`、`US-4`、`US-5`、`US-7`、`US-8`。
+- `第 4 步`：`US-9` 应保持为先按 Git/SVN 拆分的共享契约故事。只有当两个算法都真正能满足该契约时，再补充算法层的收敛。
+- `第 5 步`：`US-13` 与 `US-14` 保持为 `Heavy` 生产 gate，不强行套入普通共享故事模式。
 
 ## 用户故事
 
@@ -67,7 +78,9 @@
 **我希望** 计算当前版本落在请求时间段 `startTime~endTime` 内的存活源码行的加权 AI 占比，
 **以便** 我了解当前仍然存活的变更源码中，有多少可归因于 AI。
 
-#### US-1 验收标准
+说明：该故事应视为共享的存活快照契约故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-1 共享验收标准
 
 1. **GIVEN** 一个查询 `Repo:Branch:startTime:endTime`
    **WHEN** 用户请求 AI 代码占比
@@ -81,9 +94,29 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-4. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio`
-   **WHEN** 分析器产出最终结果
+4. **GIVEN** 任一声称支持 `US-1` 的算法路径
+   **WHEN** 该路径针对批准的 `US-1` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-1 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us1_live_changed_source_ratio`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+2. **GIVEN** 补充的 SVN 一致性夹具 `testdata/us1_live_changed_source_ratio_svn`
+   **WHEN** 当前 `Algorithm A` 实现被用于同一基线指标的 SVN 验证
+   **THEN** 外部可观察契约必须继续满足 `US-1` 的共享验收标准
+
+#### US-1 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-1` 相同存活快照指标的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-1` 的共享验收标准，且不能削弱结果契约
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-1`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-1` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-2：人工重写会移除之前的 AI 归因
 
@@ -91,7 +124,9 @@
 **我希望** 当人类重写了先前由 AI 生成的代码行时，归因应重置到较新的人工修订，
 **以便** 旧的 AI 归属不会继续附着在已经被覆盖的代码上。
 
-#### US-2 验收标准
+说明：该故事应视为共享的覆盖重写语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-2 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 先前归因给 AI 的代码在 `endTime` 前已经被后续人工修订所取代
@@ -101,9 +136,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us2_human_overwrites_ai_live_changed`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-2` 的算法路径
+   **WHEN** 该路径针对批准的 `US-2` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-2 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us2_human_overwrites_ai_live_changed`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-2 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-2` 相同覆盖重置契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-2` 的共享验收标准，而不能保留过时的 AI 归属
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-2`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-2` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-3：AI 重写会取代之前的人类归属
 
@@ -111,7 +162,9 @@
 **我希望** 后续由 AI 完成的人类代码重写能够成为有效归因来源，
 **以便** `endTime` 时刻的存活变更源码能够反映最新的 AI 贡献。
 
-#### US-3 验收标准
+说明：该故事应视为共享的覆盖重写语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-3 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 后续修订在 `endTime` 前引入了新的 AI 归因代码
@@ -121,9 +174,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us3_ai_overwrites_human_live_changed`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-3` 的算法路径
+   **WHEN** 该路径针对批准的 `US-3` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-3 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us3_ai_overwrites_human_live_changed`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-3 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-3` 相同归属接管契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-3` 的共享验收标准，且不能削弱最终存活结果语义
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-3`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-3` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-4：已删除的 AI 代码行不得计入
 
@@ -131,7 +200,9 @@
 **我希望** 被删除的 AI 生成代码行同时从分子和分母中消失，
 **以便** 结果只反映当前仍然存活的变更源码快照。
 
-#### US-4 验收标准
+说明：该故事应视为共享的存活快照排除故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-4 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 某些较早的 AI 归因代码在 `endTime` 时已不存在于该分支状态中
@@ -141,9 +212,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us4_deleted_lines_excluded`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-4` 的算法路径
+   **WHEN** 该路径针对批准的 `US-4` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-4 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us4_deleted_lines_excluded`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-4 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-4` 相同删除排除契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-4` 的共享验收标准，而不能把已删除代码计入最终结果
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-4`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-4` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-5：重命名必须保留归因谱系
 
@@ -151,7 +238,9 @@
 **我希望** 当文件只发生重命名或移动而内容未变时，行归因能够被保留，
 **以便** 最终的存活变更源码 AI 占比不会因为仅路径层面的历史变化而失真。
 
-#### US-5 验收标准
+说明：该故事应视为共享的谱系保留故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-5 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 文件在 `endTime` 前发生了重命名或移动，但未改变其有效内容贡献
@@ -161,9 +250,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us5_rename_preserves_lineage`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-5` 的算法路径
+   **WHEN** 该路径针对批准的 `US-5` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-5 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us5_rename_preserves_lineage`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-5 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-5` 相同重命名保留谱系契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-5` 的共享验收标准，且不能让纯路径变化扭曲归因
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-5`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-5` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-6：计算请求时间段内新增 AI 代码的占比
 
@@ -217,7 +322,9 @@
 **我希望** 一个请求窗口能够正确处理跨多个提交的混合行历史，
 **以便** 当人工代码、AI 代码、人工后被 AI 重写、AI 后被人工重写，以及已删除 AI 代码同时出现在同一时间段时，最终结果仍然正确。
 
-#### US-7 验收标准
+说明：该故事应视为共享的混合历史故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-7 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 该窗口内的多个提交在不同存活代码行上包含混合的归属转换
@@ -227,9 +334,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us7_mixed_multi_commit_window`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-7` 的算法路径
+   **WHEN** 该路径针对批准的 `US-7` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-7 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us7_mixed_multi_commit_window`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-7 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-7` 相同混合历史存活结果契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-7` 的共享验收标准，而不能把中间已被覆盖的归属泄漏到最终结果中
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-7`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-7` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-8：Merge 提交必须保留有效归因
 
@@ -237,7 +360,9 @@
 **我希望** 分支合并后的内容仍然保留存活代码行的有效归因，
 **以便** merge 操作不会把整批代码行错误地重置到 merge commit 本身。
 
-#### US-8 验收标准
+说明：该故事应视为共享的 merge 语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+
+#### US-8 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 某个 merge commit 在 `endTime` 前汇合了较早的人类变更与 AI 归因变更
@@ -247,9 +372,25 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us8_merge_commit_preserves_attribution`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-8` 的算法路径
+   **WHEN** 该路径针对批准的 `US-8` 场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-8 的 Algorithm A 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us8_merge_commit_preserves_attribution`
+   **WHEN** 当前 `Algorithm A` 实现产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+
+#### US-8 的 Algorithm B 验收轨道
+
+1. **GIVEN** 一个未来声明支持与 `US-8` 相同 merge 保留归因契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-8` 的共享验收标准，而不能把合并后的行塌缩到 merge commit 或分支身份上
+
+2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-8`
+   **WHEN** 讨论收敛路线时
+   **THEN** `US-8` 仍必须被视为当前仅由 `Algorithm A` 证明
 
 ### US-9：Git 与 SVN 必须遵循相同的结果契约
 
@@ -257,7 +398,9 @@
 **我希望** 对于当前主指标，Git 与 SVN 目标遵循相同的查询/结果契约，
 **以便** 切换 VCS 类型时，不会改变指标语义或输出结构。
 
-#### US-9 验收标准
+说明：这是一个首先按 VCS 目标拆分的共享契约故事。当前仓库通过 `Algorithm A` 拥有 Git/SVN 一致性证据，但还没有双算法收敛证据。
+
+#### US-9 共享验收标准
 
 1. **GIVEN** 以受支持 VCS 目标表示的等价仓库历史，以及一个请求时间段 `startTime~endTime`
    **WHEN** 用户请求当前主指标
@@ -267,6 +410,28 @@
    **WHEN** 结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us9_svn_contract_parity`
-   **WHEN** 分析器产出最终结果
-   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
+3. **GIVEN** 任一受支持且声称满足 `US-9` 的 VCS 路径
+   **WHEN** 该路径针对批准的一致性场景进行验证
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-9 的 Git 验收轨道
+
+1. **GIVEN** 当前主指标的 Git 路径
+   **WHEN** 它通过基线存活快照场景进行验证
+   **THEN** 它应构成 `US-9` 一致性契约的一侧，并定义需要被匹配的 Git 可观察结果语义
+
+#### US-9 的 SVN 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us9_svn_contract_parity`
+   **WHEN** 当前 SVN 路径产出最终结果
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致，并保持 `US-9` 的共享契约
+
+2. **GIVEN** VCS 特定的路径历史或 blame 差异
+   **WHEN** 为 SVN 设计一致性验证场景
+   **THEN** 可以使用可辩护的 SVN 特定仓库形态，只要外部可观察结果契约保持一致
+
+#### US-9 的算法收敛说明
+
+1. **GIVEN** 一个未来声明支持与 `US-9` 相同跨 VCS 一致性契约的 `Algorithm B` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它应建立在现有 Git/SVN 拆分之上，而不是替代当前 VCS-first 的验收结构

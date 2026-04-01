@@ -40,6 +40,9 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - Shared acceptance criteria should cover the observable contract that must remain true regardless of whether `Algorithm A` or `Algorithm B` satisfies the story.
 - Algorithm-specific acceptance tracks should be used only where support boundaries, edge-case semantics, or runtime constraints differ between `Algorithm A` and `Algorithm B`.
 - If only one algorithm is currently implemented for a shared story, the other algorithm-specific track may still be documented as planned, but it must not be treated as current acceptance evidence.
+- For the current convergence plan, `US-6` is the first active shared story with executable dual-track intent. The other shared-story candidates should be converted one by one, keeping `Algorithm A` as current evidence until each `Algorithm B` track is implemented and proven.
+- Some stories are shared primarily across VCS targets rather than across algorithms. In those cases, the first acceptance split should be Git vs SVN, while algorithm-specific tracks stay planned until both algorithms are real contenders for the same observable contract.
+- `US-13` and `US-14` are intentionally treated as `Heavy` production gates. They are important acceptance items, but they should not be used as the template for ordinary shared functional stories.
 
 ## Verification Tiers
 
@@ -49,20 +52,28 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`, `Fast`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`, `Fast`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`, `Fast`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`, `Fast`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`, `Fast`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
 - `US-6` -> `testdata/us6_period_added_ratio` (`Shared US`, current executable path is `Algorithm B`, `Fast`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`, `Fast`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`, `Fast`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`, `Fast`)
-- `US-10` -> `testdata/us10_large_repository_snapshot` (`Algorithm A`, `Fast`)
-- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Algorithm A`, `Fast`)
-- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Algorithm A`, `Fast`)
-- `US-13` -> production-scale Git local repository gate (`Algorithm A`, `Heavy`, daily integration candidate)
-- `US-14` -> production-scale SVN local repository gate (`Algorithm A`, `Heavy`, daily integration candidate)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Shared contract story`, current active evidence is Git/SVN parity through `Algorithm A`, `Fast`)
+- `US-10` -> `testdata/us10_large_repository_snapshot` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-13` -> production-scale Git local repository gate (`Heavy gate`, current active evidence is `Algorithm A`, daily integration candidate)
+- `US-14` -> production-scale SVN local repository gate (`Heavy gate`, current active evidence is `Algorithm A`, daily integration candidate)
+
+## Shared-US Convergence Order
+
+- `Step 1`: keep `US-6` as the first active shared story and make the current `Algorithm B` baseline defensible before broadening its support claim.
+- `Step 2`: convert the current live-snapshot contract stories one by one into shared stories, while keeping `Algorithm A` as the only current acceptance evidence until each matching `Algorithm B` path exists.
+- `Step 3`: prefer this conversion order for the current primary metric: `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, `US-12`.
+- `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. Add algorithm-specific convergence only after both algorithms can credibly target the same VCS-parity contract.
+- `Step 5`: keep `US-13` and `US-14` as `Heavy` production gates rather than forcing them into the ordinary shared-story pattern.
 
 ## Algorithm-B TDD Roadmap
 
@@ -95,7 +106,9 @@ Recommended future scenario names:
 **I want** to calculate the weighted AI ratio for live source code lines whose current version falls in a requested period `startTime~endTime`,
 **so that** I can know how much of the current live changed source code is attributable to AI.
 
-#### Acceptance Criteria For US-1
+Note: this should be treated as a shared live-snapshot contract story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-1
 
 1. **GIVEN** a query `Repo:Branch:startTime:endTime`
    **WHEN** the user requests the AI code ratio
@@ -109,9 +122,29 @@ Recommended future scenario names:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-4. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio`
-   **WHEN** the analyzer produces the final result
+4. **GIVEN** an algorithm-specific path that claims support for `US-1`
+   **WHEN** that path is validated against an approved `US-1` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-1
+
+1. **GIVEN** the fixture `testdata/us1_live_changed_source_ratio`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+2. **GIVEN** the supplementary SVN parity fixture `testdata/us1_live_changed_source_ratio_svn`
+   **WHEN** the current `Algorithm A` implementation is exercised against the same baseline metric on SVN
+   **THEN** the observable contract must remain aligned with the `US-1` shared acceptance criteria
+
+#### Algorithm B Acceptance Track For US-1
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same live-snapshot metric as `US-1`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-1` acceptance criteria without weakening the result contract
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-1` exists today
+   **WHEN** roadmap or architecture discussions mention future convergence
+   **THEN** `US-1` must still be treated as `Algorithm A`-only evidence until a real `Algorithm B` scenario is added and proven
 
 ### US-2: Human Rewrite Removes Prior AI Attribution
 
@@ -119,7 +152,9 @@ Recommended future scenario names:
 **I want** a human rewrite of a previously AI-generated line to reset attribution to the newer human revision,
 **so that** old AI ownership does not remain attached to overwritten code.
 
-#### Acceptance Criteria For US-2
+Note: this should be treated as a shared overwrite-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-2
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** code previously attributed to AI has been superseded by later human revisions before `endTime`
@@ -129,9 +164,25 @@ Recommended future scenario names:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us2_human_overwrites_ai_live_changed`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-2`
+   **WHEN** that path is validated against an approved `US-2` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-2
+
+1. **GIVEN** the fixture `testdata/us2_human_overwrites_ai_live_changed`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-2
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same overwrite-reset contract as `US-2`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-2` acceptance criteria without preserving stale AI ownership
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-2` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-2` must remain current `Algorithm A` evidence only
 
 ### US-3: AI Rewrite Replaces Prior Human Ownership
 
@@ -139,7 +190,9 @@ Recommended future scenario names:
 **I want** a later AI rewrite of a human line to become the effective attribution source,
 **so that** the live changed source code at `endTime` reflects the latest AI contribution.
 
-#### Acceptance Criteria For US-3
+Note: this should be treated as a shared overwrite-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-3
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** later revisions introduce new AI-attributed code before `endTime`
@@ -149,9 +202,25 @@ Recommended future scenario names:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us3_ai_overwrites_human_live_changed`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-3`
+   **WHEN** that path is validated against an approved `US-3` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-3
+
+1. **GIVEN** the fixture `testdata/us3_ai_overwrites_human_live_changed`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-3
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same overwrite-takes-ownership contract as `US-3`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-3` acceptance criteria without weakening the final live-result semantics
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-3` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-3` must remain current `Algorithm A` evidence only
 
 ### US-4: Deleted AI Lines Must Not Count
 
@@ -159,7 +228,9 @@ Recommended future scenario names:
 **I want** deleted AI-generated lines to disappear from both numerator and denominator,
 **so that** the result reflects only the current live changed source code snapshot.
 
-#### Acceptance Criteria For US-4
+Note: this should be treated as a shared live-snapshot exclusion story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-4
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** some earlier AI-attributed code no longer exists in the branch state at `endTime`
@@ -169,9 +240,25 @@ Recommended future scenario names:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us4_deleted_lines_excluded`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-4`
+   **WHEN** that path is validated against an approved `US-4` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-4
+
+1. **GIVEN** the fixture `testdata/us4_deleted_lines_excluded`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-4
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same deleted-lines exclusion contract as `US-4`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-4` acceptance criteria without counting deleted code in the final result
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-4` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-4` must remain current `Algorithm A` evidence only
 
 ### US-5: Rename Must Preserve Attribution Lineage
 
@@ -179,7 +266,9 @@ Recommended future scenario names:
 **I want** file rename or move operations to preserve line attribution when content does not change,
 **so that** the final live changed source code ratio is not distorted by path-only history changes.
 
-#### Acceptance Criteria For US-5
+Note: this should be treated as a shared lineage-preservation story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-5
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** files are renamed or moved before `endTime` without changing their effective content contribution
@@ -189,9 +278,25 @@ Recommended future scenario names:
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us5_rename_preserves_lineage`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-5`
+   **WHEN** that path is validated against an approved `US-5` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-5
+
+1. **GIVEN** the fixture `testdata/us5_rename_preserves_lineage`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-5
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same rename-preserves-lineage contract as `US-5`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-5` acceptance criteria without letting path-only changes distort attribution
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-5` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-5` must remain current `Algorithm A` evidence only
 
 ### US-6: Calculate AI-Added Ratio During The Requested Period
 
@@ -245,7 +350,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** one requested window to correctly resolve mixed line histories across many commits,
 **so that** the final result remains correct when human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines all appear in the same period.
 
-#### Acceptance Criteria For US-7
+Note: this should be treated as a shared mixed-history story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-7
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** multiple commits inside that window contain mixed ownership transitions across different live lines
@@ -259,9 +366,25 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-4. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window`
-   **WHEN** the analyzer produces the final result
+4. **GIVEN** an algorithm-specific path that claims support for `US-7`
+   **WHEN** that path is validated against an approved `US-7` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-7
+
+1. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-7
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same mixed-history live-result contract as `US-7`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-7` acceptance criteria without leaking superseded intermediate ownership into the final result
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-7` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-7` must remain current `Algorithm A` evidence only
 
 ### US-8: Merge Commit Must Preserve Effective Attribution
 
@@ -269,7 +392,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** merged branch content to preserve the effective attribution of surviving lines,
 **so that** a merge operation does not incorrectly reset line ownership to the merge commit itself.
 
-#### Acceptance Criteria For US-8
+Note: this should be treated as a shared merge-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-8
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** a merge commit brings together earlier human and AI-attributed changes before `endTime`
@@ -283,9 +408,25 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-4. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution`
-   **WHEN** the analyzer produces the final result
+4. **GIVEN** an algorithm-specific path that claims support for `US-8`
+   **WHEN** that path is validated against an approved `US-8` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-8
+
+1. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-8
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same merge-preserves-attribution contract as `US-8`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-8` acceptance criteria without collapsing merged lines to merge commits or branch identity alone
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-8` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-8` must remain current `Algorithm A` evidence only
 
 ### US-9: Git And SVN Must Follow The Same Result Contract
 
@@ -293,7 +434,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** Git and SVN targets to follow the same query/result contract for the current primary metric,
 **so that** changing VCS type does not change the metric semantics or output structure.
 
-#### Acceptance Criteria For US-9
+Note: this is a shared contract story whose first explicit split is by VCS target. The current repository has Git/SVN acceptance evidence through `Algorithm A`, but it does not yet have dual-algorithm convergence evidence.
+
+#### Shared Acceptance Criteria For US-9
 
 1. **GIVEN** equivalent repository history represented in a supported VCS target and a requested period `startTime~endTime`
    **WHEN** the user requests the current primary metric
@@ -303,9 +446,31 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us9_svn_contract_parity`
-   **WHEN** the analyzer produces the final result
-   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+3. **GIVEN** a supported VCS-specific path that claims support for `US-9`
+   **WHEN** that path is validated against an approved parity scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Git Acceptance Track For US-9
+
+1. **GIVEN** the current Git path for the primary metric
+   **WHEN** it is validated through the baseline live-snapshot scenarios
+   **THEN** it acts as one side of the `US-9` parity contract and defines the observable Git result semantics to be matched
+
+#### SVN Acceptance Track For US-9
+
+1. **GIVEN** the fixture `testdata/us9_svn_contract_parity`
+   **WHEN** the current SVN path produces the final result
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json` while preserving the shared `US-9` contract
+
+2. **GIVEN** VCS-specific path-history or blame differences
+   **WHEN** SVN scenarios are designed for parity validation
+   **THEN** they may use defensible SVN-specific repository shapes as long as the observable result contract remains the same
+
+#### Algorithm Convergence Note For US-9
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same cross-VCS parity contract as `US-9`
+   **WHEN** that path is introduced
+   **THEN** it must be added on top of the Git/SVN split rather than replacing the current VCS-first acceptance structure
 
 ### US-10: Large Repository Snapshot Must Preserve Result Semantics
 
@@ -313,7 +478,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** the analyzer to keep the same result semantics when the repository contains many source files and many live lines,
 **so that** the final aggregate result remains correct for realistic large codebases.
 
-#### Acceptance Criteria For US-10
+Note: this should be treated as a shared scale-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-10
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** the final live snapshot at `endTime` spans many source files and many live code lines
@@ -323,9 +490,25 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the analyzer aggregates the result
    **THEN** file count or repository size must not change the per-line attribution rules, the repository identity rules, or the meaning of the final `SUMMARY` fields
 
-3. **GIVEN** the fixture `testdata/us10_large_repository_snapshot`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-10`
+   **WHEN** that path is validated against an approved `US-10` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-10
+
+1. **GIVEN** the fixture `testdata/us10_large_repository_snapshot`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-10
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same large-snapshot observable contract as `US-10`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-10` acceptance criteria without changing the meaning of the final `SUMMARY` fields
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-10` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-10` must remain current `Algorithm A` evidence only
 
 ### US-11: Deep History Must Preserve Latest Effective Attribution
 
@@ -333,7 +516,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** long revision chains to preserve the latest effective attribution of each surviving line,
 **so that** many intermediate rewrites do not distort the final live result.
 
-#### Acceptance Criteria For US-11
+Note: this should be treated as a shared deep-history story. The current repository has acceptance evidence only on the `Algorithm A` side.
+
+#### Shared Acceptance Criteria For US-11
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** the in-scope live lines at `endTime` depend on long revision chains with many intermediate rewrites
@@ -343,9 +528,25 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** long history chains contain both human-to-AI and AI-to-human transitions before `endTime`
    **THEN** deleted or superseded intermediate states must not leak into the final aggregate result
 
-3. **GIVEN** the fixture `testdata/us11_deep_history_preserves_attribution`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-11`
+   **WHEN** that path is validated against an approved `US-11` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-11
+
+1. **GIVEN** the fixture `testdata/us11_deep_history_preserves_attribution`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+#### Algorithm B Acceptance Track For US-11
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same deep-history live-result contract as `US-11`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-11` acceptance criteria without letting superseded intermediate states leak into the final result
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-11` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-11` must remain current `Algorithm A` evidence only
 
 ### US-12: Many Merged Branches In One Window Must Preserve Per-Line Attribution
 
@@ -353,7 +554,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** branch-heavy history inside one requested window to preserve per-line effective attribution,
 **so that** integrating many feature branches into the target branch does not distort the final result.
 
-#### Acceptance Criteria For US-12
+Note: this should be treated as a shared branch-heavy story. The current repository has acceptance evidence only on the `Algorithm A` side, and SVN parity for the same broad claim may require a defensible analogue rather than a literal Git port.
+
+#### Shared Acceptance Criteria For US-12
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** many branches are merged into the target branch before `endTime`
@@ -363,9 +566,33 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** surviving lines originate from different merged branches with different effective attribution histories
    **THEN** the system must preserve the effective attribution of each surviving line independently and must not flatten ownership to merge commits, branch labels, or merge order alone
 
-3. **GIVEN** the fixture `testdata/us12_many_merged_branches_preserve_attribution`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific path that claims support for `US-12`
+   **WHEN** that path is validated against an approved `US-12` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-12
+
+1. **GIVEN** the fixture `testdata/us12_many_merged_branches_preserve_attribution`
+   **WHEN** the current `Algorithm A` implementation produces the final result
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
+
+2. **GIVEN** SVN branch-heavy parity for the same broad contract
+   **WHEN** real SVN blame semantics make a literal same-file Git port misleading
+   **THEN** a defensible SVN-specific analogue may be used instead, as long as the shared `US-12` observable contract is preserved
+
+#### Algorithm B Acceptance Track For US-12
+
+1. **GIVEN** a future `Algorithm B` path that claims support for the same branch-heavy live-result contract as `US-12`
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-12` acceptance criteria without flattening ownership to merge order, merge commits, or branch labels alone
+
+2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-12` exists today
+   **WHEN** convergence planning is discussed
+   **THEN** `US-12` must remain current `Algorithm A` evidence only
+
+## Heavy Production Gates
+
+The following items are intentionally treated as `Heavy` production gates rather than ordinary shared functional stories. They should remain explicit operational acceptance targets while shared-story convergence proceeds first on `US-6` and the smaller `Fast` stories.
 
 ### US-13: Git Production-Scale Local Repository Must Stay Correct Under Branch-Heavy Release Convergence
 
