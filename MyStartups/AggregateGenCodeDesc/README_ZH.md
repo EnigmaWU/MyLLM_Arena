@@ -15,6 +15,7 @@
 ## ======>>>相关文档<<<======
 
 - 用户故事与验收标准：`README_UserStory.md`
+- 共享故事收敛路线图：`README_SharedUS_Convergence.md`
 - 架构设计：`README_ArchDesign.md`
 - 测试运行指南：`README_RunTestCase.md`
 - 基于场景的测试夹具：`testdata/`

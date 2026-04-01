@@ -75,6 +75,8 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. Add algorithm-specific convergence only after both algorithms can credibly target the same VCS-parity contract.
 - `Step 5`: keep `US-13` and `US-14` as `Heavy` production gates rather than forcing them into the ordinary shared-story pattern.
 
+The executable phase-by-phase roadmap for this sequence is documented in `README_SharedUS_Convergence.md`.
+
 ## Algorithm-B TDD Roadmap
 
 The current repository has only one explicit Algorithm-B story today: `US-6`.
