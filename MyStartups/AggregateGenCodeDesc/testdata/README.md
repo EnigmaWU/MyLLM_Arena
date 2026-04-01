@@ -19,7 +19,7 @@ For `Algorithm B`, the fixture contract is stricter:
 
 ## Scenarios
 
-- `us1_live_changed_source_ratio` (`Shared US`, current active evidence is `Algorithm A` plus a narrow `Algorithm B` Git live-snapshot path): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
+- `us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` currently covers only a narrow Git live-snapshot path): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
 - `us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later human rewrite resets one live changed line to `0`, expected `66.67%`
 - `us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
 - `us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`): deleted lines are excluded from the live changed snapshot, expected `100%`
@@ -46,9 +46,9 @@ For `Algorithm B`, the fixture contract is stricter:
 ## Algorithm Mapping
 
 - `Algorithm A`: current active evidence for the primary live-snapshot metric and the present production gates
-- `Algorithm B`: current active evidence for the narrow `US-6` period-contribution baseline and a narrow Git live-snapshot `US-1` baseline; broader shared-story convergence remains planned
+- `Algorithm B`: current active evidence for the narrow `US-6` period-contribution baseline and a narrow Git live-snapshot `US-1` baseline; broader Git/SVN production convergence remains planned
 - Current convergence interpretation in `testdata`:
-  - `US-1` is the first primary-metric shared story with accepted `Algorithm A` evidence plus a narrow `Algorithm B` Git live-snapshot acceptance slice
+  - `US-1` is the first primary-metric shared story with explicit matrix tracking; today `Algorithm A` covers Git and SVN, while `Algorithm B` covers only a narrow Git live-snapshot acceptance slice
   - `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12` are shared stories with current active evidence on the `Algorithm A` side
   - `US-9` is a shared contract story whose current active evidence is Git/SVN parity through `Algorithm A`
   - `US-6` is the first shared story with an executable `Algorithm B` acceptance track

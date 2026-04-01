@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the concrete execution path from the current `US-6` baseline to the long-term target where every shared user story has defensible acceptance coverage for both `Algorithm A` and `Algorithm B`.
+This document defines the concrete execution path from the current `US-6` baseline to the long-term target where every shared user story has defensible acceptance coverage across the full production matrix: `Algorithm A` and `Algorithm B`, each on both Git and SVN, unless an explicitly approved unsupported subset is documented.
 
 It is intentionally not a pure idea list. Each phase below names the specific contract goal, the required implementation slice, the expected test artifacts, and the exit condition for moving to the next story.
 
@@ -16,20 +16,22 @@ It is intentionally not a pure idea list. Each phase below names the specific co
 
 ## Non-Negotiable Rule
 
-For a shared story to count as covered by both algorithms, all of the following must exist:
+For a shared story to count as production-ready shared coverage, all of the following must exist:
 
-1. One approved `Algorithm A` acceptance path.
-2. One approved `Algorithm B` acceptance path.
-3. Matching observable result semantics at the shared-story level.
-4. Clear unsupported-case boundaries for each algorithm where needed.
-5. Automated tests or fixture validation that prevent silent contract drift.
+1. One approved `Algorithm A` Git acceptance path.
+2. One approved `Algorithm A` SVN acceptance path, or an explicitly approved unsupported subset.
+3. One approved `Algorithm B` Git acceptance path.
+4. One approved `Algorithm B` SVN acceptance path, or an explicitly approved unsupported subset.
+5. Matching observable result semantics at the shared-story level across all claimed supported cells.
+6. Clear unsupported-case boundaries for each algorithm and VCS combination where needed.
+7. Automated tests or fixture validation that prevent silent contract drift.
 
 ## Convergence Strategy
 
 The work should proceed in two layers:
 
 1. Build the missing reusable `Algorithm B` live-snapshot engine for the primary metric family.
-2. Use that engine to bring each shared story into dual-algorithm acceptance one by one.
+2. Use that engine to bring each shared story into full matrix coverage one story at a time.
 
 This matters because `US-6` is a period-contribution metric, while most other shared stories are live-snapshot metrics. Without a reusable `Algorithm B` live-snapshot path, story-by-story convergence will turn into ad hoc special cases.
 
@@ -80,24 +82,28 @@ The main shared stories after `US-6` are not period-contribution stories. They a
 
 ### Phase 2 Goal
 
-Make `US-1` the first primary-metric shared story that is covered by both `Algorithm A` and a defensible narrow `Algorithm B` live-snapshot path.
+Make `US-1` the first primary-metric shared story that starts moving from dual-algorithm intent toward the full 2x2 production matrix.
 
 ### Phase 2 Required Work
 
 1. Reuse the existing `US-1` golden result as the shared contract target.
-2. Add an `Algorithm B` acceptance path for the same `US-1` observable semantics.
-3. Keep the current supplementary SVN parity evidence as `Algorithm A` evidence only unless and until `Algorithm B` can credibly target the same VCS shape.
-4. Keep the current `Algorithm B` support claim narrow: approved baseline fixture shape, Git, live-snapshot replay, and explicit unsupported topology boundaries.
+2. Keep the existing `Algorithm A` Git and `Algorithm A` SVN evidence aligned to one shared `US-1` contract.
+3. Add an `Algorithm B` Git acceptance path for the same `US-1` observable semantics.
+4. Add an `Algorithm B` SVN acceptance path only when the replay semantics are defensible under real SVN behavior.
+5. Until the full 2x2 matrix exists, keep every missing cell explicit rather than implying production convergence.
+6. Keep the current `Algorithm B` support claim narrow where the implementation is still narrow: approved baseline fixture shape, Git, live-snapshot replay, and explicit unsupported topology boundaries.
 
 ### Phase 2 Required Tests
 
-1. One `Algorithm B` fixture-driven acceptance test for `US-1`.
-2. One explicit parity test that runs both algorithms against the approved `US-1` contract and compares output semantics.
-3. One unsupported-case test if the first `Algorithm B` slice does not yet support all history topologies that `Algorithm A` handles.
+1. One `Algorithm B` Git fixture-driven acceptance test for `US-1`.
+2. One explicit parity test that runs both algorithms against the approved Git `US-1` contract and compares output semantics.
+3. One `Algorithm B` SVN acceptance test once a defensible SVN slice exists.
+4. One matrix-style assertion that the claimed supported `US-1` cells all satisfy the same observable contract.
+5. One unsupported-case test for every missing or intentionally rejected matrix cell.
 
 ### Phase 2 Exit Condition
 
-- `US-1` is the first live-snapshot story with approved `Algorithm A` evidence and a narrow approved `Algorithm B` Git live-snapshot acceptance slice.
+- `US-1` has explicit matrix accounting: `Algorithm A` Git, `Algorithm A` SVN, `Algorithm B` Git, and `Algorithm B` SVN are each either approved or explicitly documented as unsupported.
 
 ## Phase 3: Rewrite And Deletion Cluster
 
@@ -210,13 +216,14 @@ Scale and long history should validate a mature engine, not define one.
 
 ### Phase 7 Goal
 
-Only after the primary shared stories are dual-covered should `US-9` be extended from VCS parity to algorithm-plus-VCS parity.
+Only after the primary shared stories are close to full matrix coverage should `US-9` be extended from VCS parity to algorithm-plus-VCS parity.
 
 ### Phase 7 Required Work
 
 1. Keep the existing VCS-first structure.
-2. Add `Algorithm B` evidence separately for Git and only then for any defensible SVN subset.
+2. Add `Algorithm B` evidence separately for Git and then for SVN when the SVN replay semantics are actually defensible.
 3. Do not claim `Algorithm B` SVN parity unless the replay semantics are actually supportable under real SVN history behavior.
+4. Use `US-9` as the explicit contract check that a shared story is not production-ready until the claimed Git/SVN cells behave the same way at the result-contract layer.
 
 ### Phase 7 Exit Condition
 
@@ -234,17 +241,19 @@ If the repo advances one concrete milestone at a time, the recommended order is:
 
 1. Keep `US-6` stable.
 2. Build `Algorithm B` live-snapshot foundation.
-3. Dual-cover `US-1`.
-4. Dual-cover `US-2`, `US-3`, `US-4`.
-5. Dual-cover `US-5`, `US-7`.
-6. Dual-cover `US-8`, `US-12`.
-7. Dual-cover `US-10`, `US-11`.
-8. Extend `US-9` from VCS parity to algorithm-plus-VCS parity where defensible.
+3. Make the `US-1` matrix explicit and fill `Algorithm B` Git first.
+4. Add `Algorithm B` SVN for `US-1` if the semantics are defensible enough for production claims.
+5. Extend the same matrix discipline to `US-2`, `US-3`, `US-4`.
+6. Extend it to `US-5`, `US-7`.
+7. Extend it to `US-8`, `US-12`.
+8. Extend it to `US-10`, `US-11`.
+9. Extend `US-9` from VCS parity to algorithm-plus-VCS parity where defensible.
 
 ## Done Criteria For The Long-Term Goal
 
 The shared-story convergence goal is complete only when:
 
-1. `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-6`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12` each have accepted evidence for both `Algorithm A` and `Algorithm B`.
-2. `US-9` has explicit, defensible parity coverage for the supported algorithm and VCS combinations.
-3. Unsupported combinations remain documented rather than being silently implied.
+1. `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-6`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12` each have explicit matrix accounting across `Algorithm A`/`Algorithm B` and Git/SVN.
+2. Every claimed supported matrix cell has accepted evidence and matching observable result semantics.
+3. `US-9` has explicit, defensible parity coverage for the supported algorithm and VCS combinations.
+4. Unsupported combinations remain documented rather than being silently implied.

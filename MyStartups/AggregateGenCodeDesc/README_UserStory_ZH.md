@@ -35,10 +35,11 @@
 ## 故事结构
 
 - 共享的 `US` 应描述业务需求和用户可见结果，而不绑定到某一种实现算法。
-- 共享验收标准应覆盖无论由 `Algorithm A` 还是 `Algorithm B` 满足时都必须成立的可观察契约。
+- 共享验收标准应覆盖无论由 `Algorithm A` 还是 `Algorithm B` 满足、以及无论目标是 Git 还是 SVN 时都必须成立的可观察契约。
 - 只有当 `Algorithm A` 与 `Algorithm B` 在支持边界、边缘语义或运行约束上不一致时，才应该拆出算法专属验收轨道。
-- 如果某个共享故事当前只由一种算法实现，则另一种算法的验收轨道可以先以规划形式存在，但不能被当作当前已验证的验收证据。
+- 如果某个共享故事当前只覆盖了部分算法或部分 VCS 组合，则缺失的矩阵单元可以先以规划形式存在，但不能被当作当前已验证的验收证据。
 - 对当前收敛计划而言，`US-6` 是第一个真正进入双轨收敛的共享故事。其它共享候选故事应逐个转换，在对应 `Algorithm B` 路径真正落地前，继续把 `Algorithm A` 作为当前验收证据。
+- 对生产就绪声明而言，除非明确批准并记录了不支持的子集，否则共享故事在算法与 VCS 两个维度上的支持矩阵没有补齐前，都不能算真正完成。
 - 有些共享故事首先是跨 VCS 共享，而不是先跨算法共享。在这种情况下，第一层验收拆分应优先是 Git 与 SVN，而算法专属轨道仍保留为规划状态。
 - `US-13` 与 `US-14` 应继续被视为 `Heavy` 生产 gate，而不是普通共享功能故事的模板。
 
@@ -50,7 +51,7 @@
 
 ## 场景映射
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前有效证据是 `Algorithm A` 加上一条狭义的 `Algorithm B` Git 存活快照路径，`Fast`）
+- `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前矩阵状态：`Algorithm A` 覆盖 Git 与 SVN，`Algorithm B` 目前只覆盖一条狭义的 Git 存活快照路径，`Fast`）
 - `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
 - `US-4` -> `testdata/us4_deleted_lines_excluded`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）

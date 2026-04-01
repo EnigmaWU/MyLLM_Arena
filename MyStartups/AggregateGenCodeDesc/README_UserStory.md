@@ -37,10 +37,11 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 ## Story Structure
 
 - A shared `US` should describe the business requirement and expected user-visible outcome, independent of implementation strategy.
-- Shared acceptance criteria should cover the observable contract that must remain true regardless of whether `Algorithm A` or `Algorithm B` satisfies the story.
+- Shared acceptance criteria should cover the observable contract that must remain true regardless of whether `Algorithm A` or `Algorithm B` satisfies the story, and regardless of whether the supported target is Git or SVN.
 - Algorithm-specific acceptance tracks should be used only where support boundaries, edge-case semantics, or runtime constraints differ between `Algorithm A` and `Algorithm B`.
-- If only one algorithm is currently implemented for a shared story, the other algorithm-specific track may still be documented as planned, but it must not be treated as current acceptance evidence.
+- If only one algorithm or one VCS cell is currently implemented for a shared story, the missing matrix cells may still be documented as planned, but they must not be treated as current acceptance evidence.
 - For the current convergence plan, `US-6` is the first active shared story with executable dual-track intent. The other shared-story candidates should be converted one by one, keeping `Algorithm A` as current evidence until each `Algorithm B` track is implemented and proven.
+- For production-ready claims, a shared story is not complete until the claimed support matrix is explicit across both algorithms and both VCS targets, unless an unsupported subset is deliberately approved and documented.
 - Some stories are shared primarily across VCS targets rather than across algorithms. In those cases, the first acceptance split should be Git vs SVN, while algorithm-specific tracks stay planned until both algorithms are real contenders for the same observable contract.
 - `US-13` and `US-14` are intentionally treated as `Heavy` production gates. They are important acceptance items, but they should not be used as the template for ordinary shared functional stories.
 
@@ -52,7 +53,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current active evidence is `Algorithm A` plus a narrow `Algorithm B` Git live-snapshot path, `Fast`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` currently covers only a narrow Git live-snapshot path, `Fast`)
 - `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
 - `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
 - `US-4` -> `testdata/us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
@@ -75,7 +76,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. Add algorithm-specific convergence only after both algorithms can credibly target the same VCS-parity contract.
 - `Step 5`: keep `US-13` and `US-14` as `Heavy` production gates rather than forcing them into the ordinary shared-story pattern.
 
-The executable phase-by-phase roadmap for this sequence is documented in `README_SharedUS_Convergence.md`.
+The executable phase-by-phase roadmap for this sequence is documented in `README_SharedUS_Convergence.md`. For production-ready shared-story claims, the target is the full `Algorithm A`/`Algorithm B` x Git/SVN matrix unless an unsupported subset is explicitly accepted.
 
 ## Algorithm-B TDD Roadmap
 
