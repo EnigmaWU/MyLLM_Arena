@@ -1,0 +1,8 @@
+diff --git a/src/calc.py b/src/calc.py
+--- /dev/null
++++ b/src/calc.py
+@@ -0,0 +1,4 @@
++def calc(x):
++    value = x + 1
++    boosted = value * 2
++    return boosted

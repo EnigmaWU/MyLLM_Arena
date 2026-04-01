@@ -462,7 +462,7 @@ def apply_commit_diff_file_to_line_states(
     line_offset = 0
 
     for hunk in commit_diff_file.hunks:
-        insertion_index = hunk.old_start - 1 + line_offset
+        insertion_index = (0 if hunk.old_start == 0 else hunk.old_start - 1) + line_offset
         if insertion_index < 0 or insertion_index > len(updated_lines):
             raise ProtocolValidationError(
                 f"Commit diff hunk starts outside current file bounds for {commit_diff_file.new_path}: {hunk.old_start}"
@@ -515,6 +515,13 @@ def summarize_period_added_line_states(
     line_states: list[LineState],
     included_revision_ids: list[str],
 ) -> dict[str, int]:
+    return summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids)
+
+
+def summarize_live_changed_line_states_by_revision_ids(
+    line_states: list[LineState],
+    included_revision_ids: list[str],
+) -> dict[str, int]:
     included_revision_id_set = set(included_revision_ids)
     total_code_lines = 0
     full_generated_code_lines = 0
@@ -556,9 +563,9 @@ def reconstruct_base_line_states_from_patch(commit_diff_file: CommitDiffFile) ->
         )
 
     first_hunk = commit_diff_file.hunks[0]
-    if first_hunk.old_start != 1:
+    if first_hunk.old_start not in {0, 1}:
         raise UnsupportedConfigurationError(
-            "Current Algorithm B offline slice only supports first-patch base reconstruction starting at line 1"
+            "Current Algorithm B offline slice only supports first-patch base reconstruction starting at line 1 or from an empty file"
         )
 
     base_lines: list[LineState] = []
@@ -566,6 +573,84 @@ def reconstruct_base_line_states_from_patch(commit_diff_file: CommitDiffFile) ->
         if diff_line.kind in {"context", "delete"}:
             base_lines.append(LineState(content=diff_line.content, origin_revision_id=None, gen_ratio=0))
     return base_lines
+
+
+def reconstruct_final_line_states_from_commit_diff_sequence(
+    commit_diff_sequence: list[RevisionCommitDiff],
+    protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
+) -> tuple[str, list[LineState]]:
+    if not commit_diff_sequence:
+        raise ProtocolValidationError("Algorithm B replay requires at least one replayable commit diff patch")
+
+    first_patch_files = commit_diff_sequence[0].parsed_patch.files
+    if len(first_patch_files) != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports a single file in the first patch sequence"
+        )
+
+    target_file = first_patch_files[0].new_path
+    current_lines = reconstruct_base_line_states_from_patch(first_patch_files[0])
+
+    for revision_diff in commit_diff_sequence:
+        if len(revision_diff.parsed_patch.files) != 1:
+            raise UnsupportedConfigurationError(
+                "Current Algorithm B offline slice only supports one changed file per revision patch"
+            )
+
+        commit_diff_file = revision_diff.parsed_patch.files[0]
+        if commit_diff_file.new_path != target_file:
+            raise UnsupportedConfigurationError(
+                "Current Algorithm B offline slice only supports a single replayed file path across the diff sequence"
+            )
+
+        protocol_index = None if protocol_indexes is None else protocol_indexes.get(revision_diff.revision_id)
+        current_lines = apply_commit_diff_file_to_line_states(
+            current_lines,
+            commit_diff_file,
+            revision_diff.revision_id,
+            protocol_index,
+        )
+
+    return target_file, current_lines
+
+
+def summarize_live_snapshot_line_states(
+    line_states: list[LineState],
+    revision_commit_times: dict[str, datetime],
+    start_bound: datetime,
+    end_bound: datetime,
+) -> dict[str, int]:
+    total_code_lines = 0
+    full_generated_code_lines = 0
+    partial_generated_code_lines = 0
+
+    for line_state in line_states:
+        if not is_code_line(line_state.content):
+            continue
+
+        origin_revision_id = line_state.origin_revision_id
+        if origin_revision_id is None:
+            continue
+
+        commit_time = revision_commit_times.get(origin_revision_id)
+        if commit_time is None:
+            raise ProtocolValidationError(
+                f"Missing commit time for replayed live-snapshot revision {origin_revision_id}"
+            )
+        if not (start_bound <= commit_time <= end_bound):
+            continue
+
+        total_code_lines += 1
+        if line_state.gen_ratio == 100:
+            full_generated_code_lines += 1
+        elif line_state.gen_ratio > 0:
+            partial_generated_code_lines += 1
+
+    return {
+        "totalCodeLines": total_code_lines,
+        "fullGeneratedCodeLines": full_generated_code_lines,
+        "partialGeneratedCodeLines": partial_generated_code_lines,
+    }
 
 
 def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -587,39 +672,71 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B offline slice requires at least one replayable commit diff patch")
 
-    first_patch_files = commit_diff_sequence[0].parsed_patch.files
-    if len(first_patch_files) != 1:
-        raise UnsupportedConfigurationError(
-            "Current Algorithm B offline slice only supports a single file in the first patch sequence"
+    protocol_indexes = {
+        revision_diff.revision_id: build_protocol_index(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
         )
-
-    target_file = first_patch_files[0].new_path
-    current_lines = reconstruct_base_line_states_from_patch(first_patch_files[0])
-
-    for revision_diff in commit_diff_sequence:
-        if len(revision_diff.parsed_patch.files) != 1:
-            raise UnsupportedConfigurationError(
-                "Current Algorithm B offline slice only supports one changed file per revision patch"
-            )
-        commit_diff_file = revision_diff.parsed_patch.files[0]
-        if commit_diff_file.new_path != target_file:
-            raise UnsupportedConfigurationError(
-                "Current Algorithm B offline slice only supports a single replayed file path across the diff sequence"
-            )
-
-        protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
-        protocol_index = build_protocol_index(protocol)
-        current_lines = apply_commit_diff_file_to_line_states(
-            current_lines,
-            commit_diff_file,
-            revision_diff.revision_id,
-            protocol_index,
-        )
+        for revision_diff in commit_diff_sequence
+    }
+    _target_file, current_lines = reconstruct_final_line_states_from_commit_diff_sequence(
+        commit_diff_sequence,
+        protocol_indexes,
+    )
 
     summary = summarize_period_added_line_states(current_lines, revision_ids)
     end_revision_id = revision_ids[-1]
     logger.info(
         f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
+        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
+        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+    )
+    return {
+        "protocolName": "generatedTextDesc",
+        "protocolVersion": PROTOCOL_VERSION,
+        "SUMMARY": summary,
+        "REPOSITORY": {
+            "vcsType": args.vcsType,
+            "repoURL": args.repoURL,
+            "repoBranch": args.repoBranch,
+            "revisionId": end_revision_id,
+        },
+    }
+
+
+def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
+    if args.vcsType != "git":
+        raise UnsupportedConfigurationError("Current Algorithm B live-snapshot slice only supports git")
+    if not args.commitDiffSetDir:
+        raise UnsupportedConfigurationError("Current Algorithm B live-snapshot slice requires --commitDiffSetDir")
+
+    provider = build_gen_code_desc_provider(args, logger)
+    diff_provider = build_commit_diff_provider(args, logger)
+    revision_ids = list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
+    commit_diff_sequence = load_commit_diff_sequence(
+        diff_provider,
+        args.repoURL,
+        args.repoBranch,
+        revision_ids,
+        args.vcsType,
+    )
+    if not commit_diff_sequence:
+        raise ProtocolValidationError("Algorithm B live-snapshot slice requires at least one replayable commit diff patch")
+
+    protocol_indexes = {
+        revision_diff.revision_id: build_protocol_index(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        )
+        for revision_diff in commit_diff_sequence
+    }
+    _target_file, current_lines = reconstruct_final_line_states_from_commit_diff_sequence(
+        commit_diff_sequence,
+        protocol_indexes,
+    )
+
+    summary = summarize_live_changed_line_states_by_revision_ids(current_lines, revision_ids)
+    end_revision_id = revision_ids[-1]
+    logger.info(
+        f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
@@ -782,6 +899,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--endTime", required=True)
     parser.add_argument("--vcsType", default="git")
     parser.add_argument("--algorithm", default="A")
+    parser.add_argument("--metric")
     parser.add_argument("--scope", default="A")
     parser.add_argument("--outputFile")
     parser.add_argument("--outputFormat", default="json")
@@ -1175,6 +1293,8 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
 def build_result(args: argparse.Namespace) -> dict:
     logger = RuntimeLogger(args.logLevel)
     if args.algorithm == "B" and args.commitDiffSetDir:
+        if args.metric == "live_changed_source_ratio":
+            return build_result_algorithm_b_live_snapshot_offline(args, logger)
         return build_result_algorithm_b_offline(args, logger)
     if args.algorithm != "A":
         raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")

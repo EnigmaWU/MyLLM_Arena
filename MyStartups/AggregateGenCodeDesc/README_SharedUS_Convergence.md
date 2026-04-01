@@ -9,7 +9,8 @@ It is intentionally not a pure idea list. Each phase below names the specific co
 ## Current Starting Point
 
 - `US-6` is the first active shared user story with an executable `Algorithm B` path.
-- `Algorithm A` currently provides the accepted implementation evidence for the primary live-snapshot metric stories: `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`.
+- `US-1` now has an initial narrow `Algorithm B` Git live-snapshot acceptance slice for the approved baseline fixture shape.
+- `Algorithm A` currently provides the accepted implementation evidence for the remaining primary live-snapshot metric stories: `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`.
 - `US-9` is a shared contract story whose first split is by VCS target, not by algorithm.
 - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories.
 
@@ -79,13 +80,14 @@ The main shared stories after `US-6` are not period-contribution stories. They a
 
 ### Phase 2 Goal
 
-Make `US-1` the first primary-metric shared story that is covered by both `Algorithm A` and `Algorithm B`.
+Make `US-1` the first primary-metric shared story that is covered by both `Algorithm A` and a defensible narrow `Algorithm B` live-snapshot path.
 
 ### Phase 2 Required Work
 
 1. Reuse the existing `US-1` golden result as the shared contract target.
 2. Add an `Algorithm B` acceptance path for the same `US-1` observable semantics.
 3. Keep the current supplementary SVN parity evidence as `Algorithm A` evidence only unless and until `Algorithm B` can credibly target the same VCS shape.
+4. Keep the current `Algorithm B` support claim narrow: approved baseline fixture shape, Git, live-snapshot replay, and explicit unsupported topology boundaries.
 
 ### Phase 2 Required Tests
 
@@ -95,7 +97,7 @@ Make `US-1` the first primary-metric shared story that is covered by both `Algor
 
 ### Phase 2 Exit Condition
 
-- `US-1` is the first live-snapshot story with approved evidence on both algorithms.
+- `US-1` is the first live-snapshot story with approved `Algorithm A` evidence and a narrow approved `Algorithm B` Git live-snapshot acceptance slice.
 
 ## Phase 3: Rewrite And Deletion Cluster
 
