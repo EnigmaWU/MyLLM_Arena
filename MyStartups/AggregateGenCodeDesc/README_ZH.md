@@ -16,7 +16,16 @@
 
 - 用户故事与验收标准：`README_UserStory.md`
 - 架构设计：`README_ArchDesign.md`
+- 测试运行指南：`README_RunTestCase.md`
 - 基于场景的测试夹具：`testdata/`
+
+## ======>>>生产验证分层<<<======
+
+- 当前实现的生产目标仍然是 `Algorithm A + Scope A` 在 Git 与 SVN 上达到生产质量。
+- 验证模型应显式分成 `Fast` 与 `Heavy` 两层。
+- `Fast` 验证适用于日常本地运行与普通 CI，使用夹具驱动检查和短时仓库测试。
+- `Heavy` 验证适用于生产就绪性与每日集成运行，使用长时或生产规模的仓库历史。
+- 当前专用的长时生产 gate 是 `bash run_production_gate.sh`，它运行 `US-13` Git 与 `US-14` SVN 的生产规模验收测试。
 
 ## ======>>>如何得到这个结果<<<======
 

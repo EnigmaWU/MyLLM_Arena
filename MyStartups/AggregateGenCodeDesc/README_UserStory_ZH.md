@@ -32,17 +32,32 @@
 
 对于偏生产的运行方式，分析器应先从仓库历史中发现相关修订，再从外部提供者中获取匹配的 `genCodeDesc` 记录。
 
+## 故事结构
+
+- 共享的 `US` 应描述业务需求和用户可见结果，而不绑定到某一种实现算法。
+- 共享验收标准应覆盖无论由 `Algorithm A` 还是 `Algorithm B` 满足时都必须成立的可观察契约。
+- 只有当 `Algorithm A` 与 `Algorithm B` 在支持边界、边缘语义或运行约束上不一致时，才应该拆出算法专属验收轨道。
+- 如果某个共享故事当前只由一种算法实现，则另一种算法的验收轨道可以先以规划形式存在，但不能被当作当前已验证的验收证据。
+
+## 验证分层
+
+- `Fast` 验证：夹具驱动检查与短时真实仓库测试，适合日常本地运行与普通 CI。
+- `Heavy` 验证：面向生产的长时或大历史量验收检查，适合显式生产 gate 或每日集成运行。
+- 对于可能耗时数十分钟甚至约一小时的验证，应归入 `Heavy`，例如生产规模的 Git/SVN 历史验证。
+
 ## 场景映射
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`)
-- `US-6` -> `testdata/us6_period_added_ratio` (`Algorithm B`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`, `Fast`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`, `Fast`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`, `Fast`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`, `Fast`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`, `Fast`)
+- `US-6` -> `testdata/us6_period_added_ratio`（`共享 US`，当前可执行路径是 `Algorithm B`，`Fast`）
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`, `Fast`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`, `Fast`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`, `Fast`)
+- `US-13` -> Git 生产规模本地仓库 gate（`Algorithm A`, `Heavy`, 可作为每日集成）
+- `US-14` -> SVN 生产规模本地仓库 gate（`Algorithm A`, `Heavy`, 可作为每日集成）
 
 ## 用户故事
 
@@ -156,9 +171,9 @@
 **我希望** 计算 `startTime~endTime` 期间新增的 AI 代码量，
 **以便** 将时间段内的新增贡献与期末存量区分开来。
 
-说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，并与 `Algorithm B` 对齐。当前实现已经包含针对 `US-6` 夹具形态的一条窄化可执行 Git 离线基线路径，但这还不能被视为广义的 Algorithm-B 覆盖。
+说明：这不是当前 `P0 / Scope A` 的基线指标。这是一个单独的、面向历史过程的指标，应被视为一个共享用户故事，同时允许 `Algorithm A` 与 `Algorithm B` 通过不同的验收轨道来满足。当前实现只在 `Algorithm B` 一侧包含针对 `US-6` 夹具形态的一条窄化可执行 Git 离线基线路径。
 
-#### US-6 验收标准
+#### US-6 共享验收标准
 
 1. **GIVEN** 一个仓库分支和请求时间段 `startTime~endTime`
    **WHEN** 用户请求该时间段贡献指标
@@ -168,13 +183,33 @@
    **WHEN** 该时间段贡献结果被返回或序列化为 `genCodeDescProtocol.json`
    **THEN** 它必须是符合 `genCodeDescProtocol.json` 格式的最终记录，在 `REPOSITORY` 中包含仓库身份信息，并在 `SUMMARY` 中包含聚合后的最终值
 
-3. **GIVEN** 夹具 `testdata/us6_period_added_ratio`
-   **WHEN** 分析器产出最终结果
+3. **GIVEN** 任一声称支持 `US-6` 的算法实现路径
+   **WHEN** 该路径针对批准的 `US-6` 场景进行验证
+   **THEN** 它产出的 `SUMMARY` 与 `REPOSITORY` 必须与该场景对应的 golden 结果一致
+
+#### US-6 的 Algorithm A 验收轨道
+
+1. **GIVEN** 一个未来声明支持时间段贡献指标的 `Algorithm A` 路径
+   **WHEN** 该路径被引入
+   **THEN** 它必须满足 `US-6` 的共享验收标准，且不能削弱外部可观察的结果契约
+
+2. **GIVEN** 一个未来面向 `US-6` 的 `Algorithm A` 夹具或真实仓库验收场景
+   **WHEN** 该场景变为启用状态
+   **THEN** 它应被显式标记为 `Fast` 或 `Heavy`，而不是隐式混入当前基线套件
+
+#### US-6 的 Algorithm B 验收轨道
+
+1. **GIVEN** 夹具 `testdata/us6_period_added_ratio`
+   **WHEN** 分析器通过当前窄化的离线 Git 基线路径产出最终结果
    **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-4. **GIVEN** 当前 CLI 切片配合 `--algorithm B --commitDiffSetDir`
+2. **GIVEN** 当前 CLI 切片配合 `--algorithm B --commitDiffSetDir`
    **WHEN** 输入满足当前这种单文件、单分支 Git 回放序列的窄化夹具契约
    **THEN** 分析器可以在不要求 `--workingDir` 的情况下执行 `US-6` 的离线 Algorithm-B 基线
+
+3. **GIVEN** 更宽的 Algorithm-B 历史形态，例如多文件回放、重命名/路径变化或 merge 感知归因
+   **WHEN** 使用当前 CLI 切片
+   **THEN** 在这些场景各自的验收轨道建立并验证之前，它们必须继续保持显式不支持
 
 ### US-7：在单个请求窗口内正确处理混合多提交历史
 

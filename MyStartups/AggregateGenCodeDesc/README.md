@@ -26,11 +26,15 @@
 
 - User stories and acceptance criteria: `README_UserStory.md`
 - Architecture design: `README_ArchDesign.md`
+- Test run guide: `README_RunTestCase.md`
 - Scenario-based test fixtures: `testdata/`
 
 ## ======>>>PRODUCTION TARGET<<<======
 
 - The current implementation target is `Algorithm A + Scope A` at production quality for both Git and SVN.
+- The verification model should be split explicitly into `Fast` and `Heavy` tiers.
+- `Fast` verification is for routine local runs and normal CI, using fixture-driven checks and short-running repository tests.
+- `Heavy` verification is for production-readiness and scheduled daily integration, using long-running or production-scale repository histories.
 - Production validation should use real local repositories with production-like history shape, including large branch counts, deep commit history, and merge-heavy release convergence.
 - Remote hosting is not required for correctness validation. For this analyzer, a local repository is an acceptable production proxy for history, blame, merge topology, and metadata lookup behavior; only network transport is intentionally out of scope.
 - The dedicated long-running production gate is `bash run_production_gate.sh`, which currently runs the US-13 Git and US-14 SVN production-scale acceptance tests.

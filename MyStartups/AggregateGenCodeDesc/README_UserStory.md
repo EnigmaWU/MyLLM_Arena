@@ -34,20 +34,35 @@ For real repository verification of `Algorithm A`, the preferred test layer is u
 
 For production-oriented runs, the analyzer should discover relevant revisions from repository history first and then fetch matching `genCodeDesc` records from an external provider.
 
+## Story Structure
+
+- A shared `US` should describe the business requirement and expected user-visible outcome, independent of implementation strategy.
+- Shared acceptance criteria should cover the observable contract that must remain true regardless of whether `Algorithm A` or `Algorithm B` satisfies the story.
+- Algorithm-specific acceptance tracks should be used only where support boundaries, edge-case semantics, or runtime constraints differ between `Algorithm A` and `Algorithm B`.
+- If only one algorithm is currently implemented for a shared story, the other algorithm-specific track may still be documented as planned, but it must not be treated as current acceptance evidence.
+
+## Verification Tiers
+
+- `Fast` verification: fixture-driven checks and short-running real-repository tests intended for routine local runs and normal CI execution.
+- `Heavy` verification: production-oriented, long-running, or large-history acceptance checks intended for explicit production gates or scheduled daily integration runs.
+- `Heavy` verification is the right home for tests that may take tens of minutes or about one hour, such as production-scale Git/SVN history validation.
+
 ## Scenario Mapping
 
-- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`)
-- `US-6` -> `testdata/us6_period_added_ratio` (`Algorithm B`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`)
-- `US-10` -> `testdata/us10_large_repository_snapshot` (`Algorithm A`)
-- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Algorithm A`)
-- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Algorithm A`)
+- `US-1` -> `testdata/us1_live_changed_source_ratio` (`Algorithm A`, `Fast`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Algorithm A`, `Fast`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Algorithm A`, `Fast`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Algorithm A`, `Fast`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Algorithm A`, `Fast`)
+- `US-6` -> `testdata/us6_period_added_ratio` (`Shared US`, current executable path is `Algorithm B`, `Fast`)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Algorithm A`, `Fast`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Algorithm A`, `Fast`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Algorithm A`, `Fast`)
+- `US-10` -> `testdata/us10_large_repository_snapshot` (`Algorithm A`, `Fast`)
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Algorithm A`, `Fast`)
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Algorithm A`, `Fast`)
+- `US-13` -> production-scale Git local repository gate (`Algorithm A`, `Heavy`, daily integration candidate)
+- `US-14` -> production-scale SVN local repository gate (`Algorithm A`, `Heavy`, daily integration candidate)
 
 ## Algorithm-B TDD Roadmap
 
@@ -184,9 +199,9 @@ Recommended future scenario names:
 **I want** to calculate how much AI-generated code was added during `startTime~endTime`,
 **so that** I can distinguish period contribution from end-of-period inventory.
 
-Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric aligned with `Algorithm B`. The current implementation now includes a narrow executable offline Git baseline for the `US-6` fixture shape, but it should not yet be treated as broad Algorithm-B coverage.
+Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that should be treated as a shared user story, while allowing `Algorithm A` and `Algorithm B` to satisfy it through different acceptance tracks. The current implementation now includes only a narrow executable offline Git baseline for the `US-6` fixture shape on the `Algorithm B` side.
 
-#### Acceptance Criteria For US-6
+#### Shared Acceptance Criteria For US-6
 
 1. **GIVEN** a repository branch and a requested period `startTime~endTime`
    **WHEN** the user requests the period contribution metric
@@ -196,13 +211,33 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the period contribution result is returned or serialized as `genCodeDescProtocol.json`
    **THEN** it must be a final record in `genCodeDescProtocol.json` format, containing repository identity in `REPOSITORY` and aggregate final values in `SUMMARY`
 
-3. **GIVEN** the fixture `testdata/us6_period_added_ratio`
-   **WHEN** the analyzer produces the final result
+3. **GIVEN** an algorithm-specific implementation path that claims support for `US-6`
+   **WHEN** that path is validated against an approved `US-6` scenario
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match the approved golden result for that scenario
+
+#### Algorithm A Acceptance Track For US-6
+
+1. **GIVEN** a future `Algorithm A` path that claims support for the period contribution metric
+   **WHEN** that path is introduced
+   **THEN** it must satisfy the shared `US-6` acceptance criteria without weakening the observable result contract
+
+2. **GIVEN** a future `Algorithm A` fixture or real-repository acceptance scenario for `US-6`
+   **WHEN** that scenario becomes active
+   **THEN** it should be classified as `Fast` or `Heavy` explicitly, rather than being mixed implicitly into the current baseline suite
+
+#### Algorithm B Acceptance Track For US-6
+
+1. **GIVEN** the fixture `testdata/us6_period_added_ratio`
+   **WHEN** the analyzer produces the final result through the current narrow offline Git baseline
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-4. **GIVEN** the current CLI slice with `--algorithm B --commitDiffSetDir`
+2. **GIVEN** the current CLI slice with `--algorithm B --commitDiffSetDir`
    **WHEN** the input follows the current narrow fixture contract for a single-file, single-branch Git replay sequence
    **THEN** the analyzer may execute the `US-6` offline Algorithm-B baseline without requiring `--workingDir`
+
+3. **GIVEN** broader Algorithm-B history shapes such as multi-file replay, rename/path changes, or merge-aware accounting
+   **WHEN** the current CLI slice is used
+   **THEN** those cases must remain explicitly unsupported until their own acceptance tracks are introduced and proven
 
 ### US-7: Resolve Mixed Multi-Commit History In One Requested Window
 
