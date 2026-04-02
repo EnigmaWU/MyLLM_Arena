@@ -54,20 +54,16 @@ Current example:
 
 ### Fast: current focused Algorithm B stack
 
-Use this when working on the current `Algorithm B` offline baseline:
+Use this when working on the current narrow `Algorithm B` convergence stack:
 
 ```bash
 python3 -m pytest -q \
-  tests/test_cli_algorithm_flag_tdd.py \
-  tests/test_runtime_hardening_tdd.py \
-  tests/test_gen_code_desc_set_dir_provider_tdd.py \
-  tests/test_commit_diff_patch_parser_tdd.py \
-  tests/test_commit_diff_set_dir_provider_tdd.py \
-  tests/test_commit_diff_sequence_loader_tdd.py \
-  tests/test_commit_diff_replay_tdd.py \
-  tests/test_commit_diff_line_state_tdd.py \
-  tests/test_commit_diff_line_attribution_tdd.py \
-  tests/test_algorithm_b_fixture_contract_tdd.py
+  tests/test_algorithm_b_live_snapshot_foundation_tdd.py \
+  tests/test_us2_us3_us4_algorithm_b_regression_tdd.py \
+  tests/test_us5_us7_algorithm_b_regression_tdd.py \
+  tests/test_us8_us12_algorithm_b_regression_tdd.py \
+  tests/test_us10_us11_algorithm_b_regression_tdd.py \
+  tests/test_us9_algorithm_b_contract_parity_tdd.py
 ```
 
 ### Fast: default non-heavy, non-experimental suite
@@ -139,16 +135,17 @@ The current executable `Algorithm B` path is intentionally narrow.
 
 Supported today:
 
-- Git offline replay through `--algorithm B --commitDiffSetDir`
-- single-file, single-branch, fixture-shaped `US-6` baseline
+- Git and SVN fixture-driven replay through `--algorithm B --commitDiffSetDir`
+- narrow live-snapshot replay for the approved fixture shapes behind `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`
+- narrow offline period replay for the approved `US-6` fixture shape
+- explicit Git/SVN contract parity for `US-9` on the approved `US-1` baseline shape
 
 Explicitly unsupported today:
 
-- multi-file first patches
 - first-patch multi-hunk base reconstruction
-- file-path changes during replay
-- merge-aware accounting
-- broader rename/delete/rewrite semantics beyond the current narrow baseline
+- broader Git/SVN parity claims beyond the approved baseline shapes
+- full generic merge-graph-aware accounting beyond the approved replay fixtures
+- blanket production-scale `Algorithm B` support claims for the `Heavy` gates
 
 ## When To Add New Commands Here
 

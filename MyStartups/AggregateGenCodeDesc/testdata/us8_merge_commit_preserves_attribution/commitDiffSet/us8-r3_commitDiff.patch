@@ -1,0 +1,9 @@
+diff --git a/src/merge_case.py b/src/merge_case.py
+--- a/src/merge_case.py
++++ b/src/merge_case.py
+@@ -1,4 +1,4 @@
+-base = x
++base = max(x, 0)
+ spacer = x
+ value = x * 2
+ return base + value + spacer

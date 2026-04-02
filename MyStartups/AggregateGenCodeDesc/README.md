@@ -27,6 +27,7 @@
 - User stories and acceptance criteria: `README_UserStory.md`
 - User guide and typical usage examples: `README_UserGuide.md`
 - Shared-US convergence roadmap: `README_SharedUS_Convergence.md`
+- Concrete Algorithm-B execution plan: `README_AlgorithmB_TDD.md`
 - Architecture design: `README_ArchDesign.md`
 - Test run guide: `README_RunTestCase.md`
 - Scenario-based test fixtures: `testdata/`

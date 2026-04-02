@@ -1,0 +1,9 @@
+diff --git a/src/deep_history.py b/src/deep_history.py
+--- a/src/deep_history.py
++++ b/src/deep_history.py
+@@ -0,0 +1,5 @@
++carry_pre_window = base
++bounce_human = base + 1
++bounce_ai = base + 2
++steady_partial = base + 3
++reset_after_ai = base + 4

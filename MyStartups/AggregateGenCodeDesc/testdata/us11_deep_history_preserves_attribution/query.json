@@ -7,5 +7,11 @@
   "scope": "A",
   "startTime": "2026-03-01",
   "endTime": "2026-03-31",
+  "includedRevisionIds": [
+    "us11-r5",
+    "us11-r6",
+    "us11-r7",
+    "us11-r8"
+  ],
   "endRevisionId": "us11-r9"
 }

@@ -1,0 +1,8 @@
+diff --git a/src/normalize.py b/src/normalize.py
+--- a/src/normalize.py
++++ b/src/normalize.py
+@@ -1,3 +1,3 @@
+ value = raw.strip()
+-value = value.lower()
++value = raw.casefold()
+ result = value

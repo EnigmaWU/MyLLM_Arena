@@ -1,0 +1,8 @@
+diff --git a/src/temp_rules.py b/src/temp_rules.py
+--- a/src/temp_rules.py
++++ b/src/temp_rules.py
+@@ -0,0 +1,4 @@
++rule_one = 'allow'
++rule_two = 'deny'
++rule_three = 'audit'
++rule_four = 'notify'

@@ -1,0 +1,7 @@
+diff --git a/src/score.py b/src/score.py
+--- a/src/score.py
++++ b/src/score.py
+@@ -0,0 +1,3 @@
++score = base
++score = score + 1
++return score

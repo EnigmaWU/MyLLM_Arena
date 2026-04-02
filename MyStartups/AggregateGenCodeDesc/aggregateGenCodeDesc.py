@@ -446,7 +446,7 @@ def resolve_added_line_gen_ratios(
     if any(direct_ratios) and sum(1 for ratio in direct_ratios if ratio > 0) == len(indexed_file.line_locations):
         return direct_ratios
 
-    if len(indexed_file.line_locations) == len(added_lines):
+    if len(indexed_file.line_locations) == len(added_lines) and any(direct_ratios):
         return [ratio for _, ratio in sorted(indexed_file.line_locations.items())]
 
     return direct_ratios
@@ -549,7 +549,10 @@ def summarize_live_changed_line_states_by_revision_ids(
 def list_commit_diff_revision_ids(commit_diff_set_dir: Path) -> list[str]:
     revision_ids = [
         patch_path.name.removesuffix("_commitDiff.patch")
-        for patch_path in sorted(commit_diff_set_dir.glob("*_commitDiff.patch"))
+        for patch_path in sorted(
+            commit_diff_set_dir.glob("*_commitDiff.patch"),
+            key=lambda path: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)],
+        )
     ]
     if not revision_ids:
         raise ProtocolValidationError(f"No commit diff patch files found in {commit_diff_set_dir}")
@@ -579,39 +582,70 @@ def reconstruct_final_line_states_from_commit_diff_sequence(
     commit_diff_sequence: list[RevisionCommitDiff],
     protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
 ) -> tuple[str, list[LineState]]:
+    file_states = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
+        commit_diff_sequence,
+        protocol_indexes,
+    )
+    if len(file_states) != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports a single replayed file path across the diff sequence"
+        )
+
+    target_file, current_lines = next(iter(file_states.items()))
+    return target_file, current_lines
+
+
+def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
+    commit_diff_sequence: list[RevisionCommitDiff],
+    protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
+) -> dict[str, list[LineState]]:
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B replay requires at least one replayable commit diff patch")
 
-    first_patch_files = commit_diff_sequence[0].parsed_patch.files
-    if len(first_patch_files) != 1:
-        raise UnsupportedConfigurationError(
-            "Current Algorithm B offline slice only supports a single file in the first patch sequence"
-        )
-
-    target_file = first_patch_files[0].new_path
-    current_lines = reconstruct_base_line_states_from_patch(first_patch_files[0])
+    file_states: dict[str, list[LineState]] = {}
 
     for revision_diff in commit_diff_sequence:
-        if len(revision_diff.parsed_patch.files) != 1:
-            raise UnsupportedConfigurationError(
-                "Current Algorithm B offline slice only supports one changed file per revision patch"
-            )
-
-        commit_diff_file = revision_diff.parsed_patch.files[0]
-        if commit_diff_file.new_path != target_file:
-            raise UnsupportedConfigurationError(
-                "Current Algorithm B offline slice only supports a single replayed file path across the diff sequence"
-            )
-
         protocol_index = None if protocol_indexes is None else protocol_indexes.get(revision_diff.revision_id)
-        current_lines = apply_commit_diff_file_to_line_states(
-            current_lines,
-            commit_diff_file,
-            revision_diff.revision_id,
-            protocol_index,
-        )
+        for commit_diff_file in revision_diff.parsed_patch.files:
+            current_lines = file_states.pop(commit_diff_file.old_path, None)
+            if current_lines is None:
+                current_lines = file_states.pop(commit_diff_file.new_path, None)
+            if current_lines is None:
+                current_lines = reconstruct_base_line_states_from_patch(commit_diff_file)
 
-    return target_file, current_lines
+            updated_lines = apply_commit_diff_file_to_line_states(
+                current_lines,
+                commit_diff_file,
+                revision_diff.revision_id,
+                protocol_index,
+            )
+            file_states[commit_diff_file.new_path] = updated_lines
+
+    if not file_states:
+        raise ProtocolValidationError("Algorithm B replay did not produce any final file state")
+
+    return file_states
+
+
+def summarize_live_changed_file_states_by_revision_ids(
+    file_states_by_path: dict[str, list[LineState]],
+    included_revision_ids: list[str],
+) -> dict[str, int]:
+    total_code_lines = 0
+    full_generated_code_lines = 0
+    partial_generated_code_lines = 0
+
+    for line_states in file_states_by_path.values():
+        file_summary = summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids)
+        total_code_lines += file_summary["totalCodeLines"]
+        full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
+        partial_generated_code_lines += file_summary["partialGeneratedCodeLines"]
+
+    return {
+        "totalCodeLines": total_code_lines,
+        "fullGeneratedCodeLines": full_generated_code_lines,
+        "partialGeneratedCodeLines": partial_generated_code_lines,
+    }
 
 
 def summarize_live_snapshot_line_states(
@@ -684,7 +718,7 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
     )
 
     summary = summarize_period_added_line_states(current_lines, revision_ids)
-    end_revision_id = revision_ids[-1]
+    end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
@@ -726,13 +760,22 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
         )
         for revision_diff in commit_diff_sequence
     }
-    _target_file, current_lines = reconstruct_final_line_states_from_commit_diff_sequence(
+    file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
     )
 
-    summary = summarize_live_changed_line_states_by_revision_ids(current_lines, revision_ids)
-    end_revision_id = revision_ids[-1]
+    included_revision_ids = revision_ids
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        query_included_revision_ids = query_document.get("includedRevisionIds")
+        if query_included_revision_ids is not None:
+            if not isinstance(query_included_revision_ids, list) or not all(isinstance(value, str) for value in query_included_revision_ids):
+                raise ProtocolValidationError("query.json includedRevisionIds must be a list of revision-id strings")
+            included_revision_ids = query_included_revision_ids
+
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, included_revision_ids)
+    end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
@@ -1290,12 +1333,70 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
     return 0
 
 
+def resolve_algorithm_b_metric(args: argparse.Namespace) -> str:
+    explicit_metric = args.metric
+    inferred_metric = None
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        query_metric = query_document.get("metric")
+        if isinstance(query_metric, str) and query_metric:
+            inferred_metric = query_metric
+
+    if explicit_metric and inferred_metric and explicit_metric != inferred_metric:
+        raise InputValidationError(
+            f"--metric {explicit_metric} does not match query.json metric {inferred_metric} in --genCodeDescSetDir"
+        )
+
+    resolved_metric = explicit_metric or inferred_metric
+    if not resolved_metric:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B routing requires either --metric or a query.json metric in --genCodeDescSetDir"
+        )
+
+    return resolved_metric
+
+
+def load_algorithm_b_query(args: argparse.Namespace) -> dict | None:
+    if not args.genCodeDescSetDir:
+        return None
+
+    query_path = Path(args.genCodeDescSetDir) / "query.json"
+    if not query_path.exists():
+        return None
+
+    try:
+        query_document = load_json_document(query_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ProtocolValidationError(f"Failed to read Algorithm B query from {query_path}: {exc}") from exc
+
+    if not isinstance(query_document, dict):
+        raise ProtocolValidationError(f"Algorithm B query at {query_path} must be a JSON object")
+
+    return query_document
+
+
+def resolve_algorithm_b_end_revision_id(args: argparse.Namespace, revision_ids: list[str]) -> str:
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        end_revision_id = query_document.get("endRevisionId")
+        if end_revision_id is not None:
+            if not isinstance(end_revision_id, str) or not end_revision_id:
+                raise ProtocolValidationError("query.json endRevisionId must be a non-empty string when provided")
+            return end_revision_id
+    return revision_ids[-1]
+
+
 def build_result(args: argparse.Namespace) -> dict:
     logger = RuntimeLogger(args.logLevel)
     if args.algorithm == "B" and args.commitDiffSetDir:
-        if args.metric == "live_changed_source_ratio":
+        resolved_metric = resolve_algorithm_b_metric(args)
+        if resolved_metric == "live_changed_source_ratio":
             return build_result_algorithm_b_live_snapshot_offline(args, logger)
-        return build_result_algorithm_b_offline(args, logger)
+        if resolved_metric == "period_added_ai_ratio":
+            return build_result_algorithm_b_offline(args, logger)
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B routing only supports metrics: live_changed_source_ratio, period_added_ai_ratio"
+        )
     if args.algorithm != "A":
         raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
     if args.scope != "A":

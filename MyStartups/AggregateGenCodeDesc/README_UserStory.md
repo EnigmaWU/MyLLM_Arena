@@ -54,17 +54,17 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 ## Scenario Mapping
 
 - `US-1` -> `testdata/us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` covers narrow Git and SVN live-snapshot paths for the approved baseline shape, `Fast`)
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-4` -> `testdata/us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-5` -> `testdata/us5_rename_preserves_lineage` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
 - `US-6` -> `testdata/us6_period_added_ratio` (`Shared US`, current executable path is `Algorithm B`, `Fast`)
-- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-9` -> `testdata/us9_svn_contract_parity` (`Shared contract story`, current active evidence is Git/SVN parity through `Algorithm A`, `Fast`)
-- `US-10` -> `testdata/us10_large_repository_snapshot` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
-- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Shared US`, current active evidence is `Algorithm A`, `Fast`)
+- `US-7` -> `testdata/us7_mixed_multi_commit_window` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-9` -> `testdata/us9_svn_contract_parity` (`Shared contract story`, current active evidence is Git/SVN parity through `Algorithm A` plus narrow Git/SVN `Algorithm B` parity on the approved `US-1` baseline shape, `Fast`)
+- `US-10` -> `testdata/us10_large_repository_snapshot` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`, `Fast`)
 - `US-13` -> production-scale Git local repository gate (`Heavy gate`, current active evidence is `Algorithm A`, daily integration candidate)
 - `US-14` -> production-scale SVN local repository gate (`Heavy gate`, current active evidence is `Algorithm A`, daily integration candidate)
 
@@ -159,7 +159,7 @@ Note: this should be treated as a shared live-snapshot contract story. The curre
 **I want** a human rewrite of a previously AI-generated line to reset attribution to the newer human revision,
 **so that** old AI ownership does not remain attached to overwritten code.
 
-Note: this should be treated as a shared overwrite-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared overwrite-semantics story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-2
 
@@ -183,13 +183,13 @@ Note: this should be treated as a shared overwrite-semantics story. The current 
 
 #### Algorithm B Acceptance Track For US-2
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same overwrite-reset contract as `US-2`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-2` acceptance criteria without preserving stale AI ownership
+1. **GIVEN** the fixture `testdata/us2_human_overwrites_ai_live_changed` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-2` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-2` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-2`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready overwrite support
 
 ### US-3: AI Rewrite Replaces Prior Human Ownership
 
@@ -197,7 +197,7 @@ Note: this should be treated as a shared overwrite-semantics story. The current 
 **I want** a later AI rewrite of a human line to become the effective attribution source,
 **so that** the live changed source code at `endTime` reflects the latest AI contribution.
 
-Note: this should be treated as a shared overwrite-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared overwrite-semantics story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-3
 
@@ -221,13 +221,13 @@ Note: this should be treated as a shared overwrite-semantics story. The current 
 
 #### Algorithm B Acceptance Track For US-3
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same overwrite-takes-ownership contract as `US-3`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-3` acceptance criteria without weakening the final live-result semantics
+1. **GIVEN** the fixture `testdata/us3_ai_overwrites_human_live_changed` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-3` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-3` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-3`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready overwrite support
 
 ### US-4: Deleted AI Lines Must Not Count
 
@@ -235,7 +235,7 @@ Note: this should be treated as a shared overwrite-semantics story. The current 
 **I want** deleted AI-generated lines to disappear from both numerator and denominator,
 **so that** the result reflects only the current live changed source code snapshot.
 
-Note: this should be treated as a shared live-snapshot exclusion story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared live-snapshot exclusion story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-4
 
@@ -259,13 +259,13 @@ Note: this should be treated as a shared live-snapshot exclusion story. The curr
 
 #### Algorithm B Acceptance Track For US-4
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same deleted-lines exclusion contract as `US-4`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-4` acceptance criteria without counting deleted code in the final result
+1. **GIVEN** the fixture `testdata/us4_deleted_lines_excluded` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-4` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-4` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-4`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready deleted-line coverage
 
 ### US-5: Rename Must Preserve Attribution Lineage
 
@@ -273,7 +273,7 @@ Note: this should be treated as a shared live-snapshot exclusion story. The curr
 **I want** file rename or move operations to preserve line attribution when content does not change,
 **so that** the final live changed source code ratio is not distorted by path-only history changes.
 
-Note: this should be treated as a shared lineage-preservation story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared lineage-preservation story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-5
 
@@ -297,13 +297,13 @@ Note: this should be treated as a shared lineage-preservation story. The current
 
 #### Algorithm B Acceptance Track For US-5
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same rename-preserves-lineage contract as `US-5`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-5` acceptance criteria without letting path-only changes distort attribution
+1. **GIVEN** the fixture `testdata/us5_rename_preserves_lineage` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-5` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-5` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-5`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready rename support
 
 ### US-6: Calculate AI-Added Ratio During The Requested Period
 
@@ -357,7 +357,7 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
 **I want** one requested window to correctly resolve mixed line histories across many commits,
 **so that** the final result remains correct when human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines all appear in the same period.
 
-Note: this should be treated as a shared mixed-history story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared mixed-history story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-7
 
@@ -385,13 +385,13 @@ Note: this should be treated as a shared mixed-history story. The current reposi
 
 #### Algorithm B Acceptance Track For US-7
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same mixed-history live-result contract as `US-7`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-7` acceptance criteria without leaking superseded intermediate ownership into the final result
+1. **GIVEN** the fixture `testdata/us7_mixed_multi_commit_window` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-7` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-7` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-7`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready mixed-history support
 
 ### US-8: Merge Commit Must Preserve Effective Attribution
 
@@ -399,7 +399,7 @@ Note: this should be treated as a shared mixed-history story. The current reposi
 **I want** merged branch content to preserve the effective attribution of surviving lines,
 **so that** a merge operation does not incorrectly reset line ownership to the merge commit itself.
 
-Note: this should be treated as a shared merge-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared merge-semantics story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-8
 
@@ -427,13 +427,13 @@ Note: this should be treated as a shared merge-semantics story. The current repo
 
 #### Algorithm B Acceptance Track For US-8
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same merge-preserves-attribution contract as `US-8`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-8` acceptance criteria without collapsing merged lines to merge commits or branch identity alone
+1. **GIVEN** the fixture `testdata/us8_merge_commit_preserves_attribution` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-8` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-8` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-8`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready merge-topology support
 
 ### US-9: Git And SVN Must Follow The Same Result Contract
 
@@ -441,7 +441,7 @@ Note: this should be treated as a shared merge-semantics story. The current repo
 **I want** Git and SVN targets to follow the same query/result contract for the current primary metric,
 **so that** changing VCS type does not change the metric semantics or output structure.
 
-Note: this is a shared contract story whose first explicit split is by VCS target. The current repository has Git/SVN acceptance evidence through `Algorithm A`, but it does not yet have dual-algorithm convergence evidence.
+Note: this is a shared contract story whose first explicit split is by VCS target. The current repository has Git/SVN acceptance evidence through `Algorithm A`, and it now also has narrow Git/SVN `Algorithm B` contract-parity evidence on the approved `US-1` baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-9
 
@@ -475,9 +475,13 @@ Note: this is a shared contract story whose first explicit split is by VCS targe
 
 #### Algorithm Convergence Note For US-9
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same cross-VCS parity contract as `US-9`
-   **WHEN** that path is introduced
-   **THEN** it must be added on top of the Git/SVN split rather than replacing the current VCS-first acceptance structure
+1. **GIVEN** the approved narrow `Algorithm B` Git and SVN live-snapshot fixture paths for `US-1`
+   **WHEN** they are used as the current parity scenario for `US-9`
+   **THEN** they must produce the same protocol-shaped observable contract across Git and SVN, differing only in VCS-specific repository identity fields
+
+2. **GIVEN** the current `Algorithm B` evidence for `US-9`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as narrow parity on the approved `US-1` baseline shape, not as full matrix-ready cross-story Git/SVN parity for every supported topology
 
 ### US-10: Large Repository Snapshot Must Preserve Result Semantics
 
@@ -485,7 +489,7 @@ Note: this is a shared contract story whose first explicit split is by VCS targe
 **I want** the analyzer to keep the same result semantics when the repository contains many source files and many live lines,
 **so that** the final aggregate result remains correct for realistic large codebases.
 
-Note: this should be treated as a shared scale-semantics story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared scale-semantics story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-10
 
@@ -509,13 +513,13 @@ Note: this should be treated as a shared scale-semantics story. The current repo
 
 #### Algorithm B Acceptance Track For US-10
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same large-snapshot observable contract as `US-10`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-10` acceptance criteria without changing the meaning of the final `SUMMARY` fields
+1. **GIVEN** the fixture `testdata/us10_large_repository_snapshot` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-10` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-10` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-10`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready large-snapshot scalability support
 
 ### US-11: Deep History Must Preserve Latest Effective Attribution
 
@@ -523,7 +527,7 @@ Note: this should be treated as a shared scale-semantics story. The current repo
 **I want** long revision chains to preserve the latest effective attribution of each surviving line,
 **so that** many intermediate rewrites do not distort the final live result.
 
-Note: this should be treated as a shared deep-history story. The current repository has acceptance evidence only on the `Algorithm A` side.
+Note: this should be treated as a shared deep-history story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape.
 
 #### Shared Acceptance Criteria For US-11
 
@@ -547,13 +551,13 @@ Note: this should be treated as a shared deep-history story. The current reposit
 
 #### Algorithm B Acceptance Track For US-11
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same deep-history live-result contract as `US-11`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-11` acceptance criteria without letting superseded intermediate states leak into the final result
+1. **GIVEN** the fixture `testdata/us11_deep_history_preserves_attribution` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-11` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-11` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-11`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready deep-history support
 
 ### US-12: Many Merged Branches In One Window Must Preserve Per-Line Attribution
 
@@ -589,13 +593,13 @@ Note: this should be treated as a shared branch-heavy story. The current reposit
 
 #### Algorithm B Acceptance Track For US-12
 
-1. **GIVEN** a future `Algorithm B` path that claims support for the same branch-heavy live-result contract as `US-12`
-   **WHEN** that path is introduced
-   **THEN** it must satisfy the shared `US-12` acceptance criteria without flattening ownership to merge order, merge commits, or branch labels alone
+1. **GIVEN** the fixture `testdata/us12_many_merged_branches_preserve_attribution` together with its `commitDiffSet/` replay artifacts
+   **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
+   **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** no approved `Algorithm B` acceptance evidence for `US-12` exists today
-   **WHEN** convergence planning is discussed
-   **THEN** `US-12` must remain current `Algorithm A` evidence only
+2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-12`
+   **WHEN** that evidence is described in docs or roadmap discussions
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready branch-heavy merge support
 
 ## Heavy Production Gates
 

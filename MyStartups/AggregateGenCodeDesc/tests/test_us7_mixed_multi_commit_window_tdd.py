@@ -1,8 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+import subprocess
 
-from tests.cli_test_support import GitRepoHarness, UTILITY_PATH, load_json, run_cli, write_revision_protocol
+from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, load_json, run_cli, write_revision_protocol
 from tests.log_assertions import assert_live_line_log, assert_log_contains_all, assert_log_contains_none
 
 
@@ -11,6 +12,47 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us7_mixed_m
 
 class TestUs7MixedMultiCommitWindowTdd(unittest.TestCase):
     maxDiff = None
+
+    def test_cli_matches_us7_expected_result_for_narrow_algorithm_b_fixture_path(self) -> None:
+        query = load_json(FIXTURE_DIR / "query.json")
+        expected_result = load_json(FIXTURE_DIR / "expected_result.json")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_file = Path(temp_dir) / "out.json"
+
+            subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--genCodeDescSetDir",
+                    str(FIXTURE_DIR),
+                    "--commitDiffSetDir",
+                    str(FIXTURE_DIR / "commitDiffSet"),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            actual_result = load_json(output_file)
+            self.assertEqual(actual_result, expected_result)
 
     def test_cli_matches_us7_expected_result_for_mixed_multi_commit_window(self) -> None:
         self.assertTrue(

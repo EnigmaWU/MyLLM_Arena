@@ -2,8 +2,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+import subprocess
 
-from tests.cli_test_support import GitRepoHarness, load_json, run_cli, write_revision_protocol
+from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, load_json, run_cli, write_revision_protocol, UTILITY_PATH
 from tests.log_assertions import assert_live_line_log, assert_log_contains_all, assert_log_contains_none
 
 
@@ -12,6 +13,46 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us12_many_m
 
 class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
     maxDiff = None
+
+    def test_cli_matches_us12_expected_result_for_narrow_algorithm_b_fixture_path(self) -> None:
+        query = self._query()
+        expected_result = load_json(FIXTURE_DIR / "expected_result.json")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_file = Path(temp_dir) / "out.json"
+            subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--genCodeDescSetDir",
+                    str(FIXTURE_DIR),
+                    "--commitDiffSetDir",
+                    str(FIXTURE_DIR / "commitDiffSet"),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            actual_result = load_json(output_file)
+            self.assertEqual(actual_result, expected_result)
 
     def _query(self) -> dict:
         return load_json(FIXTURE_DIR / "query.json")

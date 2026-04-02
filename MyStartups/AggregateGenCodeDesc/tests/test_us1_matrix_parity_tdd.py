@@ -114,8 +114,6 @@ class TestUs1MatrixParityTdd(unittest.TestCase):
                     query["endTime"],
                     "--algorithm",
                     "B",
-                    "--metric",
-                    "live_changed_source_ratio",
                     "--scope",
                     query["scope"],
                     "--outputFile",

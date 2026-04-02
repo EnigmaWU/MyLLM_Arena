@@ -1,0 +1,13 @@
+diff --git a/src/mixed.py b/src/mixed.py
+--- a/src/mixed.py
++++ b/src/mixed.py
+@@ -1,5 +1,6 @@
+ first = seed
+ second = seed + 1
+-third = seed + 2
+-fourth = seed + 3
+-fifth = seed + 4
++third = seed * 2
++fourth = seed * 3
++helper = seed * 4
++fifth = seed + 4

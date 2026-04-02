@@ -6,12 +6,17 @@ This document defines the concrete execution path from the current `US-6` baseli
 
 It is intentionally not a pure idea list. Each phase below names the specific contract goal, the required implementation slice, the expected test artifacts, and the exit condition for moving to the next story.
 
+For the concrete per-story `Algorithm B` execution spec, including target test files, fixture names, and code touch points, see `README_AlgorithmB_TDD.md`.
+
 ## Current Starting Point
 
 - `US-6` is the first active shared user story with an executable `Algorithm B` path.
 - `US-1` is now the first primary-metric shared story with explicit 2x2 matrix evidence: `Algorithm A` Git, `Algorithm A` SVN, `Algorithm B` Git, and `Algorithm B` SVN all have an approved `US-1` acceptance path, with the `Algorithm B` cells still intentionally narrow live-snapshot replay slices.
-- `Algorithm A` currently provides the accepted implementation evidence for the remaining primary live-snapshot metric stories: `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`.
-- `US-9` is a shared contract story whose first split is by VCS target, not by algorithm.
+- `US-2`, `US-3`, and `US-4` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shapes.
+- `US-5` and `US-7` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shapes.
+- `US-8` and `US-12` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shapes.
+- `US-10` and `US-11` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shapes.
+- `US-9` is a shared contract story whose first split is by VCS target, not by algorithm, and it now has narrow `Algorithm B` Git/SVN parity evidence on the approved `US-1` baseline shape.
 - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories.
 
 ## Non-Negotiable Rule
@@ -216,18 +221,18 @@ Scale and long history should validate a mature engine, not define one.
 
 ### Phase 7 Goal
 
-Only after the primary shared stories are close to full matrix coverage should `US-9` be extended from VCS parity to algorithm-plus-VCS parity.
+The repo now has one narrow algorithm-plus-VCS parity slice for `US-9` through the approved `US-1` baseline shape. The remaining work is to expand that parity claim only where broader Git/SVN `Algorithm B` semantics are actually defensible.
 
 ### Phase 7 Required Work
 
 1. Keep the existing VCS-first structure.
-2. Add `Algorithm B` evidence separately for Git and then for SVN when the SVN replay semantics are actually defensible.
+2. Keep `Algorithm B` parity evidence explicit and scenario-scoped; add broader Git and SVN parity only when the replay semantics are actually defensible beyond the approved baseline.
 3. Do not claim `Algorithm B` SVN parity unless the replay semantics are actually supportable under real SVN history behavior.
 4. Use `US-9` as the explicit contract check that a shared story is not production-ready until the claimed Git/SVN cells behave the same way at the result-contract layer.
 
 ### Phase 7 Exit Condition
 
-- `US-9` has a defensible matrix of support rather than a hand-waved parity claim.
+- `US-9` has explicit parity evidence for the currently approved supported cells, with any broader unsupported subsets still documented honestly.
 
 ## What Does Not Belong In This Convergence Path
 

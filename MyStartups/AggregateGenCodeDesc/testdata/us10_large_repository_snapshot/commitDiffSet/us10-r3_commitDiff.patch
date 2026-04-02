@@ -1,0 +1,24 @@
+diff --git a/src/core/beta.py b/src/core/beta.py
+--- a/src/core/beta.py
++++ b/src/core/beta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-beta_line = suggest(base + 1)
++beta_line = refine(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/services/delta.py b/src/services/delta.py
+--- a/src/services/delta.py
++++ b/src/services/delta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-delta_line = base + 1
++delta_line = synthesize(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/services/epsilon.py b/src/services/epsilon.py
+--- a/src/services/epsilon.py
++++ b/src/services/epsilon.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-epsilon_line = base + 1
++epsilon_line = blend(base + 1)
+ stable_pre_window = base + 2

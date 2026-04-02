@@ -30,8 +30,6 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     query["endTime"],
                     "--algorithm",
                     "B",
-                    "--metric",
-                    "live_changed_source_ratio",
                     "--scope",
                     query["scope"],
                     "--outputFile",
@@ -205,8 +203,6 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     query["endTime"],
                     "--algorithm",
                     "B",
-                    "--metric",
-                    "live_changed_source_ratio",
                     "--scope",
                     query["scope"],
                     "--outputFile",
@@ -250,8 +246,6 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     query["endTime"],
                     "--algorithm",
                     "B",
-                    "--metric",
-                    "live_changed_source_ratio",
                     "--scope",
                     query["scope"],
                     "--outputFile",
@@ -320,7 +314,11 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = self._run_algorithm_b_offline_cli(query, commit_diff_dir)
+            result = self._run_algorithm_b_offline_cli(
+                query,
+                commit_diff_dir,
+                extra_args=["--metric", "period_added_ai_ratio"],
+            )
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("only supports a single file in the first patch sequence", result.stderr)
@@ -351,12 +349,16 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = self._run_algorithm_b_offline_cli(query, commit_diff_dir)
+            result = self._run_algorithm_b_offline_cli(
+                query,
+                commit_diff_dir,
+                extra_args=["--metric", "period_added_ai_ratio"],
+            )
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("only supports a single hunk in the first patch", result.stderr)
 
-    def test_cli_rejects_algorithm_b_offline_when_replayed_file_path_changes(self) -> None:
+    def test_cli_rejects_algorithm_b_offline_when_replayed_file_path_jumps_to_unrelated_file(self) -> None:
         query = {
             "vcsType": "git",
             "repoURL": "https://example.local/repo/demo",
@@ -380,8 +382,8 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
             (commit_diff_dir / "r2_commitDiff.patch").write_text(
-                "diff --git a/src/report.py b/src/report_renamed.py\n"
-                "--- a/src/report.py\n"
+                "diff --git a/src/unrelated.py b/src/report_renamed.py\n"
+                "--- a/src/unrelated.py\n"
                 "+++ b/src/report_renamed.py\n"
                 "@@ -1,3 +1,4 @@\n"
                 " def build_report(data):\n"
@@ -391,10 +393,41 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = self._run_algorithm_b_offline_cli(query, commit_diff_dir)
+            result = self._run_algorithm_b_offline_cli(
+                query,
+                commit_diff_dir,
+                extra_args=["--metric", "period_added_ai_ratio"],
+            )
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("only supports a single replayed file path across the diff sequence", result.stderr)
+
+    def test_cli_rejects_algorithm_b_when_routing_metric_cannot_be_inferred(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/demo",
+            "repoBranch": "main",
+            "scope": "A",
+            "startTime": "2026-03-10",
+            "endTime": "2026-03-31",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            commit_diff_dir = Path(temp_dir) / "commitDiffSet"
+            commit_diff_dir.mkdir()
+            (commit_diff_dir / "r1_commitDiff.patch").write_text(
+                "diff --git a/src/report.py b/src/report.py\n"
+                "--- a/src/report.py\n"
+                "+++ b/src/report.py\n"
+                "@@ -0,0 +1 @@\n"
+                "+print('hello')\n",
+                encoding="utf-8",
+            )
+
+            result = self._run_algorithm_b_offline_cli(query, commit_diff_dir)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires either --metric or a query.json metric", result.stderr)
 
 
 if __name__ == "__main__":

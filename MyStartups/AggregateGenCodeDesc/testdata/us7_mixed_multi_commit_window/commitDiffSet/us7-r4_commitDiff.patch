@@ -1,0 +1,10 @@
+diff --git a/src/mixed.py b/src/mixed.py
+--- a/src/mixed.py
++++ b/src/mixed.py
+@@ -1,5 +1,5 @@
+ first = seed
+ second = seed + 1
+ third = seed * 2
+ fourth = normalize(seed)
+-fifth = seed + 4
++fifth = seed + helper(seed)

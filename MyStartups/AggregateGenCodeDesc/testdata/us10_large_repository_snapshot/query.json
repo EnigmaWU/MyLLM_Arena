@@ -7,5 +7,10 @@
   "scope": "A",
   "startTime": "2026-03-01",
   "endTime": "2026-03-31",
+  "includedRevisionIds": [
+    "us10-r2",
+    "us10-r3",
+    "us10-r4"
+  ],
   "endRevisionId": "us10-r5"
 }

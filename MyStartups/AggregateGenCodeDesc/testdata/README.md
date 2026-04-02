@@ -20,17 +20,17 @@ For `Algorithm B`, the fixture contract is stricter:
 ## Scenarios
 
 - `us1_live_changed_source_ratio` (`Shared US`, current matrix state: `Algorithm A` covers Git and SVN, `Algorithm B` covers narrow Git and SVN live-snapshot paths for the approved baseline shape): weighted AI ratio for live changed source code lines in the requested window, expected `62.5%`
-- `us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later human rewrite resets one live changed line to `0`, expected `66.67%`
-- `us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
-- `us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A`): deleted lines are excluded from the live changed snapshot, expected `100%`
-- `us5_rename_preserves_lineage` (`Shared US`, current active evidence is `Algorithm A`): rename preserves original attribution lineage, expected `66.67%`
+- `us2_human_overwrites_ai_live_changed` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): later human rewrite resets one live changed line to `0`, expected `66.67%`
+- `us3_ai_overwrites_human_live_changed` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): later AI rewrite takes ownership of one live changed line, expected `60.0%`
+- `us4_deleted_lines_excluded` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): deleted lines are excluded from the live changed snapshot, expected `100%`
+- `us5_rename_preserves_lineage` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): rename preserves original attribution lineage, expected `66.67%`
 - `us6_period_added_ratio` (`Shared US`, current executable path is `Algorithm B`): true period contribution ratio inside `startTime~endTime`, expected `60.0%`, with required `commitDiffSet/` artifacts for the replayed revisions; this is the current narrow executable Algorithm-B baseline fixture
-- `us7_mixed_multi_commit_window` (`Shared US`, current active evidence is `Algorithm A`): mixed multi-commit history with human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines, expected final summary `total=5, full=1, partial=1`
-- `us8_merge_commit_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`): merge commit keeps effective attribution of surviving lines, expected final summary `total=4, full=1, partial=0`
+- `us7_mixed_multi_commit_window` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): mixed multi-commit history with human-only lines, AI-only lines, human-then-AI rewrites, AI-then-human rewrites, and deleted AI lines, expected final summary `total=5, full=1, partial=1`
+- `us8_merge_commit_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): merge commit keeps effective attribution of surviving lines, expected final summary `total=4, full=1, partial=0`
 - `us9_svn_contract_parity` (`Shared contract story`, current active evidence is Git/SVN parity through `Algorithm A`): SVN target follows the same protocol-shaped result contract as Git for the primary metric, expected final summary `total=4, full=2, partial=1`
-- `us10_large_repository_snapshot` (`Shared US`, current active evidence is `Algorithm A`): large-snapshot semantics remain stable under broad file and line counts
-- `us11_deep_history_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A`): deep history preserves latest effective attribution without leaking superseded states
-- `us12_many_merged_branches_preserve_attribution` (`Shared US`, current active evidence is `Algorithm A`): branch-heavy merges preserve effective per-line attribution
+- `us10_large_repository_snapshot` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): large-snapshot semantics remain stable under broad file and line counts
+- `us11_deep_history_preserves_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): deep history preserves latest effective attribution without leaking superseded states
+- `us12_many_merged_branches_preserve_attribution` (`Shared US`, current active evidence is `Algorithm A` plus narrow Git `Algorithm B`): branch-heavy merges preserve effective per-line attribution
 - `us13_git_production_scale_local_repo` (`Heavy gate`, current active evidence is `Algorithm A`): production-scale Git golden query and expected aggregate result for a `100+` branch and `1000+` commit local repository, expected final summary `total=200, full=80, partial=60`
 - `us14_svn_production_scale_local_repo` (`Heavy gate`, current active evidence is `Algorithm A`): production-scale SVN golden query and expected aggregate result for a `100+` branch-copy and `1000+` revision local repository, expected final summary `total=200, full=80, partial=60`
 
@@ -49,8 +49,11 @@ For `Algorithm B`, the fixture contract is stricter:
 - `Algorithm B`: current active evidence for the narrow `US-6` period-contribution baseline and narrow Git/SVN live-snapshot `US-1` baselines; broader Git/SVN production convergence remains planned
 - Current convergence interpretation in `testdata`:
   - `US-1` is the first primary-metric shared story with a full accepted 2x2 matrix example; `Algorithm A` covers Git and SVN, while `Algorithm B` covers the approved narrow live-snapshot baseline on Git and SVN
-  - `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12` are shared stories with current active evidence on the `Algorithm A` side
-  - `US-9` is a shared contract story whose current active evidence is Git/SVN parity through `Algorithm A`
+  - `US-2`, `US-3`, and `US-4` now have current active evidence on `Algorithm A` plus narrow Git `Algorithm B` live-snapshot replay for the approved baseline fixture shape
+  - `US-5` and `US-7` now have current active evidence on `Algorithm A` plus narrow Git `Algorithm B` live-snapshot replay for the approved baseline fixture shape
+  - `US-8` and `US-12` now have current active evidence on `Algorithm A` plus narrow Git `Algorithm B` live-snapshot replay for the approved baseline fixture shape
+  - `US-10` and `US-11` now have current active evidence on `Algorithm A` plus narrow Git `Algorithm B` live-snapshot replay for the approved baseline fixture shape
+  - `US-9` is a shared contract story whose current active evidence is Git/SVN parity through `Algorithm A` plus narrow Git/SVN `Algorithm B` parity on the approved `US-1` baseline shape
   - `US-6` is the first shared story with an executable `Algorithm B` acceptance track
   - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories
 

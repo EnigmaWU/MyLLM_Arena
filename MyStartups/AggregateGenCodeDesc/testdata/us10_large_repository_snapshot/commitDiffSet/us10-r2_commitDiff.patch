@@ -1,0 +1,24 @@
+diff --git a/src/core/alpha.py b/src/core/alpha.py
+--- a/src/core/alpha.py
++++ b/src/core/alpha.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-alpha_line = base + 1
++alpha_line = suggest(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/core/beta.py b/src/core/beta.py
+--- a/src/core/beta.py
++++ b/src/core/beta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-beta_line = base + 1
++beta_line = suggest(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/core/gamma.py b/src/core/gamma.py
+--- a/src/core/gamma.py
++++ b/src/core/gamma.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-gamma_line = base + 1
++gamma_line = draft(base + 1)
+ stable_pre_window = base + 2

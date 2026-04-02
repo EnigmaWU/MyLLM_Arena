@@ -1,0 +1,15 @@
+diff --git a/src/branch_matrix.py b/src/branch_matrix.py
+--- a/src/branch_matrix.py
++++ b/src/branch_matrix.py
+@@ -1,10 +1,10 @@
+ carry_pre_window = base
+ main_human = sanitize(base + 1)
+ alpha_branch = helper(base + 2)
+ beta_branch = suggest(base + 3)
+ gamma_branch = synthesize(base + 4)
+-delta_branch = base + 5
++delta_branch = blend(base + 5)
+ epsilon_branch = base + 6
+ stable_pre_window = base + 7
+ main_tail = clamp(base + 8)
+ return carry_pre_window + main_human + alpha_branch + beta_branch + gamma_branch + delta_branch + epsilon_branch + stable_pre_window + main_tail

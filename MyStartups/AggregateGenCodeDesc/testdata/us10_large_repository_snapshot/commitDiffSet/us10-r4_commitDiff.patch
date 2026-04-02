@@ -1,0 +1,24 @@
+diff --git a/src/utils/zeta.py b/src/utils/zeta.py
+--- a/src/utils/zeta.py
++++ b/src/utils/zeta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-zeta_line = base + 1
++zeta_line = generate(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/utils/eta.py b/src/utils/eta.py
+--- a/src/utils/eta.py
++++ b/src/utils/eta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-eta_line = base + 1
++eta_line = finalize(base + 1)
+ stable_pre_window = base + 2
+diff --git a/src/app/theta.py b/src/app/theta.py
+--- a/src/app/theta.py
++++ b/src/app/theta.py
+@@ -1,3 +1,3 @@
+ carry_pre_window = base
+-theta_line = base + 1
++theta_line = assist(base + 1)
+ stable_pre_window = base + 2

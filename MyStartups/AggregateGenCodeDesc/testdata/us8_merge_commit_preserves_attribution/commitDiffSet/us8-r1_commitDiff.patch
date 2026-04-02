@@ -1,0 +1,8 @@
+diff --git a/src/merge_case.py b/src/merge_case.py
+--- a/src/merge_case.py
++++ b/src/merge_case.py
+@@ -0,0 +1,4 @@
++base = x
++spacer = x
++value = x + 1
++return base + value + spacer

@@ -1,0 +1,7 @@
+diff --git a/src/normalize.py b/src/normalize.py
+--- a/src/normalize.py
++++ b/src/normalize.py
+@@ -0,0 +1,3 @@
++value = raw.strip()
++value = value.lower()
++result = value
