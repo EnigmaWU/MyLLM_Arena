@@ -31,6 +31,57 @@
 - Test run guide: `README_RunTestCase.md`
 - Scenario-based test fixtures: `testdata/`
 
+## ======>>>QUICK START<<<======
+
+If you are new to this repo, start with `README_UserGuide.md`.
+
+Most common current command patterns:
+
+### Git real-repository run with `Algorithm A`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL /path/to/local/git/repo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+### SVN real-repository run with `Algorithm A`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL file:///path/to/local/svn/repo \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+### Narrow replay run with `Algorithm B`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --metric live_changed_source_ratio \
+  --scope A \
+  --outputFile /tmp/agg-b-out.json \
+  --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
+  --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
+```
+
+For more examples, argument explanations, and common failure cases, use `README_UserGuide.md`.
+
 ## ======>>>PRODUCTION TARGET<<<======
 
 - The current implementation target is `Algorithm A + Scope A` at production quality for both Git and SVN.

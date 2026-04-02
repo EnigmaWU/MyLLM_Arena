@@ -21,6 +21,57 @@
 - 测试运行指南：`README_RunTestCase.md`
 - 基于场景的测试夹具：`testdata/`
 
+## ======>>>快速开始<<<======
+
+如果你是第一次使用这个仓库，请先看 `README_UserGuide_ZH.md`。
+
+当前最常见的命令模式如下：
+
+### Git 真实仓库运行：`Algorithm A`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL /path/to/local/git/repo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+### SVN 真实仓库运行：`Algorithm A`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL file:///path/to/local/svn/repo \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+### 狭义回放运行：`Algorithm B`
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --metric live_changed_source_ratio \
+  --scope A \
+  --outputFile /tmp/agg-b-out.json \
+  --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
+  --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
+```
+
+如果你需要更多示例、参数说明和常见报错处理，请看 `README_UserGuide_ZH.md`。
+
 ## ======>>>生产验证分层<<<======
 
 - 当前实现的生产目标仍然是 `Algorithm A + Scope A` 在 Git 与 SVN 上达到生产质量。
