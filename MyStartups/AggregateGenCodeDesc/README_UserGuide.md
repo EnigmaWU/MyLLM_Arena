@@ -27,7 +27,7 @@ The most common current usage is:
 1. prepare revision-level `genCodeDesc` metadata under `--genCodeDescSetDir`
 2. choose `--vcsType git` or `--vcsType svn`
 3. run `Algorithm A` for real repository analysis
-4. use `Algorithm B` only when you intentionally want the current narrow replay-based path with `--commitDiffSetDir`
+4. use `Algorithm B` only when you intentionally want the current narrow replay-based path, either through local Git live-snapshot replay or through fixture-driven `--commitDiffSetDir`
 
 This guide is written from the intended production operator perspective.
 That means internal implementation-routing seams should not be treated as normal user responsibilities.
@@ -74,7 +74,7 @@ Most useful runs also need:
 `Algorithm B` runs additionally require:
 
 - `--algorithm B`
-- `--commitDiffSetDir`
+- `--commitDiffSetDir` only when you intentionally want the fixture-driven replay path
 
 ## Core Arguments
 
@@ -115,7 +115,7 @@ Default is `A`.
 
 ### `--commitDiffSetDir`
 
-Required for the current `Algorithm B` path.
+Required for fixture-driven `Algorithm B` replay and for the current `US-6` period-added baseline.
 
 This directory must contain raw unified diff patch files such as:
 
@@ -200,7 +200,27 @@ python3 aggregateGenCodeDesc.py \
 
 You can also use an SVN server URL instead of `file:///...` if the environment supports it.
 
-### 4. Typical `Algorithm B` Git replay run
+### 4. Typical `Algorithm B` Git live-snapshot run on a local checkout
+
+Use this only when you intentionally want the current narrow replay-based `Algorithm B` path on Git, but with a real local checkout rather than pre-generated commit diff fixtures.
+
+```bash
+cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --workingDir /path/to/local/git/checkout \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --scope A \
+  --outputFile /tmp/agg-b-git-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+### 5. Typical `Algorithm B` Git fixture replay run
 
 Use this only when you intentionally want the current narrow replay-based path.
 
@@ -220,7 +240,7 @@ python3 aggregateGenCodeDesc.py \
   --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
 ```
 
-### 5. Typical `Algorithm B` SVN replay run
+### 6. Typical `Algorithm B` SVN replay run
 
 Use this only when you intentionally want the current narrow replay-based path on SVN.
 
@@ -240,7 +260,7 @@ python3 aggregateGenCodeDesc.py \
   --commitDiffSetDir testdata/us1_live_changed_source_ratio_svn/commitDiffSet
 ```
 
-### 6. Current `US-6` style period-added replay example
+### 7. Current `US-6` style period-added replay example
 
 ```bash
 cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
@@ -256,6 +276,27 @@ python3 aggregateGenCodeDesc.py \
   --outputFile /tmp/agg-b-period-out.json \
   --genCodeDescSetDir testdata/us6_period_added_ratio \
   --commitDiffSetDir testdata/us6_period_added_ratio/commitDiffSet
+```
+
+### 8. Current `US-6` style period-added run on a local Git checkout
+
+Use this when you want the same narrow period-added `Algorithm B` mode, but against a real local Git checkout rather than fixture diff files.
+
+```bash
+cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --workingDir /path/to/local/git/checkout \
+  --repoBranch main \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --scope A \
+  --outputFile /tmp/agg-b-period-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet \
+  --metric period_added_ai_ratio
 ```
 
 ## Output Shape

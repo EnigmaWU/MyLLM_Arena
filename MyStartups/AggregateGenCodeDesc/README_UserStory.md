@@ -312,7 +312,7 @@ Note: this should be treated as a shared lineage-preservation story. The current
 **I want** to calculate how much AI-generated code was added during `startTime~endTime`,
 **so that** I can distinguish period contribution from end-of-period inventory.
 
-Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that should be treated as a shared user story, while allowing `Algorithm A` and `Algorithm B` to satisfy it through different acceptance tracks. The current implementation now includes only a narrow executable offline Git baseline for the `US-6` fixture shape on the `Algorithm B` side.
+Note: this is not the current `P0 / Scope A` baseline metric. It is a separate history-oriented metric that should be treated as a shared user story, while allowing `Algorithm A` and `Algorithm B` to satisfy it through different acceptance tracks. The current implementation now includes a narrow executable Git baseline for `US-6` on the `Algorithm B` side, both through the approved fixture replay path and through the supported local-Git replay path.
 
 #### Shared Acceptance Criteria For US-6
 
@@ -344,9 +344,9 @@ Note: this is not the current `P0 / Scope A` baseline metric. It is a separate h
    **WHEN** the analyzer produces the final result through the current narrow offline Git baseline
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
-2. **GIVEN** the current CLI slice with `--algorithm B --commitDiffSetDir`
-   **WHEN** the input follows the current narrow fixture contract for a single-file, single-branch Git replay sequence
-   **THEN** the analyzer may execute the `US-6` offline Algorithm-B baseline without requiring `--workingDir`
+2. **GIVEN** the current CLI slice with `--algorithm B`
+   **WHEN** the input follows the current narrow `US-6` Git replay boundary, either through `--commitDiffSetDir` or through a supported local Git checkout
+   **THEN** the analyzer may execute the `US-6` offline Algorithm-B baseline under that same narrow support boundary
 
 3. **GIVEN** broader Algorithm-B history shapes such as multi-file replay, rename/path changes, or merge-aware accounting
    **WHEN** the current CLI slice is used

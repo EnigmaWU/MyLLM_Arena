@@ -12,6 +12,7 @@ The current baseline is already in place:
 
 - `US-6` has the first narrow executable `Algorithm B` offline Git path
 - `US-1` has the first narrow live-snapshot `Algorithm B` 2x2 matrix example across Git and SVN
+- the current Git live-snapshot and period-added paths can now replay a real local checkout, using either an absolute local `repoURL` or a logical `repoURL` plus `--workingDir`, while preserving the same narrow support boundary
 
 The next work is not to broaden support vaguely. The next work is to converge story-by-story semantics in a controlled order.
 
@@ -76,11 +77,13 @@ The docs already describe a production-facing UX where operators choose `Algorit
 
 - Extend `tests/test_cli_algorithm_flag_tdd.py`
 - Add CLI regressions that prove the current `US-1` and `US-6` fixture commands work without a user-facing `--metric`
+- Add CLI regressions that prove the live-snapshot Git path can run against a real local checkout without `--commitDiffSetDir`
+- Add CLI regressions that prove the period-added Git path can run against a real local checkout without `--commitDiffSetDir`
 - Keep one negative-path test for ambiguous or unsupported `Algorithm B` routing
 
 ### Exit Condition
 
-- `US-1` narrow live-snapshot replay and `US-6` narrow period replay are both callable under the intended production UX boundary
+- `US-1` narrow live-snapshot replay and `US-6` narrow period replay are both callable through fixture replay and through the supported local-Git replay path under the intended production UX boundary
 
 ## Milestone 2: Rewrite And Deletion Foundation
 

@@ -559,6 +559,129 @@ def list_commit_diff_revision_ids(commit_diff_set_dir: Path) -> list[str]:
     return revision_ids
 
 
+def is_source_file_path(path_value: str) -> bool:
+    if not path_value or path_value == "/dev/null":
+        return False
+    return Path(path_value).suffix in SOURCE_EXTENSIONS
+
+
+def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str) -> list[str]:
+    parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
+    if parent_revision is None:
+        output = run_git(repo_dir, ["show", "--format=", "--name-only", "--root", revision_id])
+    else:
+        output = run_git(repo_dir, ["diff", "--name-only", parent_revision, revision_id])
+
+    return [
+        relative_path
+        for relative_path in output.splitlines()
+        if relative_path and is_source_file_path(relative_path)
+    ]
+
+
+def build_git_source_patch_for_revision(repo_dir: Path, revision_id: str, source_paths: list[str]) -> str:
+    if not source_paths:
+        return ""
+
+    parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
+    if parent_revision is None:
+        return run_git(
+            repo_dir,
+            ["show", "--format=", "--find-renames", "--root", revision_id, "--", *source_paths],
+        )
+
+    return run_git(
+        repo_dir,
+        ["diff", "--find-renames", parent_revision, revision_id, "--", *source_paths],
+    )
+
+
+def resolve_local_git_repository_dir(args: argparse.Namespace) -> Path:
+    candidate = Path(args.workingDir or args.repoURL)
+    if not candidate.is_dir():
+        raise UnsupportedConfigurationError(
+            "Algorithm B local git replay requires a local repository via --workingDir or an absolute --repoURL when --commitDiffSetDir is not provided"
+        )
+
+    probe = run_command(["git", "rev-parse", "--is-inside-work-tree"], cwd=candidate, check=False)
+    if probe.returncode != 0 or probe.stdout.strip() != "true":
+        raise UnsupportedConfigurationError(
+            "Algorithm B local git replay requires --workingDir or --repoURL to point at a git working tree"
+        )
+
+    return candidate
+
+
+def resolve_algorithm_b_git_end_revision_id(args: argparse.Namespace, repo_dir: Path) -> str:
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        end_revision_id = query_document.get("endRevisionId")
+        if end_revision_id is not None:
+            if not isinstance(end_revision_id, str) or not end_revision_id:
+                raise ProtocolValidationError("query.json endRevisionId must be a non-empty string when provided")
+            return end_revision_id
+
+    return resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
+
+
+def resolve_algorithm_b_git_revision_ids(args: argparse.Namespace, repo_dir: Path) -> tuple[list[str], str]:
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        included_revision_ids = query_document.get("includedRevisionIds")
+        if included_revision_ids is not None:
+            if not isinstance(included_revision_ids, list) or not all(isinstance(value, str) and value for value in included_revision_ids):
+                raise ProtocolValidationError("query.json includedRevisionIds must be a non-empty list of revision-id strings")
+            end_revision_id = resolve_algorithm_b_git_end_revision_id(args, repo_dir)
+            return included_revision_ids, end_revision_id
+
+    end_revision_id = resolve_algorithm_b_git_end_revision_id(args, repo_dir)
+    revision_output = run_git(
+        repo_dir,
+        [
+            "rev-list",
+            "--reverse",
+            "--first-parent",
+            f"--since={parse_day_start(args.startTime).isoformat()}",
+            f"--until={parse_day_end(args.endTime).isoformat()}",
+            end_revision_id,
+        ],
+    )
+    revision_ids = [revision_id for revision_id in revision_output.splitlines() if revision_id]
+    return revision_ids, end_revision_id
+
+
+def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: list[str]) -> list[RevisionCommitDiff]:
+    loaded_sequence: list[RevisionCommitDiff] = []
+
+    for revision_id in revision_ids:
+        source_paths = list_git_source_paths_for_revision(repo_dir, revision_id)
+        if not source_paths:
+            continue
+
+        patch_text = build_git_source_patch_for_revision(repo_dir, revision_id, source_paths)
+        if not patch_text.strip():
+            continue
+
+        loaded_sequence.append(
+            RevisionCommitDiff(
+                revision_id=revision_id,
+                parsed_patch=parse_commit_diff_patch(patch_text),
+            )
+        )
+
+    if not loaded_sequence:
+        raise ProtocolValidationError("Algorithm B local git replay did not find any source-file commit diffs in the requested window")
+
+    return loaded_sequence
+
+
+def collect_git_revision_commit_times(repo_dir: Path, revision_ids: list[str]) -> dict[str, datetime]:
+    return {
+        revision_id: parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", revision_id]))
+        for revision_id in revision_ids
+    }
+
+
 def reconstruct_base_line_states_from_patch(commit_diff_file: CommitDiffFile) -> list[LineState]:
     if len(commit_diff_file.hunks) != 1:
         raise UnsupportedConfigurationError(
@@ -582,6 +705,11 @@ def reconstruct_final_line_states_from_commit_diff_sequence(
     commit_diff_sequence: list[RevisionCommitDiff],
     protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
 ) -> tuple[str, list[LineState]]:
+    if len(commit_diff_sequence[0].parsed_patch.files) != 1:
+        raise UnsupportedConfigurationError(
+            "Current Algorithm B offline slice only supports a single file in the first patch sequence"
+        )
+
     file_states = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
@@ -607,6 +735,8 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
     for revision_diff in commit_diff_sequence:
         protocol_index = None if protocol_indexes is None else protocol_indexes.get(revision_diff.revision_id)
         for commit_diff_file in revision_diff.parsed_patch.files:
+            if not is_source_file_path(commit_diff_file.old_path) and not is_source_file_path(commit_diff_file.new_path):
+                continue
             current_lines = file_states.pop(commit_diff_file.old_path, None)
             if current_lines is None:
                 current_lines = file_states.pop(commit_diff_file.new_path, None)
@@ -687,6 +817,34 @@ def summarize_live_snapshot_line_states(
     }
 
 
+def summarize_live_snapshot_file_states(
+    file_states_by_path: dict[str, list[LineState]],
+    revision_commit_times: dict[str, datetime],
+    start_bound: datetime,
+    end_bound: datetime,
+) -> dict[str, int]:
+    total_code_lines = 0
+    full_generated_code_lines = 0
+    partial_generated_code_lines = 0
+
+    for line_states in file_states_by_path.values():
+        file_summary = summarize_live_snapshot_line_states(
+            line_states,
+            revision_commit_times,
+            start_bound,
+            end_bound,
+        )
+        total_code_lines += file_summary["totalCodeLines"]
+        full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
+        partial_generated_code_lines += file_summary["partialGeneratedCodeLines"]
+
+    return {
+        "totalCodeLines": total_code_lines,
+        "fullGeneratedCodeLines": full_generated_code_lines,
+        "partialGeneratedCodeLines": partial_generated_code_lines,
+    }
+
+
 def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
     if args.vcsType != "git":
         raise UnsupportedConfigurationError("Current Algorithm B offline slice only supports git")
@@ -721,6 +879,46 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
+        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
+        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+    )
+    return {
+        "protocolName": "generatedTextDesc",
+        "protocolVersion": PROTOCOL_VERSION,
+        "SUMMARY": summary,
+        "REPOSITORY": {
+            "vcsType": args.vcsType,
+            "repoURL": args.repoURL,
+            "repoBranch": args.repoBranch,
+            "revisionId": end_revision_id,
+        },
+    }
+
+
+def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
+    if args.vcsType != "git":
+        raise UnsupportedConfigurationError("Current Algorithm B local period-added replay only supports git")
+
+    repo_dir = resolve_local_git_repository_dir(args)
+    revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
+    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids)
+
+    provider = build_gen_code_desc_provider(args, logger)
+    protocol_indexes = {
+        revision_diff.revision_id: build_protocol_index(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        )
+        for revision_diff in commit_diff_sequence
+    }
+    file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
+        commit_diff_sequence,
+        protocol_indexes,
+    )
+    replay_revision_ids = [revision_diff.revision_id for revision_diff in commit_diff_sequence]
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids)
+
+    logger.info(
+        f"Finished Algorithm B local git period-added analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
@@ -778,6 +976,54 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
+        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
+        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+    )
+    return {
+        "protocolName": "generatedTextDesc",
+        "protocolVersion": PROTOCOL_VERSION,
+        "SUMMARY": summary,
+        "REPOSITORY": {
+            "vcsType": args.vcsType,
+            "repoURL": args.repoURL,
+            "repoBranch": args.repoBranch,
+            "revisionId": end_revision_id,
+        },
+    }
+
+
+def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
+    if args.vcsType != "git":
+        raise UnsupportedConfigurationError("Current Algorithm B local live-snapshot replay only supports git")
+
+    repo_dir = resolve_local_git_repository_dir(args)
+    revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
+    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids)
+
+    provider = build_gen_code_desc_provider(args, logger)
+    protocol_indexes = {
+        revision_diff.revision_id: build_protocol_index(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        )
+        for revision_diff in commit_diff_sequence
+    }
+    file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
+        commit_diff_sequence,
+        protocol_indexes,
+    )
+    revision_commit_times = collect_git_revision_commit_times(
+        repo_dir,
+        [revision_diff.revision_id for revision_diff in commit_diff_sequence],
+    )
+    summary = summarize_live_snapshot_file_states(
+        file_states_by_path,
+        revision_commit_times,
+        parse_day_start(args.startTime),
+        parse_day_end(args.endTime),
+    )
+
+    logger.info(
+        f"Finished Algorithm B local git live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
@@ -923,7 +1169,7 @@ def validate_inputs(args: argparse.Namespace) -> None:
             raise InputValidationError("--commitDiffSetDir is only supported with --algorithm B")
     if args.workingDir:
         validate_directory(args.workingDir, "--workingDir")
-    elif args.vcsType == "git" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
+    elif args.vcsType == "git" and args.algorithm != "B" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
         raise InputValidationError(
             "--workingDir is required for git when --repoURL is a logical repository URL rather than a local absolute path"
         )
@@ -1388,12 +1634,16 @@ def resolve_algorithm_b_end_revision_id(args: argparse.Namespace, revision_ids: 
 
 def build_result(args: argparse.Namespace) -> dict:
     logger = RuntimeLogger(args.logLevel)
-    if args.algorithm == "B" and args.commitDiffSetDir:
+    if args.algorithm == "B":
         resolved_metric = resolve_algorithm_b_metric(args)
-        if resolved_metric == "live_changed_source_ratio":
+        if resolved_metric == "live_changed_source_ratio" and args.commitDiffSetDir:
             return build_result_algorithm_b_live_snapshot_offline(args, logger)
+        if resolved_metric == "live_changed_source_ratio":
+            return build_result_algorithm_b_live_snapshot_local_git(args, logger)
         if resolved_metric == "period_added_ai_ratio":
-            return build_result_algorithm_b_offline(args, logger)
+            if args.commitDiffSetDir:
+                return build_result_algorithm_b_offline(args, logger)
+            return build_result_algorithm_b_offline_local_git(args, logger)
         raise UnsupportedConfigurationError(
             "Current Algorithm B routing only supports metrics: live_changed_source_ratio, period_added_ai_ratio"
         )

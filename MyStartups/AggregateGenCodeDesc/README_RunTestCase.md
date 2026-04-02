@@ -136,14 +136,16 @@ The current executable `Algorithm B` path is intentionally narrow.
 
 Supported today:
 
+- local Git live-snapshot and period-added replay through `--algorithm B` when Git history is available via an absolute `repoURL` or via logical `repoURL` plus `--workingDir`
 - Git and SVN fixture-driven replay through `--algorithm B --commitDiffSetDir`
 - narrow live-snapshot replay for the approved fixture shapes behind `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`
-- narrow offline period replay for the approved `US-6` fixture shape
+- narrow period replay for the approved `US-6` baseline, both through fixture replay and through the current local-Git path
 - explicit Git/SVN contract parity for `US-9` on the approved `US-1` baseline shape
 
 Explicitly unsupported today:
 
 - first-patch multi-hunk base reconstruction
+- generic non-local Git replay without either `--commitDiffSetDir` or a local checkout behind `--repoURL` / `--workingDir`
 - broader Git/SVN parity claims beyond the approved baseline shapes
 - full generic merge-graph-aware accounting beyond the approved replay fixtures
 - blanket production-scale `Algorithm B` support claims for the `Heavy` gates
