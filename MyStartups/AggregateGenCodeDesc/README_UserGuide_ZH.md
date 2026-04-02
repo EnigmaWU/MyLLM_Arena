@@ -29,6 +29,9 @@
 3. 如果要分析真实仓库历史，优先用 `Algorithm A`
 4. 如果你是有意验证当前狭义回放路径，再用带 `--commitDiffSetDir` 的 `Algorithm B`
 
+本指南按目标中的生产就绪操作体验来写。
+这意味着内部实现分流细节不应该被当作普通用户必须关心的参数。
+
 ## 当前支持矩阵
 
 ### 面向生产的主路径
@@ -110,15 +113,6 @@ Git 专用辅助参数，用于逻辑 `repoURL` 模式。
 
 默认值是 `A`。
 
-### `--metric`
-
-当前在 `Algorithm B` 下建议显式给出。
-
-目前重要值：
-
-- `live_changed_source_ratio`
-- `period_added_ai_ratio`
-
 ### `--commitDiffSetDir`
 
 当前 `Algorithm B` 必需参数。
@@ -126,6 +120,18 @@ Git 专用辅助参数，用于逻辑 `repoURL` 模式。
 该目录必须包含原始 unified diff patch，例如：
 
 - `<revisionId>_commitDiff.patch`
+
+## 生产形态下的 UX 说明
+
+按目标中的生产就绪操作体验，用户不应该为了让 `Algorithm B` 走到正确路径，就额外承担内部实现分流参数。
+
+因此，本指南不会把 `--metric` 当作主路径下普通操作人员必须理解的参数。
+
+当前实现说明：
+
+- 当前有些 `Algorithm B` 路径在内部仍通过 `--metric` 做分流
+- 这属于实现过渡细节，不是面向最终用户的长期 CLI 契约
+- 下方示例按目标中的生产形态来写
 
 ## 典型用法示例
 
@@ -203,7 +209,6 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-git-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
@@ -224,7 +229,6 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-svn-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio_svn \
@@ -312,6 +316,17 @@ python3 aggregateGenCodeDesc.py \
 修复：
 
 - 补上缺失的 `<revisionId>_commitDiff.patch`
+
+### `Algorithm B` 看起来还要求某个奇怪的内部参数
+
+原因：
+
+- 你碰到的是当前实现中的过渡性分流细节，而不是目标中的生产操作体验
+
+修复：
+
+- 对外使用时，应以本指南描述的目标操作契约为准
+- 如果你当前是在调试内部实现，而不是按目标操作体验使用，请改看开发者相关文档和测试
 
 ### `--vcsType must be one of: git, svn`
 

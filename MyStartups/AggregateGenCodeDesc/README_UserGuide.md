@@ -29,6 +29,9 @@ The most common current usage is:
 3. run `Algorithm A` for real repository analysis
 4. use `Algorithm B` only when you intentionally want the current narrow replay-based path with `--commitDiffSetDir`
 
+This guide is written from the intended production operator perspective.
+That means internal implementation-routing seams should not be treated as normal user responsibilities.
+
 ## Current Support Matrix
 
 ### Production-oriented path
@@ -110,15 +113,6 @@ The current runtime validates metadata identity fields, so the metadata `REPOSIT
 
 Default is `A`.
 
-### `--metric`
-
-Use this explicitly for `Algorithm B` when needed.
-
-Current important values:
-
-- `live_changed_source_ratio`
-- `period_added_ai_ratio`
-
 ### `--commitDiffSetDir`
 
 Required for the current `Algorithm B` path.
@@ -126,6 +120,18 @@ Required for the current `Algorithm B` path.
 This directory must contain raw unified diff patch files such as:
 
 - `<revisionId>_commitDiff.patch`
+
+## Production UX Note
+
+In the intended production-ready user experience, operators should not need to provide internal routing flags just to reach the right `Algorithm B` behavior.
+
+So this guide does not treat `--metric` as a normal operator-facing argument for the primary `Algorithm B` examples.
+
+Current implementation note:
+
+- some current `Algorithm B` code paths still use `--metric` internally as a dispatch seam
+- that is an implementation detail, not the intended long-term CLI contract for end users
+- user-facing examples below are written in the target production form
 
 ## Typical Usage Examples
 
@@ -208,7 +214,6 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-git-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
@@ -229,7 +234,6 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-svn-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio_svn \
@@ -317,6 +321,17 @@ Cause:
 Fix:
 
 - add the missing `<revisionId>_commitDiff.patch`
+
+### `Algorithm B` seems to require an unexpected internal flag
+
+Cause:
+
+- you are hitting a transitional implementation seam rather than the intended production UX
+
+Fix:
+
+- follow this guide as the target operator contract
+- if you are debugging the current internal implementation rather than using the intended operator flow, consult the developer-facing docs and tests
 
 ### `--vcsType must be one of: git, svn`
 

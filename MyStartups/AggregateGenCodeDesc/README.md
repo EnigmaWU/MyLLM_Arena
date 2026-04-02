@@ -73,7 +73,6 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
