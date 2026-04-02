@@ -114,6 +114,47 @@ class TestCommitDiffSetDirProviderTdd(unittest.TestCase):
 
             self.assertEqual(list_commit_diff_revision_ids(base_dir), ["r1", "r2", "r10"])
 
+    def test_list_commit_diff_revision_ids_rejects_mixed_legacy_and_time_seq_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_dir = Path(temp_dir)
+            for file_name in [
+                "0001_r1_commitDiff.patch",
+                "r2_commitDiff.patch",
+            ]:
+                (base_dir / file_name).write_text("diff --git a/a b/a\n--- a/a\n+++ b/a\n", encoding="utf-8")
+
+            with self.assertRaises(ProtocolValidationError) as context:
+                list_commit_diff_revision_ids(base_dir)
+
+        self.assertIn("Mixed commit diff patch naming styles are not supported", str(context.exception))
+
+    def test_commit_diff_set_dir_provider_rejects_mixed_legacy_and_time_seq_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_dir = Path(temp_dir)
+            (base_dir / "0001_r1_commitDiff.patch").write_text(
+                "diff --git a/src/demo.py b/src/demo.py\n"
+                "--- a/src/demo.py\n"
+                "+++ b/src/demo.py\n"
+                "@@ -1 +1,2 @@\n"
+                "+print('hello')\n",
+                encoding="utf-8",
+            )
+            (base_dir / "r2_commitDiff.patch").write_text(
+                "diff --git a/src/demo.py b/src/demo.py\n"
+                "--- a/src/demo.py\n"
+                "+++ b/src/demo.py\n"
+                "@@ -1 +1,2 @@\n"
+                "+print('hello again')\n",
+                encoding="utf-8",
+            )
+
+            provider = CommitDiffSetDirProvider(base_dir, RuntimeLogger("quiet"))
+
+            with self.assertRaises(ProtocolValidationError) as context:
+                provider.get_commit_diff_patch("https://example.local/repo/demo", "main", "r1", "git")
+
+        self.assertIn("Mixed commit diff patch naming styles are not supported", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

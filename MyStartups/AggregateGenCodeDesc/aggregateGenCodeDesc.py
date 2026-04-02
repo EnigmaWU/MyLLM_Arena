@@ -289,6 +289,13 @@ _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 _COMMIT_DIFF_FILE_RE = re.compile(r"^(?:(?P<time_seq>\d+)_)?(?P<revision_id>.+)_commitDiff\.patch$")
 
 
+@dataclass(frozen=True)
+class CommitDiffPatchFile:
+    path: Path
+    revision_id: str
+    time_seq: int | None
+
+
 def parse_commit_diff_patch_filename(file_name: str) -> tuple[int | None, str] | None:
     match = _COMMIT_DIFF_FILE_RE.match(file_name)
     if match is None:
@@ -299,23 +306,45 @@ def parse_commit_diff_patch_filename(file_name: str) -> tuple[int | None, str] |
     return (int(time_seq) if time_seq is not None else None, revision_id)
 
 
-def resolve_commit_diff_patch_path(commit_diff_set_dir: Path, revision_id: str) -> Path:
-    direct_path = commit_diff_set_dir / f"{revision_id}_commitDiff.patch"
-    if direct_path.exists():
-        return direct_path
+def list_commit_diff_patch_files(commit_diff_set_dir: Path, *, fail_on_empty: bool = True) -> list[CommitDiffPatchFile]:
+    parsed_patch_files: list[CommitDiffPatchFile] = []
+    has_time_seq_name = False
+    has_legacy_name = False
 
-    matches: list[tuple[int, Path]] = []
-    for patch_path in commit_diff_set_dir.glob(f"*_{revision_id}_commitDiff.patch"):
+    for patch_path in commit_diff_set_dir.glob("*_commitDiff.patch"):
         parsed_name = parse_commit_diff_patch_filename(patch_path.name)
         if parsed_name is None:
             continue
-        time_seq, parsed_revision_id = parsed_name
-        if parsed_revision_id != revision_id:
+        time_seq, revision_id = parsed_name
+        if time_seq is None:
+            has_legacy_name = True
+        else:
+            has_time_seq_name = True
+        parsed_patch_files.append(
+            CommitDiffPatchFile(path=patch_path, revision_id=revision_id, time_seq=time_seq)
+        )
+
+    if not parsed_patch_files and fail_on_empty:
+        raise ProtocolValidationError(f"No commit diff patch files found in {commit_diff_set_dir}")
+
+    if has_time_seq_name and has_legacy_name:
+        raise ProtocolValidationError(
+            "Mixed commit diff patch naming styles are not supported in one commitDiffSetDir; "
+            "use either all <timeSeq>_<revisionId>_commitDiff.patch files or all <revisionId>_commitDiff.patch files"
+        )
+
+    return parsed_patch_files
+
+
+def resolve_commit_diff_patch_path(commit_diff_set_dir: Path, revision_id: str) -> Path:
+    matches: list[tuple[int, Path]] = []
+    for patch_file in list_commit_diff_patch_files(commit_diff_set_dir, fail_on_empty=False):
+        if patch_file.revision_id != revision_id:
             continue
-        matches.append((time_seq if time_seq is not None else sys.maxsize, patch_path))
+        matches.append((patch_file.time_seq if patch_file.time_seq is not None else sys.maxsize, patch_file.path))
 
     if not matches:
-        return direct_path
+        return commit_diff_set_dir / f"{revision_id}_commitDiff.patch"
 
     matches.sort(key=lambda item: (item[0], item[1].name.lower()))
     if len(matches) > 1:
@@ -599,21 +628,17 @@ def summarize_live_changed_line_states_by_revision_ids(
 
 def list_commit_diff_revision_ids(commit_diff_set_dir: Path) -> list[str]:
     parsed_patch_files: list[tuple[tuple[int, list[object]], str]] = []
-    for patch_path in commit_diff_set_dir.glob("*_commitDiff.patch"):
-        parsed_name = parse_commit_diff_patch_filename(patch_path.name)
-        if parsed_name is None:
-            continue
-        time_seq, revision_id = parsed_name
+    for patch_file in list_commit_diff_patch_files(commit_diff_set_dir):
+        time_seq = patch_file.time_seq
+        revision_id = patch_file.revision_id
         sort_key = (0, [time_seq]) if time_seq is not None else (
             1,
-            [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", patch_path.name)],
+            [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", patch_file.path.name)],
         )
         parsed_patch_files.append((sort_key, revision_id))
 
     parsed_patch_files.sort(key=lambda item: item[0])
     revision_ids = [revision_id for _sort_key, revision_id in parsed_patch_files]
-    if not revision_ids:
-        raise ProtocolValidationError(f"No commit diff patch files found in {commit_diff_set_dir}")
     return revision_ids
 
 

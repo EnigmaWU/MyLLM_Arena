@@ -485,6 +485,7 @@ When `--algorithm B --commitDiffSetDir --genCodeDescSetDir` are used together, t
 - each replayed revision must have a matching `<revisionId>_genCodeDesc.json` and `<timeSeq>_<revisionId>_commitDiff.patch` pair.
 - replay order is defined first by `query.json.includedRevisionIds` when present; otherwise the current offline path falls back to the `<timeSeq>` filename prefix.
 - legacy `<revisionId>_commitDiff.patch` files are still accepted for backward compatibility, but they should no longer be treated as the preferred naming contract.
+- do not mix legacy and time-sequenced patch filenames inside one `commitDiffSetDir`; the runtime now fails fast rather than combining two ordering schemes.
 - the runtime aggregates the final result by replaying the ordered diff sequence, joining each revision to its metadata record, reconstructing the final supported line state, and then emitting one final protocol-shaped aggregate JSON result.
 
 This contract is intentionally VCS-neutral at the artifact level:

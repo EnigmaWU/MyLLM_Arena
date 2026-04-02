@@ -135,6 +135,7 @@ Exact offline replay contract:
 - `query.json endRevisionId` can pin the final repository revision reported in the aggregate output.
 - the patch artifacts may originate from either Git or SVN history, but they must be normalized into the unified patch format the current parser supports.
 - legacy `<revisionId>_commitDiff.patch` naming is still accepted for older fixtures, but new fixtures should use the time-sequenced form.
+- do not mix legacy and time-sequenced patch filenames in the same directory; the runtime rejects mixed naming because it would imply two competing replay-order rules.
 
 ## Production UX Note
 
