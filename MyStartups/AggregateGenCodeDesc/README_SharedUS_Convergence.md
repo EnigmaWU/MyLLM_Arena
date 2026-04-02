@@ -17,7 +17,7 @@ For the concrete per-story `Algorithm B` execution spec, including target test f
 - `US-5` and `US-7` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shapes, with focused real local-Git proof now added for the rename and mixed-history cluster.
 - `US-8` now has accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shape, with focused real local-Git proof now added for the current merge-preservation slice.
 - `US-12` now has accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shape, while the branch-heavy local-Git replay path remains an explicit next-step limitation.
-- `US-10` and `US-11` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shapes.
+- `US-10` and `US-11` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shapes, with focused real local-Git proof now added for the scale and deep-history cluster.
 - `US-9` is a shared contract story whose first split is by VCS target, not by algorithm, and it now has narrow `Algorithm B` Git/SVN parity evidence on the approved `US-1` baseline shape.
 - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories.
 
@@ -217,7 +217,7 @@ Scale and long history should validate a mature engine, not define one.
 
 ### Phase 6 Exit Condition
 
-- `US-10` and `US-11` have approved dual-algorithm evidence.
+- `US-10` and `US-11` have approved dual-algorithm evidence, with the current Git `Algorithm B` claim backed by both fixture replay and focused real local-Git proof.
 
 ## Phase 7: US-9 Algorithm Convergence
 

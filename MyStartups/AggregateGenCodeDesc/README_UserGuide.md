@@ -115,7 +115,12 @@ Default is `A`.
 
 ### `--commitDiffSetDir`
 
-Required for fixture-driven `Algorithm B` replay and for the current `US-6` period-added baseline.
+Required only for fixture-driven `Algorithm B` replay.
+
+In the intended `Algorithm B` replay contract, this directory is the ordered diff stream that is paired with `--genCodeDescSetDir`.
+Together, those two inputs let the runtime replay revision changes and aggregate the final `generatedTextDesc` result without relying on live repository history access.
+
+The replay artifacts may come from either Git or SVN history, but they must be normalized into the patch format the current runtime parser supports.
 
 This directory must contain raw unified diff patch files such as:
 

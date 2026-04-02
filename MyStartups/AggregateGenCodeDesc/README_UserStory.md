@@ -514,13 +514,13 @@ Note: this should be treated as a shared scale-semantics story. The current repo
 
 #### Algorithm B Acceptance Track For US-10
 
-1. **GIVEN** the fixture `testdata/us10_large_repository_snapshot` together with its `commitDiffSet/` replay artifacts
+1. **GIVEN** the approved `US-10` baseline shape, either through fixture replay artifacts or through the focused real local-Git replay path
    **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-10`
    **WHEN** that evidence is described in docs or roadmap discussions
-   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready large-snapshot scalability support
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline shape, with focused real local-Git proof, not as full matrix-ready large-snapshot scalability support
 
 ### US-11: Deep History Must Preserve Latest Effective Attribution
 
@@ -552,13 +552,13 @@ Note: this should be treated as a shared deep-history story. The current reposit
 
 #### Algorithm B Acceptance Track For US-11
 
-1. **GIVEN** the fixture `testdata/us11_deep_history_preserves_attribution` together with its `commitDiffSet/` replay artifacts
+1. **GIVEN** the approved `US-11` baseline shape, either through fixture replay artifacts or through the focused real local-Git replay path
    **WHEN** the current narrow `Algorithm B` live-snapshot path is executed on Git
    **THEN** the produced `SUMMARY` and `REPOSITORY` values must match `expected_result.json`
 
 2. **GIVEN** the current `Algorithm B` acceptance evidence for `US-11`
    **WHEN** that evidence is described in docs or roadmap discussions
-   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline fixture shape, not as full matrix-ready deep-history support
+   **THEN** it must be described as a narrow Git live-snapshot replay slice for the approved baseline shape, with focused real local-Git proof, not as full matrix-ready deep-history support
 
 ### US-12: Many Merged Branches In One Window Must Preserve Per-Line Attribution
 

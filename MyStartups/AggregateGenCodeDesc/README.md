@@ -467,13 +467,13 @@ Recommended optional arguments:
   - local test-only adapter for resolving a set of revision-level `genCodeDesc` files from one directory
   - this is useful for fixtures and offline tests, not the intended production storage model
 - `--commitDiffSetDir <dir>`
-  - future Algorithm-B local adapter for resolving a set of precomputed per-commit raw patch artifacts from one directory
+  - Algorithm-B diff-stream adapter for resolving a precomputed ordered set of per-revision raw patch artifacts from one directory
+  - intended contract: pair it with `--genCodeDescSetDir` so the runtime can replay revision diffs in revision/time order and aggregate the final result without needing live repository history access
   - expected file naming contract: one `<revisionId>_commitDiff.patch` file per replayed revision
   - this is a diff-source override, not a replacement for `--repoURL`
   - currently only valid with `--algorithm B`
-  - current boundary: a narrow Git offline Algorithm-B baseline is implemented for the current single-file, single-branch fixture style used by `US-6`
-  - explicit unsupported cases in the current CLI path include multi-file first patches, first-patch multi-hunk base reconstruction, file-path changes during replay, and merge-aware accounting
-  - broader Algorithm-B histories such as deletes, renames, multi-file replay, and merge-aware accounting are still not implemented in the CLI path yet
+  - intended source can come from either Git or SVN history as long as the replay artifacts are normalized into the patch format the current parser supports
+  - current boundary: the implemented offline CLI path is still narrower than the intended long-term contract, and broader mixed-topology support still needs dedicated TDD before it should be treated as generally implemented
 - `--workingDir <path>`
   - local checkout or temporary workspace directory
   - required for Git when `--repoURL` is a logical repository identity such as `https://...` instead of a local absolute path

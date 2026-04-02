@@ -330,6 +330,7 @@ This is the highest-leverage functional cluster because almost every remaining l
 
 - correctness remains stable under broad file and line counts
 - no premature caching complexity before correctness is locked
+- focused real local-Git regression proof now exists in `tests/test_us10_us11_algorithm_b_regression_tdd.py`
 
 ## US-11: Deep History Preserves Attribution
 
@@ -360,6 +361,7 @@ This is the highest-leverage functional cluster because almost every remaining l
 
 - long rewrite chains preserve latest effective ownership
 - no leakage of old ownership into the final result under deep history
+- focused real local-Git regression proof now exists in `tests/test_us10_us11_algorithm_b_regression_tdd.py`
 
 ## Milestone 6: US-9 Contract Convergence
 
