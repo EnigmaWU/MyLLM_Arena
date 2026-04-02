@@ -13,6 +13,9 @@ The current baseline is already in place:
 - `US-6` has the first narrow executable `Algorithm B` offline Git path
 - `US-1` has the first narrow live-snapshot `Algorithm B` 2x2 matrix example across Git and SVN
 - the current Git live-snapshot and period-added paths can now replay a real local checkout, using either an absolute local `repoURL` or a logical `repoURL` plus `--workingDir`, while preserving the same narrow support boundary
+- the `US-2`/`US-3`/`US-4` rewrite and deletion cluster now has focused real local-Git Algorithm B regression proof in addition to fixture replay
+- the `US-5`/`US-7` rename and mixed-history cluster now also has focused real local-Git Algorithm B regression proof in addition to fixture replay
+- `US-8` now also has focused real local-Git Algorithm B merge-preservation proof, while `US-12` remains the current branch-heavy local replay frontier
 
 The next work is not to broaden support vaguely. The next work is to converge story-by-story semantics in a controlled order.
 

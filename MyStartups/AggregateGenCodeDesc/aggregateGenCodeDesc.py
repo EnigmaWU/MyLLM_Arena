@@ -300,7 +300,13 @@ def parse_commit_diff_patch(patch_text: str) -> ParsedCommitDiff:
         if raw_line.startswith("diff --git "):
             if current_file is not None:
                 parsed_files.append(current_file)
-            current_file = CommitDiffFile(old_path="", new_path="", hunks=[])
+            header_parts = raw_line.split()
+            old_path = ""
+            new_path = ""
+            if len(header_parts) >= 4:
+                old_path = header_parts[2].removeprefix("a/")
+                new_path = header_parts[3].removeprefix("b/")
+            current_file = CommitDiffFile(old_path=old_path, new_path=new_path, hunks=[])
             current_hunk = None
             old_line_cursor = None
             new_line_cursor = None
@@ -317,6 +323,14 @@ def parse_commit_diff_patch(patch_text: str) -> ParsedCommitDiff:
 
         if raw_line.startswith("+++ "):
             current_file.new_path = raw_line.removeprefix("+++ ").removeprefix("b/")
+            continue
+
+        if raw_line.startswith("rename from "):
+            current_file.old_path = raw_line.removeprefix("rename from ")
+            continue
+
+        if raw_line.startswith("rename to "):
+            current_file.new_path = raw_line.removeprefix("rename to ")
             continue
 
         if raw_line.startswith("@@ "):
@@ -568,15 +582,29 @@ def is_source_file_path(path_value: str) -> bool:
 def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str) -> list[str]:
     parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
     if parent_revision is None:
-        output = run_git(repo_dir, ["show", "--format=", "--name-only", "--root", revision_id])
+        output = run_git(repo_dir, ["show", "--format=", "--name-status", "--find-renames", "--root", revision_id])
     else:
-        output = run_git(repo_dir, ["diff", "--name-only", parent_revision, revision_id])
+        output = run_git(repo_dir, ["diff", "--name-status", "--find-renames", parent_revision, revision_id])
 
-    return [
-        relative_path
-        for relative_path in output.splitlines()
-        if relative_path and is_source_file_path(relative_path)
-    ]
+    source_paths: list[str] = []
+    for raw_line in output.splitlines():
+        if not raw_line:
+            continue
+        parts = raw_line.split("\t")
+        status = parts[0]
+        candidate_paths: list[str]
+        if status.startswith(("R", "C")) and len(parts) >= 3:
+            candidate_paths = [parts[1], parts[2]]
+        elif len(parts) >= 2:
+            candidate_paths = [parts[1]]
+        else:
+            continue
+
+        for relative_path in candidate_paths:
+            if is_source_file_path(relative_path) and relative_path not in source_paths:
+                source_paths.append(relative_path)
+
+    return source_paths
 
 
 def build_git_source_patch_for_revision(repo_dir: Path, revision_id: str, source_paths: list[str]) -> str:
