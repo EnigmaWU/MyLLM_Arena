@@ -22,7 +22,7 @@ Typical properties:
 
 - fixture-driven checks
 - short-running real repository tests
-- current Algorithm B offline baseline checks
+- current narrow Algorithm B convergence checks
 - expected to finish quickly enough for frequent runs
 
 ### 2. Heavy
@@ -47,6 +47,7 @@ Current example:
 
 - `US-1` to `US-12`: current `Fast` tier scenarios
 - `US-6`: first shared US example; current executable path is the narrow `Algorithm B` offline baseline
+- `US-1` to `US-12`: current narrow live-snapshot `Algorithm B` convergence evidence is carried by the focused regression stack, with support still intentionally scoped to approved fixture shapes
 - `US-13` and `US-14`: current `Heavy` tier production-scale acceptance cases
 - experimental SVN lineage work: separate `Experimental` tier
 

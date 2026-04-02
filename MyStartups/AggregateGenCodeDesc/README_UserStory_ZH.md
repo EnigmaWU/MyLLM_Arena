@@ -38,7 +38,7 @@
 - 共享验收标准应覆盖无论由 `Algorithm A` 还是 `Algorithm B` 满足、以及无论目标是 Git 还是 SVN 时都必须成立的可观察契约。
 - 只有当 `Algorithm A` 与 `Algorithm B` 在支持边界、边缘语义或运行约束上不一致时，才应该拆出算法专属验收轨道。
 - 如果某个共享故事当前只覆盖了部分算法或部分 VCS 组合，则缺失的矩阵单元可以先以规划形式存在，但不能被当作当前已验证的验收证据。
-- 对当前收敛计划而言，`US-6` 是第一个真正进入双轨收敛的共享故事。其它共享候选故事应逐个转换，在对应 `Algorithm B` 路径真正落地前，继续把 `Algorithm A` 作为当前验收证据。
+- 对当前收敛计划而言，`US-6` 仍是 period-added 指标的锚点共享故事，而批准的存活快照共享故事子集（`US-1/2/3/4/5/7/8/9/10/11/12`）现在也已经拥有狭义、夹具驱动的 `Algorithm B` 验收。剩余矩阵单元仍可继续保留为规划，但在真正落地并验证前，不能宣称为当前证据。
 - 对生产就绪声明而言，除非明确批准并记录了不支持的子集，否则共享故事在算法与 VCS 两个维度上的支持矩阵没有补齐前，都不能算真正完成。
 - 有些共享故事首先是跨 VCS 共享，而不是先跨算法共享。在这种情况下，第一层验收拆分应优先是 Git 与 SVN，而算法专属轨道仍保留为规划状态。
 - `US-13` 与 `US-14` 应继续被视为 `Heavy` 生产 gate，而不是普通共享功能故事的模板。
@@ -52,26 +52,26 @@
 ## 场景映射
 
 - `US-1` -> `testdata/us1_live_changed_source_ratio`（`共享 US`，当前矩阵状态：`Algorithm A` 覆盖 Git 与 SVN，`Algorithm B` 已覆盖该批准基线形态下的狭义 Git 与 SVN 存活快照路径，`Fast`）
-- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-4` -> `testdata/us4_deleted_lines_excluded`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-5` -> `testdata/us5_rename_preserves_lineage`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-2` -> `testdata/us2_human_overwrites_ai_live_changed`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-3` -> `testdata/us3_ai_overwrites_human_live_changed`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-4` -> `testdata/us4_deleted_lines_excluded`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-5` -> `testdata/us5_rename_preserves_lineage`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
 - `US-6` -> `testdata/us6_period_added_ratio`（`共享 US`，当前可执行路径是 `Algorithm B`，`Fast`）
-- `US-7` -> `testdata/us7_mixed_multi_commit_window`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-8` -> `testdata/us8_merge_commit_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-9` -> `testdata/us9_svn_contract_parity`（`共享契约故事`，当前有效证据是通过 `Algorithm A` 建立的 Git/SVN 一致性，`Fast`）
-- `US-10` -> `testdata/us10_large_repository_snapshot`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-11` -> `testdata/us11_deep_history_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
-- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution`（`共享 US`，当前有效证据是 `Algorithm A`，`Fast`）
+- `US-7` -> `testdata/us7_mixed_multi_commit_window`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-8` -> `testdata/us8_merge_commit_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-9` -> `testdata/us9_svn_contract_parity`（`共享契约故事`，当前有效证据是通过 `Algorithm A` 建立的 Git/SVN 一致性，加上批准 `US-1` 基线形态上的狭义 Git/SVN `Algorithm B` 一致性，`Fast`）
+- `US-10` -> `testdata/us10_large_repository_snapshot`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-11` -> `testdata/us11_deep_history_preserves_attribution`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
+- `US-12` -> `testdata/us12_many_merged_branches_preserve_attribution`（`共享 US`，当前有效证据是 `Algorithm A` 加狭义 Git `Algorithm B`，`Fast`）
 - `US-13` -> Git 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
 - `US-14` -> SVN 生产规模本地仓库 gate（`Heavy gate`，当前有效证据是 `Algorithm A`，可作为每日集成）
 
 ## 共享故事收敛顺序
 
-- `第 1 步`：先把 `US-6` 作为首个共享故事打实，确保当前 `Algorithm B` 基线是可辩护的。
-- `第 2 步`：把当前围绕存活快照主指标的故事逐个改写为共享故事，但在对应 `Algorithm B` 路径真正存在前，继续只把 `Algorithm A` 视为当前验收证据。
-- `第 3 步`：当前主指标建议按如下顺序推进：`US-1`、`US-2`、`US-3`、`US-4`、`US-5`、`US-7`、`US-8`、`US-10`、`US-11`、`US-12`。
-- `第 4 步`：`US-9` 应保持为先按 Git/SVN 拆分的共享契约故事。只有当两个算法都真正能满足该契约时，再补充算法层的收敛。
+- `第 1 步`：继续把 `US-6` 作为 period-added 指标的锚点共享故事，并保持当前狭义 `Algorithm B` 基线可辩护。
+- `第 2 步`：当前围绕存活快照主指标的共享故事已经获得一批狭义 `Algorithm B` 路径；后续只在对应路径真正落地并验证时，才继续扩大其 `Algorithm B` 声明。
+- `第 3 步`：当前批准的存活快照子集 `US-1`、`US-2`、`US-3`、`US-4`、`US-5`、`US-7`、`US-8`、`US-10`、`US-11`、`US-12` 已具备狭义 `Algorithm B` 收敛；更宽的扩展仍应按场景逐个推进。
+- `第 4 步`：`US-9` 应保持为先按 Git/SVN 拆分的共享契约故事。当前批准的 `US-1` 基线形态上已经具备狭义 Git/SVN `Algorithm B` 一致性，但更宽的算法层收敛仍应按场景逐个补齐。
 - `第 5 步`：`US-13` 与 `US-14` 保持为 `Heavy` 生产 gate，不强行套入普通共享故事模式。
 
 ## 用户故事
@@ -132,7 +132,7 @@
 **我希望** 当人类重写了先前由 AI 生成的代码行时，归因应重置到较新的人工修订，
 **以便** 旧的 AI 归属不会继续附着在已经被覆盖的代码上。
 
-说明：该故事应视为共享的覆盖重写语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的覆盖重写语义故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-2 共享验收标准
 
@@ -156,13 +156,13 @@
 
 #### US-2 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-2` 相同覆盖重置契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-2` 的共享验收标准，而不能保留过时的 AI 归属
+1. **GIVEN** 夹具 `testdata/us2_human_overwrites_ai_live_changed` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-2`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-2` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-2` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的覆盖重写支持
 
 ### US-3：AI 重写会取代之前的人类归属
 
@@ -170,7 +170,7 @@
 **我希望** 后续由 AI 完成的人类代码重写能够成为有效归因来源，
 **以便** `endTime` 时刻的存活变更源码能够反映最新的 AI 贡献。
 
-说明：该故事应视为共享的覆盖重写语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的覆盖重写语义故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-3 共享验收标准
 
@@ -194,13 +194,13 @@
 
 #### US-3 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-3` 相同归属接管契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-3` 的共享验收标准，且不能削弱最终存活结果语义
+1. **GIVEN** 夹具 `testdata/us3_ai_overwrites_human_live_changed` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-3`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-3` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-3` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的覆盖重写支持
 
 ### US-4：已删除的 AI 代码行不得计入
 
@@ -208,7 +208,7 @@
 **我希望** 被删除的 AI 生成代码行同时从分子和分母中消失，
 **以便** 结果只反映当前仍然存活的变更源码快照。
 
-说明：该故事应视为共享的存活快照排除故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的存活快照排除故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-4 共享验收标准
 
@@ -232,13 +232,13 @@
 
 #### US-4 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-4` 相同删除排除契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-4` 的共享验收标准，而不能把已删除代码计入最终结果
+1. **GIVEN** 夹具 `testdata/us4_deleted_lines_excluded` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-4`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-4` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-4` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的删除排除支持
 
 ### US-5：重命名必须保留归因谱系
 
@@ -246,7 +246,7 @@
 **我希望** 当文件只发生重命名或移动而内容未变时，行归因能够被保留，
 **以便** 最终的存活变更源码 AI 占比不会因为仅路径层面的历史变化而失真。
 
-说明：该故事应视为共享的谱系保留故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的谱系保留故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-5 共享验收标准
 
@@ -270,13 +270,13 @@
 
 #### US-5 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-5` 相同重命名保留谱系契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-5` 的共享验收标准，且不能让纯路径变化扭曲归因
+1. **GIVEN** 夹具 `testdata/us5_rename_preserves_lineage` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-5`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-5` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-5` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的重命名支持
 
 ### US-6：计算请求时间段内新增 AI 代码的占比
 
@@ -330,7 +330,7 @@
 **我希望** 一个请求窗口能够正确处理跨多个提交的混合行历史，
 **以便** 当人工代码、AI 代码、人工后被 AI 重写、AI 后被人工重写，以及已删除 AI 代码同时出现在同一时间段时，最终结果仍然正确。
 
-说明：该故事应视为共享的混合历史故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的混合历史故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-7 共享验收标准
 
@@ -354,13 +354,13 @@
 
 #### US-7 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-7` 相同混合历史存活结果契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-7` 的共享验收标准，而不能把中间已被覆盖的归属泄漏到最终结果中
+1. **GIVEN** 夹具 `testdata/us7_mixed_multi_commit_window` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-7`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-7` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-7` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的混合历史支持
 
 ### US-8：Merge 提交必须保留有效归因
 
@@ -368,7 +368,7 @@
 **我希望** 分支合并后的内容仍然保留存活代码行的有效归因，
 **以便** merge 操作不会把整批代码行错误地重置到 merge commit 本身。
 
-说明：该故事应视为共享的 merge 语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的 merge 语义故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-8 共享验收标准
 
@@ -392,13 +392,13 @@
 
 #### US-8 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-8` 相同 merge 保留归因契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-8` 的共享验收标准，而不能把合并后的行塌缩到 merge commit 或分支身份上
+1. **GIVEN** 夹具 `testdata/us8_merge_commit_preserves_attribution` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-8`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-8` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-8` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的 merge 拓扑支持
 
 ### US-9：Git 与 SVN 必须遵循相同的结果契约
 
@@ -406,7 +406,7 @@
 **我希望** 对于当前主指标，Git 与 SVN 目标遵循相同的查询/结果契约，
 **以便** 切换 VCS 类型时，不会改变指标语义或输出结构。
 
-说明：这是一个首先按 VCS 目标拆分的共享契约故事。当前仓库通过 `Algorithm A` 拥有 Git/SVN 一致性证据，但还没有双算法收敛证据。
+说明：这是一个首先按 VCS 目标拆分的共享契约故事。当前仓库通过 `Algorithm A` 拥有 Git/SVN 一致性证据，并且现在还在批准 `US-1` 基线夹具形态上具备狭义 Git/SVN `Algorithm B` 契约一致性证据。
 
 #### US-9 共享验收标准
 
@@ -440,9 +440,13 @@
 
 #### US-9 的算法收敛说明
 
-1. **GIVEN** 一个未来声明支持与 `US-9` 相同跨 VCS 一致性契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它应建立在现有 Git/SVN 拆分之上，而不是替代当前 VCS-first 的验收结构
+1. **GIVEN** 已获批准的 `US-1` 狭义 `Algorithm B` Git 与 SVN 存活快照夹具路径
+   **WHEN** 它们被用作当前 `US-9` 的一致性场景
+   **THEN** 它们必须在 Git 与 SVN 之间产出相同的协议形态可观察契约，仅在 VCS 特定的仓库身份字段上存在差异
+
+2. **GIVEN** 当前 `US-9` 的 `Algorithm B` 证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为批准 `US-1` 基线形态上的狭义一致性，而不是所有共享故事上的完整矩阵级 Git/SVN 一致性
 
 ### US-10：大型仓库快照必须保持结果语义稳定
 
@@ -450,7 +454,7 @@
 **我希望** 当仓库包含很多源码文件和很多存活代码行时，分析器仍然保持相同的结果语义，
 **以便** 最终聚合结果在真实大型代码库中依然正确。
 
-说明：该故事应视为共享的规模语义故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的规模语义故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-10 共享验收标准
 
@@ -474,13 +478,13 @@
 
 #### US-10 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-10` 相同大型快照可观察契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-10` 的共享验收标准，且不能改变最终 `SUMMARY` 字段的含义
+1. **GIVEN** 夹具 `testdata/us10_large_repository_snapshot` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-10`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-10` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-10` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的大型快照规模支持
 
 ### US-11：深历史链必须保持最新有效归因
 
@@ -488,7 +492,7 @@
 **我希望** 长修订链能够保持每条存活代码行的最新有效归因，
 **以便** 大量中间重写不会扭曲最终的存活结果。
 
-说明：该故事应视为共享的深历史故事。当前仓库只有 `Algorithm A` 一侧的验收证据。
+说明：该故事应视为共享的深历史故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片。
 
 #### US-11 共享验收标准
 
@@ -512,13 +516,13 @@
 
 #### US-11 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-11` 相同深历史存活结果契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-11` 的共享验收标准，而不能让已被覆盖的中间状态泄漏到最终结果中
+1. **GIVEN** 夹具 `testdata/us11_deep_history_preserves_attribution` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-11`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-11` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-11` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的深历史支持
 
 ### US-12：单个窗口内的多分支合并必须保持逐行归因
 
@@ -526,7 +530,7 @@
 **我希望** 单个请求窗口内的高分支密度历史仍能保持逐行有效归因，
 **以便** 多个功能分支集成回目标分支时不会扭曲最终结果。
 
-说明：该故事应视为共享的高分支故事。当前仓库只有 `Algorithm A` 一侧的验收证据，而且对于同一广义主张的 SVN 一致性，可能需要一个可辩护的类比场景，而不是直接照搬 Git 形态。
+说明：该故事应视为共享的高分支故事。当前仓库已经具备 `Algorithm A` 证据，以及针对批准基线夹具形态的一条狭义 Git `Algorithm B` 回放切片；对于同一广义主张的 SVN 一致性，仍可能需要一个可辩护的类比场景，而不是直接照搬 Git 形态。
 
 #### US-12 共享验收标准
 
@@ -554,13 +558,13 @@
 
 #### US-12 的 Algorithm B 验收轨道
 
-1. **GIVEN** 一个未来声明支持与 `US-12` 相同高分支存活结果契约的 `Algorithm B` 路径
-   **WHEN** 该路径被引入
-   **THEN** 它必须满足 `US-12` 的共享验收标准，而不能把归属塌缩到合并顺序、merge commit 或分支标签本身
+1. **GIVEN** 夹具 `testdata/us12_many_merged_branches_preserve_attribution` 及其 `commitDiffSet/` 回放工件
+   **WHEN** 当前狭义 `Algorithm B` 存活快照路径在 Git 上运行
+   **THEN** 产出的 `SUMMARY` 与 `REPOSITORY` 必须与 `expected_result.json` 一致
 
-2. **GIVEN** 当前还没有任何获批的 `Algorithm B` 验收证据用于 `US-12`
-   **WHEN** 讨论收敛路线时
-   **THEN** `US-12` 仍必须被视为当前仅由 `Algorithm A` 证明
+2. **GIVEN** 当前 `US-12` 的 `Algorithm B` 验收证据
+   **WHEN** 在文档或路线图讨论中描述该证据
+   **THEN** 它必须被表述为针对已批准基线夹具形态的狭义 Git 存活快照回放切片，而不是完整矩阵就绪的高分支 merge 支持
 
 ## Heavy 生产 Gates
 

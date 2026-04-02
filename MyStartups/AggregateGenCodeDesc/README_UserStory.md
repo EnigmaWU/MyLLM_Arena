@@ -40,7 +40,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - Shared acceptance criteria should cover the observable contract that must remain true regardless of whether `Algorithm A` or `Algorithm B` satisfies the story, and regardless of whether the supported target is Git or SVN.
 - Algorithm-specific acceptance tracks should be used only where support boundaries, edge-case semantics, or runtime constraints differ between `Algorithm A` and `Algorithm B`.
 - If only one algorithm or one VCS cell is currently implemented for a shared story, the missing matrix cells may still be documented as planned, but they must not be treated as current acceptance evidence.
-- For the current convergence plan, `US-6` is the first active shared story with executable dual-track intent. The other shared-story candidates should be converted one by one, keeping `Algorithm A` as current evidence until each `Algorithm B` track is implemented and proven.
+- For the current convergence plan, `US-6` remains the anchor shared story for the period-added metric, and the approved live-snapshot shared-story subset (`US-1/2/3/4/5/7/8/9/10/11/12`) now also has narrow fixture-driven `Algorithm B` acceptance. Any remaining matrix cells may stay planned, but they must not be presented as current evidence until implemented and proven.
 - For production-ready claims, a shared story is not complete until the claimed support matrix is explicit across both algorithms and both VCS targets, unless an unsupported subset is deliberately approved and documented.
 - Some stories are shared primarily across VCS targets rather than across algorithms. In those cases, the first acceptance split should be Git vs SVN, while algorithm-specific tracks stay planned until both algorithms are real contenders for the same observable contract.
 - `US-13` and `US-14` are intentionally treated as `Heavy` production gates. They are important acceptance items, but they should not be used as the template for ordinary shared functional stories.
@@ -70,18 +70,19 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 
 ## Shared-US Convergence Order
 
-- `Step 1`: keep `US-6` as the first active shared story and make the current `Algorithm B` baseline defensible before broadening its support claim.
-- `Step 2`: convert the current live-snapshot contract stories one by one into shared stories, while keeping `Algorithm A` as the only current acceptance evidence until each matching `Algorithm B` path exists.
-- `Step 3`: prefer this conversion order for the current primary metric: `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, `US-12`.
-- `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. Add algorithm-specific convergence only after both algorithms can credibly target the same VCS-parity contract.
+- `Step 1`: keep `US-6` as the anchor shared story for the period-added metric and keep its narrow `Algorithm B` baseline defensible.
+- `Step 2`: keep the current live-snapshot contract stories as shared stories, and only extend their `Algorithm B` claims where a matching narrow path is implemented and proven.
+- `Step 3`: the approved live-snapshot subset now has narrow `Algorithm B` convergence across `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`; any broader expansion should continue scenario-first.
+- `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. The approved `US-1` baseline shape now has narrow Git/SVN `Algorithm B` parity, while broader algorithm convergence should still be added only scenario-first.
 - `Step 5`: keep `US-13` and `US-14` as `Heavy` production gates rather than forcing them into the ordinary shared-story pattern.
 
 The executable phase-by-phase roadmap for this sequence is documented in `README_SharedUS_Convergence.md`. For production-ready shared-story claims, the target is the full `Algorithm A`/`Algorithm B` x Git/SVN matrix unless an unsupported subset is explicitly accepted.
 
 ## Algorithm-B TDD Roadmap
 
-The current repository has only one explicit Algorithm-B story today: `US-6`.
-That is not enough to treat Algorithm B as implementation-ready.
+The current repository no longer has only one explicit Algorithm-B story.
+`US-6` remains the dedicated period-added baseline, and the approved live-snapshot shared-story subset (`US-1/2/3/4/5/7/8/9/10/11/12`) now has narrow fixture-driven `Algorithm B` acceptance.
+That is still not enough to treat Algorithm B as implementation-ready.
 
 Algorithm B should be expanded in TDD order with scenario-first contracts:
 
@@ -565,7 +566,7 @@ Note: this should be treated as a shared deep-history story. The current reposit
 **I want** branch-heavy history inside one requested window to preserve per-line effective attribution,
 **so that** integrating many feature branches into the target branch does not distort the final result.
 
-Note: this should be treated as a shared branch-heavy story. The current repository has acceptance evidence only on the `Algorithm A` side, and SVN parity for the same broad claim may require a defensible analogue rather than a literal Git port.
+Note: this should be treated as a shared branch-heavy story. The current repository now has accepted `Algorithm A` evidence plus a narrow Git `Algorithm B` replay slice for the approved baseline fixture shape, and SVN parity for the same broad claim may still require a defensible analogue rather than a literal Git port.
 
 #### Shared Acceptance Criteria For US-12
 
