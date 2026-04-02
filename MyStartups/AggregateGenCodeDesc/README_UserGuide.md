@@ -124,7 +124,17 @@ The replay artifacts may come from either Git or SVN history, but they must be n
 
 This directory must contain raw unified diff patch files such as:
 
-- `<revisionId>_commitDiff.patch`
+- `<timeSeq>_<revisionId>_commitDiff.patch`
+
+Exact offline replay contract:
+
+- pair `--commitDiffSetDir` with `--genCodeDescSetDir`; they are the diff side and metadata side of the same replay run.
+- every replayed revision is expected to have both `<timeSeq>_<revisionId>_commitDiff.patch` and `<revisionId>_genCodeDesc.json`.
+- if `query.json` provides `includedRevisionIds`, that list defines the replay order.
+- otherwise the current offline path falls back to the `<timeSeq>` filename prefix.
+- `query.json endRevisionId` can pin the final repository revision reported in the aggregate output.
+- the patch artifacts may originate from either Git or SVN history, but they must be normalized into the unified patch format the current parser supports.
+- legacy `<revisionId>_commitDiff.patch` naming is still accepted for older fixtures, but new fixtures should use the time-sequenced form.
 
 ## Production UX Note
 
@@ -366,7 +376,7 @@ Cause:
 
 Fix:
 
-- add the missing `<revisionId>_commitDiff.patch`
+- add the missing `<timeSeq>_<revisionId>_commitDiff.patch`
 
 ### `Algorithm B` seems to require an unexpected internal flag
 

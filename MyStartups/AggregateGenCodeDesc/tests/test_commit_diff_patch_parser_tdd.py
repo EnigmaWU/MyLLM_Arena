@@ -9,7 +9,7 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us6_period_
 
 class TestCommitDiffPatchParserTdd(unittest.TestCase):
     def test_parser_extracts_added_lines_from_us6_r2_patch(self) -> None:
-        patch_text = (FIXTURE_DIR / "us6-r2_commitDiff.patch").read_text(encoding="utf-8")
+        patch_text = (FIXTURE_DIR / "0001_us6-r2_commitDiff.patch").read_text(encoding="utf-8")
 
         parsed = parse_commit_diff_patch(patch_text)
 
@@ -26,7 +26,7 @@ class TestCommitDiffPatchParserTdd(unittest.TestCase):
         ])
 
     def test_parser_extracts_added_lines_from_us6_r3_patch(self) -> None:
-        patch_text = (FIXTURE_DIR / "us6-r3_commitDiff.patch").read_text(encoding="utf-8")
+        patch_text = (FIXTURE_DIR / "0002_us6-r3_commitDiff.patch").read_text(encoding="utf-8")
 
         parsed = parse_commit_diff_patch(patch_text)
 
@@ -54,11 +54,12 @@ class TestCommitDiffPatchParserTdd(unittest.TestCase):
 
         self.assertIn("Malformed commit diff hunk header", str(context.exception))
 
-    def test_parser_rejects_file_section_without_path_headers(self) -> None:
-        with self.assertRaises(ProtocolValidationError) as context:
-            parse_commit_diff_patch("diff --git a/src/demo.py b/src/demo.py\n")
+    def test_parser_infers_file_paths_from_diff_git_header_when_path_headers_are_absent(self) -> None:
+        parsed = parse_commit_diff_patch("diff --git a/src/demo.py b/src/demo.py\n")
 
-        self.assertIn("missing ---/+++ path headers", str(context.exception))
+        self.assertEqual(len(parsed.files), 1)
+        self.assertEqual(parsed.files[0].old_path, "src/demo.py")
+        self.assertEqual(parsed.files[0].new_path, "src/demo.py")
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@
 - 每个修订对应一个 `genCodeDesc` 文件，用于描述该修订的 AI 归因
 
 对于 `Algorithm B`，每个场景还必须在 `commitDiffSet/` 中携带一条完整的 commit diff 序列。
-如果某个场景要求回放 `r1..rn` 这些修订，则每个需要回放的修订都必须有对应的原始 patch 工件，例如 `<revisionId>_commitDiff.patch`。
+如果某个场景要求回放 `r1..rn` 这些修订，则每个需要回放的修订都必须有对应的原始 patch 工件，例如 `<timeSeq>_<revisionId>_commitDiff.patch`。
 长序列中间缺少某个 commit diff 属于夹具契约失败，不能被静默跳过。
 
 这些 `testdata/` 场景是面向设计讨论的夹具。

@@ -119,7 +119,7 @@ Git 专用辅助参数，用于逻辑 `repoURL` 模式。
 
 该目录必须包含原始 unified diff patch，例如：
 
-- `<revisionId>_commitDiff.patch`
+- `<timeSeq>_<revisionId>_commitDiff.patch`
 
 ## 生产形态下的 UX 说明
 
@@ -315,7 +315,7 @@ python3 aggregateGenCodeDesc.py \
 
 修复：
 
-- 补上缺失的 `<revisionId>_commitDiff.patch`
+- 补上缺失的 `<timeSeq>_<revisionId>_commitDiff.patch`
 
 ### `Algorithm B` 看起来还要求某个奇怪的内部参数
 

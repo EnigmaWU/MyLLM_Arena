@@ -26,6 +26,18 @@ The next work is not to broaden support vaguely. The next work is to converge st
 3. No new story should claim broad production coverage until parity-style assertions exist against the matching `Algorithm A` contract.
 4. Operator-facing CLI behavior must not depend on hidden internal routing knobs once the production UX is claimed in docs.
 
+## Offline Replay Contract
+
+For the intended offline `Algorithm B` path, the fixture contract is:
+
+- `commitDiffSet/` is the ordered per-revision diff stream.
+- `genCodeDescSetDir` is the paired per-revision metadata stream.
+- `query.json` is the run-shape contract and may provide `metric`, `includedRevisionIds`, and `endRevisionId`.
+- every revision named in the replay order must have both the metadata file and the diff patch file.
+- Git- and SVN-origin diffs are both valid sources only after they are normalized into the unified patch format accepted by `parse_commit_diff_patch(...)`.
+
+This is the intended long-term contract even where the current runtime still supports only a narrower subset of replay topologies.
+
 ## Cross-Cutting Code Touch Points
 
 These are the main seams that almost every `Algorithm B` milestone will use.

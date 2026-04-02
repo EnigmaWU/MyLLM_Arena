@@ -22,7 +22,7 @@ Each scenario contains:
 - one `genCodeDesc` file per revision that describes AI attribution for that revision
 
 For `Algorithm B`, each scenario must also carry a complete commit diff sequence in `commitDiffSet/`.
-If a scenario expects revisions `r1..rn` to be replayed, every required replayed revision must have a matching raw patch artifact such as `<revisionId>_commitDiff.patch`.
+If a scenario expects revisions `r1..rn` to be replayed, every required replayed revision must have a matching raw patch artifact such as `<timeSeq>_<revisionId>_commitDiff.patch`.
 A missing diff in the middle of a long sequence is a fixture contract failure, not an ignorable gap.
 
 For planned future stories, the scenario name defines the intended verification target even if the concrete fixture or integration test has not been added yet.

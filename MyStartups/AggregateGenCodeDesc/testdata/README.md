@@ -13,7 +13,7 @@ Each scenario directory contains:
 For `Algorithm B`, the fixture contract is stricter:
 
 - the scenario must also contain a `commitDiffSet/` directory
-- the directory must contain one raw patch artifact such as `<revisionId>_commitDiff.patch` for every revision that the scenario expects the implementation to replay
+- the directory must contain one raw patch artifact such as `<timeSeq>_<revisionId>_commitDiff.patch` for every revision that the scenario expects the implementation to replay
 - each patch artifact should be plain unified diff text, conceptually equivalent to `git diff > commitDiff.patch`, not a custom JSON protocol
 - if the replay sequence is long, a missing commit diff in the middle of the sequence is a contract error and must fail fixture validation rather than being silently skipped
 

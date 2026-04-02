@@ -36,11 +36,11 @@ But the manual verification modes are not identical across all four cells:
 - `testdata/us1_live_changed_source_ratio/query.json`
 - `testdata/us1_live_changed_source_ratio/01_genCodeDesc.json`
 - `testdata/us1_live_changed_source_ratio/expected_result.json`
-- `testdata/us1_live_changed_source_ratio/commitDiffSet/us1-r1_commitDiff.patch`
+- `testdata/us1_live_changed_source_ratio/commitDiffSet/0001_us1-r1_commitDiff.patch`
 - `testdata/us1_live_changed_source_ratio_svn/query.json`
 - `testdata/us1_live_changed_source_ratio_svn/01_genCodeDesc.json`
 - `testdata/us1_live_changed_source_ratio_svn/expected_result.json`
-- `testdata/us1_live_changed_source_ratio_svn/commitDiffSet/17_commitDiff.patch`
+- `testdata/us1_live_changed_source_ratio_svn/commitDiffSet/0001_17_commitDiff.patch`
 
 ## Verification Matrix
 

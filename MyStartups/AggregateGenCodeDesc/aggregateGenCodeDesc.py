@@ -273,7 +273,7 @@ class CommitDiffSetDirProvider(CommitDiffProvider):
         self.logger = logger
 
     def get_commit_diff_patch(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> str:
-        patch_path = self.base_dir / f"{revision_id}_commitDiff.patch"
+        patch_path = resolve_commit_diff_patch_path(self.base_dir, revision_id)
         if not patch_path.exists():
             raise ProtocolValidationError(f"Commit diff patch file not found: {patch_path}")
 
@@ -286,6 +286,43 @@ class CommitDiffSetDirProvider(CommitDiffProvider):
 
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+_COMMIT_DIFF_FILE_RE = re.compile(r"^(?:(?P<time_seq>\d+)_)?(?P<revision_id>.+)_commitDiff\.patch$")
+
+
+def parse_commit_diff_patch_filename(file_name: str) -> tuple[int | None, str] | None:
+    match = _COMMIT_DIFF_FILE_RE.match(file_name)
+    if match is None:
+        return None
+
+    time_seq = match.group("time_seq")
+    revision_id = match.group("revision_id")
+    return (int(time_seq) if time_seq is not None else None, revision_id)
+
+
+def resolve_commit_diff_patch_path(commit_diff_set_dir: Path, revision_id: str) -> Path:
+    direct_path = commit_diff_set_dir / f"{revision_id}_commitDiff.patch"
+    if direct_path.exists():
+        return direct_path
+
+    matches: list[tuple[int, Path]] = []
+    for patch_path in commit_diff_set_dir.glob(f"*_{revision_id}_commitDiff.patch"):
+        parsed_name = parse_commit_diff_patch_filename(patch_path.name)
+        if parsed_name is None:
+            continue
+        time_seq, parsed_revision_id = parsed_name
+        if parsed_revision_id != revision_id:
+            continue
+        matches.append((time_seq if time_seq is not None else sys.maxsize, patch_path))
+
+    if not matches:
+        return direct_path
+
+    matches.sort(key=lambda item: (item[0], item[1].name.lower()))
+    if len(matches) > 1:
+        raise ProtocolValidationError(
+            f"Multiple commit diff patch files matched revision {revision_id} in {commit_diff_set_dir}"
+        )
+    return matches[0][1]
 
 
 def parse_commit_diff_patch(patch_text: str) -> ParsedCommitDiff:
@@ -561,13 +598,20 @@ def summarize_live_changed_line_states_by_revision_ids(
 
 
 def list_commit_diff_revision_ids(commit_diff_set_dir: Path) -> list[str]:
-    revision_ids = [
-        patch_path.name.removesuffix("_commitDiff.patch")
-        for patch_path in sorted(
-            commit_diff_set_dir.glob("*_commitDiff.patch"),
-            key=lambda path: [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)],
+    parsed_patch_files: list[tuple[tuple[int, list[object]], str]] = []
+    for patch_path in commit_diff_set_dir.glob("*_commitDiff.patch"):
+        parsed_name = parse_commit_diff_patch_filename(patch_path.name)
+        if parsed_name is None:
+            continue
+        time_seq, revision_id = parsed_name
+        sort_key = (0, [time_seq]) if time_seq is not None else (
+            1,
+            [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", patch_path.name)],
         )
-    ]
+        parsed_patch_files.append((sort_key, revision_id))
+
+    parsed_patch_files.sort(key=lambda item: item[0])
+    revision_ids = [revision_id for _sort_key, revision_id in parsed_patch_files]
     if not revision_ids:
         raise ProtocolValidationError(f"No commit diff patch files found in {commit_diff_set_dir}")
     return revision_ids

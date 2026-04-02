@@ -469,11 +469,32 @@ Recommended optional arguments:
 - `--commitDiffSetDir <dir>`
   - Algorithm-B diff-stream adapter for resolving a precomputed ordered set of per-revision raw patch artifacts from one directory
   - intended contract: pair it with `--genCodeDescSetDir` so the runtime can replay revision diffs in revision/time order and aggregate the final result without needing live repository history access
-  - expected file naming contract: one `<revisionId>_commitDiff.patch` file per replayed revision
+  - preferred file naming contract: one `<timeSeq>_<revisionId>_commitDiff.patch` file per replayed revision so offline replay order is explicit in the artifact set
   - this is a diff-source override, not a replacement for `--repoURL`
   - currently only valid with `--algorithm B`
   - intended source can come from either Git or SVN history as long as the replay artifacts are normalized into the patch format the current parser supports
   - current boundary: the implemented offline CLI path is still narrower than the intended long-term contract, and broader mixed-topology support still needs dedicated TDD before it should be treated as generally implemented
+
+### 11. Exact Algorithm-B offline replay contract
+
+When `--algorithm B --commitDiffSetDir --genCodeDescSetDir` are used together, the intended contract is:
+
+- `--commitDiffSetDir` supplies the replayable per-revision diff stream.
+- `--genCodeDescSetDir` supplies the revision-level AI attribution metadata for those same revisions.
+- `query.json` inside `--genCodeDescSetDir` is the contract anchor for the offline run shape, including the intended metric and, when needed, the explicit `includedRevisionIds` / `endRevisionId`.
+- each replayed revision must have a matching `<revisionId>_genCodeDesc.json` and `<timeSeq>_<revisionId>_commitDiff.patch` pair.
+- replay order is defined first by `query.json.includedRevisionIds` when present; otherwise the current offline path falls back to the `<timeSeq>` filename prefix.
+- legacy `<revisionId>_commitDiff.patch` files are still accepted for backward compatibility, but they should no longer be treated as the preferred naming contract.
+- the runtime aggregates the final result by replaying the ordered diff sequence, joining each revision to its metadata record, reconstructing the final supported line state, and then emitting one final protocol-shaped aggregate JSON result.
+
+This contract is intentionally VCS-neutral at the artifact level:
+
+- the original diffs may come from Git history or SVN history.
+- the runtime does not need live Git or SVN access for this offline path if the artifact set is complete.
+- the replay artifacts still must be normalized into the unified patch structure the current parser accepts.
+
+For the current repository state, this section should be read as the intended offline contract boundary, not as a blanket claim that every Git/SVN topology is already implemented.
+
 - `--workingDir <path>`
   - local checkout or temporary workspace directory
   - required for Git when `--repoURL` is a logical repository identity such as `https://...` instead of a local absolute path

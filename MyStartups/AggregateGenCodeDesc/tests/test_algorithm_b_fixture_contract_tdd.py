@@ -21,13 +21,13 @@ def validate_algorithm_b_fixture_commit_diff_sequence(scenario_dir: Path) -> Non
         raise AssertionError(f"Algorithm B fixture missing commitDiffSet directory: {commit_diff_dir}")
 
     missing_revision_ids: list[str] = []
-    for revision_id in included_revision_ids:
-        expected_path = commit_diff_dir / f"{revision_id}_commitDiff.patch"
+    for index, revision_id in enumerate(included_revision_ids, start=1):
+        expected_path = commit_diff_dir / f"{index:04d}_{revision_id}_commitDiff.patch"
         if not expected_path.is_file():
             missing_revision_ids.append(revision_id)
 
-    for revision_id in included_revision_ids:
-        expected_path = commit_diff_dir / f"{revision_id}_commitDiff.patch"
+    for index, revision_id in enumerate(included_revision_ids, start=1):
+        expected_path = commit_diff_dir / f"{index:04d}_{revision_id}_commitDiff.patch"
         if expected_path.is_file() and not expected_path.read_text(encoding="utf-8").strip():
             raise AssertionError(f"Algorithm B fixture has empty commit diff patch: {revision_id}")
 
@@ -62,8 +62,8 @@ class TestAlgorithmBFixtureContractTdd(unittest.TestCase):
 """.strip() + "\n",
                 encoding="utf-8",
             )
-            for revision_id in ("r101", "r102", "r104", "r105"):
-                (commit_diff_dir / f"{revision_id}_commitDiff.patch").write_text("diff --git a/src/demo.py b/src/demo.py\n", encoding="utf-8")
+            for index, revision_id in enumerate(("r101", "r102", "r104", "r105"), start=1):
+                (commit_diff_dir / f"{index:04d}_{revision_id}_commitDiff.patch").write_text("diff --git a/src/demo.py b/src/demo.py\n", encoding="utf-8")
 
             with self.assertRaises(AssertionError) as context:
                 validate_algorithm_b_fixture_commit_diff_sequence(scenario_dir)
