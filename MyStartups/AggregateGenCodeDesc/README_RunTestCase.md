@@ -47,7 +47,7 @@ Current example:
 
 - `US-1` to `US-12`: current `Fast` tier scenarios
 - `US-6`: first shared US example; current executable path is the narrow `Algorithm B` offline baseline
-- `US-1` to `US-12`: current narrow live-snapshot `Algorithm B` convergence evidence is carried by the focused regression stack, with support still intentionally scoped to approved shapes, with the `US-2`/`US-3`/`US-4`, `US-5`/`US-7`, `US-8`, and `US-10`/`US-11` slices now including focused real local-Git replay proof, and with `US-12` still explicitly limited on the branch-heavy local replay path
+- `US-1` to `US-12`: current narrow live-snapshot `Algorithm B` convergence evidence is carried by the focused regression stack, with support still intentionally scoped to approved shapes, and with the `US-2`/`US-3`/`US-4`, `US-5`/`US-7`, `US-8`, `US-10`/`US-11`, and `US-12` slices now including focused real local-Git replay proof for the accepted shapes
 - `US-13` and `US-14`: current `Heavy` tier production-scale acceptance cases
 - experimental SVN lineage work: separate `Experimental` tier
 

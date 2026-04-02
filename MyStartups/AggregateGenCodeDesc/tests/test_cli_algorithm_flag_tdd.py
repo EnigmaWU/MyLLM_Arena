@@ -604,14 +604,49 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = self._run_algorithm_b_offline_cli(
-                query,
-                commit_diff_dir,
-                extra_args=["--metric", "period_added_ai_ratio"],
+            output_file = Path(temp_dir) / "out.json"
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--commitDiffSetDir",
+                    str(commit_diff_dir),
+                    "--metric",
+                    "period_added_ai_ratio",
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
             )
 
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("only supports a single file in the first patch sequence", result.stderr)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            actual_result = load_json(output_file)
+
+        self.assertEqual(
+            actual_result["SUMMARY"],
+            {
+                "totalCodeLines": 2,
+                "fullGeneratedCodeLines": 0,
+                "partialGeneratedCodeLines": 0,
+            },
+        )
 
     def test_cli_rejects_algorithm_b_offline_first_patch_with_multiple_hunks(self) -> None:
         query = {
@@ -683,14 +718,135 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = self._run_algorithm_b_offline_cli(
-                query,
-                commit_diff_dir,
-                extra_args=["--metric", "period_added_ai_ratio"],
+            output_file = Path(temp_dir) / "out.json"
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--commitDiffSetDir",
+                    str(commit_diff_dir),
+                    "--metric",
+                    "period_added_ai_ratio",
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
             )
 
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("only supports a single replayed file path across the diff sequence", result.stderr)
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            actual_result = load_json(output_file)
+
+        self.assertEqual(
+            actual_result["SUMMARY"],
+            {
+                "totalCodeLines": 2,
+                "fullGeneratedCodeLines": 0,
+                "partialGeneratedCodeLines": 0,
+            },
+        )
+
+    def test_cli_handles_algorithm_b_local_git_live_snapshot_when_first_window_commit_has_multiple_hunks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_dir = Path(temp_dir) / "repo"
+            protocol_dir = Path(temp_dir) / "protocols"
+            output_file = Path(temp_dir) / "out.json"
+            repo_dir.mkdir()
+            protocol_dir.mkdir()
+
+            repo = GitRepoHarness(repo_dir)
+            repo.write(
+                "src/calc.py",
+                "def calc(x):\n"
+                "    first = x + 1\n"
+                "    middle = x + 2\n"
+                "    almost_last = x + 3\n"
+                "    return almost_last\n",
+            )
+            repo.commit_all("human-base", "2026-02-20T09:00:00Z")
+
+            repo.write(
+                "src/calc.py",
+                "def calc(x):\n"
+                "    first = normalize(x)\n"
+                "    middle = x + 2\n"
+                "    almost_last = x + 3\n"
+                "    return publish(almost_last)\n",
+            )
+            ai_revision = repo.commit_all("ai-rewrite-two-hunks", "2026-03-15T09:00:00Z")
+
+            write_revision_protocol(
+                protocol_dir,
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "SUMMARY": {
+                        "totalCodeLines": 2,
+                        "fullGeneratedCodeLines": 1,
+                        "partialGeneratedCodeLines": 1,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": ai_revision,
+                    },
+                    "DETAIL": [
+                        {
+                            "fileName": "src/calc.py",
+                            "codeLines": [
+                                {"lineLocation": 2, "genRatio": 100},
+                                {"lineLocation": 5, "genRatio": 60},
+                            ],
+                        }
+                    ],
+                },
+                repo_dir,
+                ai_revision,
+            )
+
+            result = run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                {
+                    "vcsType": "git",
+                    "repoURL": str(repo_dir),
+                    "repoBranch": "main",
+                    "scope": "A",
+                    "startTime": "2026-03-01",
+                    "endTime": "2026-03-31",
+                },
+                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+            )
+
+            actual_result = load_json(output_file)
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertEqual(
+            actual_result["SUMMARY"],
+            {
+                "totalCodeLines": 2,
+                "fullGeneratedCodeLines": 1,
+                "partialGeneratedCodeLines": 1,
+            },
+        )
 
     def test_cli_rejects_algorithm_b_when_routing_metric_cannot_be_inferred(self) -> None:
         query = {

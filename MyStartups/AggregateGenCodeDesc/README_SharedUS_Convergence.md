@@ -16,7 +16,7 @@ For the concrete per-story `Algorithm B` execution spec, including target test f
 - `US-2`, `US-3`, and `US-4` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shapes, with focused real local-Git proof now added for the rewrite/deletion cluster.
 - `US-5` and `US-7` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shapes, with focused real local-Git proof now added for the rename and mixed-history cluster.
 - `US-8` now has accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shape, with focused real local-Git proof now added for the current merge-preservation slice.
-- `US-12` now has accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shape, while the branch-heavy local-Git replay path remains an explicit next-step limitation.
+- `US-12` now has accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline fixture shape, with focused real local-Git proof now also added for the branch-heavy accepted shape.
 - `US-10` and `US-11` now have accepted `Algorithm A` evidence plus narrow Git `Algorithm B` replay acceptance for the approved baseline shapes, with focused real local-Git proof now added for the scale and deep-history cluster.
 - `US-9` is a shared contract story whose first split is by VCS target, not by algorithm, and it now has narrow `Algorithm B` Git/SVN parity evidence on the approved `US-1` baseline shape.
 - `US-13` and `US-14` are `Heavy` production gates, not ordinary shared functional stories.

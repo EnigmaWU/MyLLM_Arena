@@ -128,42 +128,24 @@ class TestUs8Us12AlgorithmBRegressionTdd(unittest.TestCase):
             us8_expected["REPOSITORY"]["revisionId"] = revision_id_r4
             self.assertEqual(actual_result, us8_expected)
 
-    def test_algorithm_b_us12_branch_heavy_real_local_git_replay_is_not_yet_supported(self) -> None:
+    def test_algorithm_b_us12_branch_heavy_real_local_git_replay_matches_expected_result(self) -> None:
         us12_builder = TestUs12ManyMergedBranchesPreserveAttributionTdd(methodName="runTest")
         us12_query = us12_builder._query()
+        expected_result = load_json(TESTDATA_DIR / "us12_many_merged_branches_preserve_attribution" / "expected_result.json")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             repo_dir, protocol_dir, output_file, revision_ids = us12_builder._build_history(Path(temp_dir))
 
-            result = subprocess.run(
-                [
-                    "python3",
-                    str(UTILITY_PATH),
-                    "--vcsType",
-                    us12_query["vcsType"],
-                    "--repoURL",
-                    str(repo_dir),
-                    "--repoBranch",
-                    us12_query["repoBranch"],
-                    "--startTime",
-                    us12_query["startTime"],
-                    "--endTime",
-                    us12_query["endTime"],
-                    "--algorithm",
-                    "B",
-                    "--metric",
-                    "live_changed_source_ratio",
-                    "--scope",
-                    us12_query["scope"],
-                    "--outputFile",
-                    str(output_file),
-                    "--genCodeDescSetDir",
-                    str(protocol_dir),
-                ],
-                cwd=PROJECT_ROOT,
-                text=True,
-                capture_output=True,
+            run_cli(
+                repo_dir,
+                output_file,
+                protocol_dir,
+                us12_query,
+                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
             )
 
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Commit diff context mismatch", result.stderr)
+            actual_result = load_json(output_file)
+            expected_result["REPOSITORY"]["repoURL"] = str(repo_dir)
+            expected_result["REPOSITORY"]["revisionId"] = revision_ids["r15"]
+
+            self.assertEqual(actual_result, expected_result)

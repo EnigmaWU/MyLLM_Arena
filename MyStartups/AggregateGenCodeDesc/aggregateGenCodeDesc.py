@@ -2,13 +2,15 @@
 
 This implementation is intentionally narrow:
 - Git and SVN
-- Algorithm A only
+- Algorithm A production baseline plus active Algorithm B replay slices
 - Scope A only
 - JSON output only
 - external revision metadata resolved through the current genCodeDesc provider path
 
-The tested story coverage extends beyond the initial Git-only slice, but the
-runtime still intentionally implements only the current Scope A path.
+The tested story coverage extends beyond the initial Git-only slice. The
+runtime now includes fixture-driven and local-Git Algorithm B paths, while
+some branch-heavy local-Git merge topologies remain explicitly guarded until
+their replay semantics are proven.
 """
 
 import argparse
@@ -98,6 +100,9 @@ class ParsedCommitDiff:
 class RevisionCommitDiff:
     revision_id: str
     parsed_patch: ParsedCommitDiff
+    base_file_lines_by_old_path: dict[str, list[str]] | None = None
+    parent_revision_ids: list[str] | None = None
+    final_file_lines_by_new_path: dict[str, list[str]] | None = None
 
 
 @dataclass
@@ -737,7 +742,7 @@ def resolve_algorithm_b_git_revision_ids(args: argparse.Namespace, repo_dir: Pat
         [
             "rev-list",
             "--reverse",
-            "--first-parent",
+            "--topo-order",
             f"--since={parse_day_start(args.startTime).isoformat()}",
             f"--until={parse_day_end(args.endTime).isoformat()}",
             end_revision_id,
@@ -751,6 +756,8 @@ def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: 
     loaded_sequence: list[RevisionCommitDiff] = []
 
     for revision_id in revision_ids:
+        parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
+        parent_revision_ids = list_git_parent_revisions(repo_dir, revision_id)
         source_paths = list_git_source_paths_for_revision(repo_dir, revision_id)
         if not source_paths:
             continue
@@ -759,10 +766,32 @@ def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: 
         if not patch_text.strip():
             continue
 
+        parsed_patch = parse_commit_diff_patch(patch_text)
+        base_file_lines_by_old_path: dict[str, list[str]] = {}
+        final_file_lines_by_new_path: dict[str, list[str]] = {}
+        if parent_revision is not None:
+            for commit_diff_file in parsed_patch.files:
+                old_path = commit_diff_file.old_path
+                if not is_source_file_path(old_path) or old_path in base_file_lines_by_old_path:
+                    continue
+                base_file_lines = read_git_file_lines_at_revision(repo_dir, parent_revision, old_path)
+                if base_file_lines is not None:
+                    base_file_lines_by_old_path[old_path] = base_file_lines
+        for commit_diff_file in parsed_patch.files:
+            new_path = commit_diff_file.new_path
+            if not is_source_file_path(new_path) or new_path in final_file_lines_by_new_path:
+                continue
+            final_file_lines = read_git_file_lines_at_revision(repo_dir, revision_id, new_path)
+            if final_file_lines is not None:
+                final_file_lines_by_new_path[new_path] = final_file_lines
+
         loaded_sequence.append(
             RevisionCommitDiff(
                 revision_id=revision_id,
-                parsed_patch=parse_commit_diff_patch(patch_text),
+                parsed_patch=parsed_patch,
+                base_file_lines_by_old_path=base_file_lines_by_old_path or None,
+                parent_revision_ids=parent_revision_ids or None,
+                final_file_lines_by_new_path=final_file_lines_by_new_path or None,
             )
         )
 
@@ -777,6 +806,76 @@ def collect_git_revision_commit_times(repo_dir: Path, revision_ids: list[str]) -
         revision_id: parse_git_timestamp(run_git(repo_dir, ["show", "-s", "--format=%cI", revision_id]))
         for revision_id in revision_ids
     }
+
+
+def list_git_parent_revisions(repo_dir: Path, revision_id: str) -> list[str]:
+    output = run_git(repo_dir, ["show", "-s", "--format=%P", revision_id])
+    return [value for value in output.split() if value]
+
+
+def read_git_file_lines_at_revision(repo_dir: Path, revision_id: str, relative_path: str) -> list[str] | None:
+    if not revision_id or not relative_path or relative_path == "/dev/null":
+        return None
+
+    result = run_command(["git", "show", f"{revision_id}:{relative_path}"], cwd=repo_dir, check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.splitlines()
+
+
+def reconstruct_base_line_states_from_lines(file_lines: list[str]) -> list[LineState]:
+    return [LineState(content=line, origin_revision_id=None, gen_ratio=0) for line in file_lines]
+
+
+def find_next_matching_line_state(line_states: list[LineState], content: str, start_index: int) -> int | None:
+    for index in range(start_index, len(line_states)):
+        if line_states[index].content == content:
+            return index
+    return None
+
+
+def merge_commit_file_line_states(
+    first_parent_lines: list[LineState],
+    other_parent_lines: list[list[LineState]],
+    final_file_lines: list[str],
+    revision_id: str,
+    target_path: str,
+    protocol_index: dict[str, IndexedFileDetail] | None = None,
+) -> list[LineState]:
+    merged_lines: list[LineState] = []
+    first_parent_cursor = 0
+    other_parent_cursors = [0 for _ in other_parent_lines]
+
+    for final_line_number, content in enumerate(final_file_lines, start=1):
+        first_parent_match = find_next_matching_line_state(first_parent_lines, content, first_parent_cursor)
+        other_parent_matches: list[tuple[int, int]] = []
+        for parent_index, parent_lines in enumerate(other_parent_lines):
+            match_index = find_next_matching_line_state(parent_lines, content, other_parent_cursors[parent_index])
+            if match_index is not None:
+                other_parent_matches.append((parent_index, match_index))
+
+        if first_parent_match is not None and (
+            not other_parent_matches or first_parent_match <= min(match_index for _parent_index, match_index in other_parent_matches)
+        ):
+            merged_lines.append(first_parent_lines[first_parent_match])
+            first_parent_cursor = first_parent_match + 1
+            continue
+
+        if other_parent_matches:
+            parent_index, match_index = min(other_parent_matches, key=lambda item: item[1])
+            merged_lines.append(other_parent_lines[parent_index][match_index])
+            other_parent_cursors[parent_index] = match_index + 1
+            continue
+
+        merged_lines.append(
+            LineState(
+                content=content,
+                origin_revision_id=revision_id,
+                gen_ratio=0 if protocol_index is None else line_ratio(protocol_index, target_path, final_line_number),
+            )
+        )
+
+    return merged_lines
 
 
 def reconstruct_base_line_states_from_patch(commit_diff_file: CommitDiffFile) -> list[LineState]:
@@ -828,17 +927,57 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         raise ProtocolValidationError("Algorithm B replay requires at least one replayable commit diff patch")
 
     file_states: dict[str, list[LineState]] = {}
+    revision_file_states: dict[str, dict[str, list[LineState]]] = {}
 
     for revision_diff in commit_diff_sequence:
         protocol_index = None if protocol_indexes is None else protocol_indexes.get(revision_diff.revision_id)
+        parent_revision_ids = revision_diff.parent_revision_ids or []
+        if parent_revision_ids:
+            file_states = {
+                path: list(line_states)
+                for path, line_states in revision_file_states.get(parent_revision_ids[0], {}).items()
+            }
+
         for commit_diff_file in revision_diff.parsed_patch.files:
             if not is_source_file_path(commit_diff_file.old_path) and not is_source_file_path(commit_diff_file.new_path):
                 continue
+
+            if len(parent_revision_ids) > 1 and revision_diff.final_file_lines_by_new_path is not None:
+                final_file_lines = revision_diff.final_file_lines_by_new_path.get(commit_diff_file.new_path)
+                if final_file_lines is not None:
+                    first_parent_lines = revision_file_states.get(parent_revision_ids[0], {}).get(commit_diff_file.old_path)
+                    if first_parent_lines is None:
+                        first_parent_lines = revision_file_states.get(parent_revision_ids[0], {}).get(commit_diff_file.new_path, [])
+                    other_parent_line_states: list[list[LineState]] = []
+                    for parent_revision_id in parent_revision_ids[1:]:
+                        parent_file_states = revision_file_states.get(parent_revision_id, {})
+                        side_lines = parent_file_states.get(commit_diff_file.new_path)
+                        if side_lines is None:
+                            side_lines = parent_file_states.get(commit_diff_file.old_path)
+                        if side_lines is not None:
+                            other_parent_line_states.append(side_lines)
+                    updated_lines = merge_commit_file_line_states(
+                        first_parent_lines or [],
+                        other_parent_line_states,
+                        final_file_lines,
+                        revision_diff.revision_id,
+                        commit_diff_file.new_path,
+                        protocol_index,
+                    )
+                    file_states.pop(commit_diff_file.old_path, None)
+                    file_states[commit_diff_file.new_path] = updated_lines
+                    continue
+
             current_lines = file_states.pop(commit_diff_file.old_path, None)
             if current_lines is None:
                 current_lines = file_states.pop(commit_diff_file.new_path, None)
             if current_lines is None:
-                current_lines = reconstruct_base_line_states_from_patch(commit_diff_file)
+                base_file_lines_by_old_path = revision_diff.base_file_lines_by_old_path or {}
+                base_file_lines = base_file_lines_by_old_path.get(commit_diff_file.old_path)
+                if base_file_lines is not None:
+                    current_lines = reconstruct_base_line_states_from_lines(base_file_lines)
+                else:
+                    current_lines = reconstruct_base_line_states_from_patch(commit_diff_file)
 
             updated_lines = apply_commit_diff_file_to_line_states(
                 current_lines,
@@ -847,6 +986,10 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
                 protocol_index,
             )
             file_states[commit_diff_file.new_path] = updated_lines
+
+        revision_file_states[revision_diff.revision_id] = {
+            path: list(line_states) for path, line_states in file_states.items()
+        }
 
     if not file_states:
         raise ProtocolValidationError("Algorithm B replay did not produce any final file state")
@@ -967,12 +1110,12 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
         )
         for revision_diff in commit_diff_sequence
     }
-    _target_file, current_lines = reconstruct_final_line_states_from_commit_diff_sequence(
+    file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
     )
 
-    summary = summarize_period_added_line_states(current_lines, revision_ids)
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "

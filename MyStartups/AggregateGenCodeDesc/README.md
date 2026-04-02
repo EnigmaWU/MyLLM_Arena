@@ -10,7 +10,7 @@
 
 ### Current Supported Contract vs Future Protocol
 
-- The current runtime implementation supports only `Algorithm A + Scope A`, which means live source code lines only.
+- The current production-quality baseline is still `Algorithm A + Scope A`, and the runtime also now includes active `Algorithm B + Scope A` replay paths for the proven Git/SVN scenario slices.
 - Revision-level metadata currently consumes `DETAIL[*].codeLines` for source files in the supported code-file set.
 - The broader `generatedTextDesc` protocol can describe more than source code, including future document-oriented fields such as `docLines` and document summary totals.
 - Those broader fields are forward-compatible at the protocol level, but they are not part of the current analyzer's implemented metric path.
