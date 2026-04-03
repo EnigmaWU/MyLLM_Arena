@@ -214,6 +214,7 @@ def run_cli(
             "--genCodeDescSetDir",
             str(protocol_dir),
             *( ["--workingDir", str(working_dir_override)] if working_dir_override else [] ),
+            *( ["--scope", query["scope"]] if "scope" in query else [] ),
             *(extra_args or []),
         ],
         cwd=PROJECT_ROOT,

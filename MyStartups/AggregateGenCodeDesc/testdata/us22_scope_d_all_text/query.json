@@ -1,0 +1,11 @@
+{
+  "vcsType": "git",
+  "repoURL": "https://example.local/repo/demo",
+  "repoBranch": "main",
+  "metric": "live_changed_source_ratio",
+  "model": "A",
+  "scope": "D",
+  "startTime": "2026-03-01",
+  "endTime": "2026-03-31",
+  "endRevisionId": "us22-r1"
+}

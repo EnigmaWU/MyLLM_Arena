@@ -49,6 +49,10 @@ Current example:
 - `US-6`: first shared US example; current executable path is the narrow `Algorithm B` offline baseline
 - `US-1` to `US-12`: current narrow live-snapshot `Algorithm B` convergence evidence is carried by the focused regression stack, with support still intentionally scoped to approved shapes, and with the `US-2`/`US-3`/`US-4`, `US-5`/`US-7`, `US-8`, `US-10`/`US-11`, and `US-12` slices now including focused real local-Git replay proof for the accepted shapes
 - `US-13` and `US-14`: current `Heavy` tier production-scale acceptance cases
+- `US-20`: `Fast` tier Scope B (source code with comments) end-to-end verification
+- `US-21`: `Fast` tier Scope C (documentation text lines) end-to-end verification
+- `US-22`: `Fast` tier Scope D (all text: source + documentation) end-to-end verification
+- `US-23`: `Fast` tier scope parity matrix — cross-scope isolation verification for all four scopes
 - experimental SVN lineage work: separate `Experimental` tier
 
 ## Recommended Commands

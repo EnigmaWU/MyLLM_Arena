@@ -51,6 +51,12 @@ SOURCE_EXTENSIONS = {
     ".ts",
 }
 
+DOC_EXTENSIONS = {
+    ".md",
+    ".rst",
+    ".txt",
+}
+
 
 @dataclass
 class BlameLine:
@@ -661,13 +667,15 @@ def apply_commit_diff_file_to_lines(current_lines: list[str], commit_diff_file: 
 def summarize_period_added_line_states(
     line_states: list[LineState],
     included_revision_ids: list[str],
+    scope: str = "A",
 ) -> dict[str, int]:
-    return summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids)
+    return summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids, scope)
 
 
 def summarize_live_changed_line_states_by_revision_ids(
     line_states: list[LineState],
     included_revision_ids: list[str],
+    scope: str = "A",
 ) -> dict[str, int]:
     included_revision_id_set = set(included_revision_ids)
     total_code_lines = 0
@@ -677,7 +685,7 @@ def summarize_live_changed_line_states_by_revision_ids(
     for line_state in line_states:
         if line_state.origin_revision_id not in included_revision_id_set:
             continue
-        if not is_code_line(line_state.content):
+        if not is_code_line(line_state.content, scope):
             continue
 
         total_code_lines += 1
@@ -1062,13 +1070,14 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
 def summarize_live_changed_file_states_by_revision_ids(
     file_states_by_path: dict[str, list[LineState]],
     included_revision_ids: list[str],
+    scope: str = "A",
 ) -> dict[str, int]:
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
 
     for line_states in file_states_by_path.values():
-        file_summary = summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids)
+        file_summary = summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids, scope)
         total_code_lines += file_summary["totalCodeLines"]
         full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
         partial_generated_code_lines += file_summary["partialGeneratedCodeLines"]
@@ -1085,13 +1094,14 @@ def summarize_live_snapshot_line_states(
     revision_commit_times: dict[str, datetime],
     start_bound: datetime,
     end_bound: datetime,
+    scope: str = "A",
 ) -> dict[str, int]:
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
 
     for line_state in line_states:
-        if not is_code_line(line_state.content):
+        if not is_code_line(line_state.content, scope):
             continue
 
         origin_revision_id = line_state.origin_revision_id
@@ -1124,6 +1134,7 @@ def summarize_live_snapshot_file_states(
     revision_commit_times: dict[str, datetime],
     start_bound: datetime,
     end_bound: datetime,
+    scope: str = "A",
 ) -> dict[str, int]:
     total_code_lines = 0
     full_generated_code_lines = 0
@@ -1135,6 +1146,7 @@ def summarize_live_snapshot_file_states(
             revision_commit_times,
             start_bound,
             end_bound,
+            scope,
         )
         total_code_lines += file_summary["totalCodeLines"]
         full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
@@ -1177,7 +1189,7 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
         protocol_indexes,
     )
 
-    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids)
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
@@ -1207,7 +1219,7 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
         protocol_indexes,
     )
     replay_revision_ids = [revision_diff.revision_id for revision_diff in commit_diff_sequence]
-    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids)
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids, args.scope)
 
     logger.info(
         f"Finished Algorithm B local git period-added analysis with totalCodeLines={summary['totalCodeLines']} "
@@ -1245,7 +1257,7 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
         protocol_indexes,
     )
 
-    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids)
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
@@ -1283,6 +1295,7 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
         revision_commit_times,
         parse_day_start(args.startTime),
         parse_day_end(args.endTime),
+        args.scope,
     )
 
     logger.info(
@@ -1412,8 +1425,14 @@ def validate_iso_date(value: str, label: str) -> None:
 
 def validate_inputs(args: argparse.Namespace) -> None:
     validate_url(args.repoURL, "--repoURL")
+    if not args.repoBranch or not args.repoBranch.strip():
+        raise InputValidationError("--repoBranch must not be empty")
+    if ".." in args.repoBranch:
+        raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
     validate_iso_date(args.startTime, "--startTime")
     validate_iso_date(args.endTime, "--endTime")
+    if parse_day_start(args.startTime) > parse_day_end(args.endTime):
+        raise InputValidationError("--startTime must not be after --endTime")
     if args.vcsType not in {"git", "svn"}:
         raise InputValidationError("--vcsType must be one of: git, svn")
     if args.commitDiffSetDir:
@@ -1547,6 +1566,18 @@ def list_svn_source_files(repo_url: str, branch: str, revision_id: str) -> list[
     return files
 
 
+def list_doc_files(repo_dir: Path, revision_id: str) -> list[str]:
+    output = run_git(repo_dir, ["ls-tree", "-r", "--name-only", revision_id])
+    files = [line for line in output.splitlines() if Path(line).suffix in DOC_EXTENSIONS]
+    return files
+
+
+def list_svn_doc_files(repo_url: str, branch: str, revision_id: str) -> list[str]:
+    output = run_svn(["ls", "-R", "-r", revision_id, build_svn_branch_target(repo_url, branch)])
+    files = [line for line in output.splitlines() if line and not line.endswith("/") and Path(line).suffix in DOC_EXTENSIONS]
+    return files
+
+
 def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[BlameLine]:
     output = run_git(repo_dir, ["blame", "--line-porcelain", revision_id, "--", relative_path])
     lines = output.splitlines()
@@ -1641,10 +1672,12 @@ def parse_svn_blame(repo_url: str, branch: str, revision_id: str, relative_path:
     return parsed
 
 
-def is_code_line(content: str) -> bool:
+def is_code_line(content: str, scope: str = "A") -> bool:
     stripped = content.strip()
     if not stripped:
         return False
+    if scope in ("B", "C", "D"):
+        return True
     comment_prefixes = ("#", "//", "/*", "*", "*/")
     return not stripped.startswith(comment_prefixes)
 
@@ -1773,6 +1806,86 @@ def build_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
             line_ranges=ranges,
         )
     return indexed_detail
+
+
+def build_doc_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
+    indexed_detail: dict[str, IndexedFileDetail] = {}
+    detail_entries = protocol.get("DETAIL", [])
+    if not isinstance(detail_entries, list):
+        raise ProtocolValidationError("Protocol DETAIL must be a list")
+
+    for file_entry in detail_entries:
+        if not isinstance(file_entry, dict):
+            raise ProtocolValidationError("Each Protocol DETAIL entry must be an object")
+
+        file_name = file_entry.get("fileName")
+        if not isinstance(file_name, str) or not file_name:
+            raise ProtocolValidationError("Protocol DETAIL entry missing fileName")
+
+        exact_lines: dict[int, int] = {}
+        ranges: list[tuple[int, int, int]] = []
+        doc_lines = file_entry.get("docLines", [])
+        if doc_lines is None:
+            doc_lines = []
+        if not isinstance(doc_lines, list):
+            raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-list docLines")
+
+        for doc_line in doc_lines:
+            if not isinstance(doc_line, dict):
+                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} contains a non-object docLines item")
+
+            gen_ratio = require_int(doc_line.get("genRatio", 0), f"Protocol DETAIL entry for {file_name} genRatio")
+            if not 0 <= gen_ratio <= 100:
+                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has genRatio outside 0..100")
+
+            line_location = doc_line.get("lineLocation")
+            if line_location is not None:
+                line_number = require_int(line_location, f"Protocol DETAIL entry for {file_name} lineLocation")
+                if line_number in exact_lines:
+                    raise ProtocolValidationError(
+                        f"Protocol DETAIL entry for {file_name} duplicates lineLocation {line_number}"
+                    )
+                for range_start, range_end, _ in ranges:
+                    if range_start <= line_number <= range_end:
+                        raise ProtocolValidationError(
+                            f"Protocol DETAIL entry for {file_name} has overlapping line coverage at line {line_number}"
+                        )
+                exact_lines[line_number] = gen_ratio
+                continue
+
+            line_range = doc_line.get("lineRange")
+            if line_range:
+                if not isinstance(line_range, dict):
+                    raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-object lineRange")
+                range_start = require_int(line_range.get("from"), f"Protocol DETAIL entry for {file_name} lineRange.from")
+                range_end = require_int(line_range.get("to"), f"Protocol DETAIL entry for {file_name} lineRange.to")
+                validate_no_overlap(file_name, exact_lines, ranges, range_start, range_end)
+                ranges.append((range_start, range_end, gen_ratio))
+                continue
+
+            raise ProtocolValidationError(
+                f"Protocol DETAIL entry for {file_name} must define either lineLocation or lineRange"
+            )
+
+        indexed_detail[file_name] = IndexedFileDetail(
+            line_locations=exact_lines,
+            line_ranges=ranges,
+        )
+    return indexed_detail
+
+
+def build_combined_protocol_index(protocol: dict) -> dict[str, IndexedFileDetail]:
+    code_idx = build_protocol_index(protocol)
+    doc_idx = build_doc_protocol_index(protocol)
+    combined: dict[str, IndexedFileDetail] = {}
+    for file_name in set(code_idx) | set(doc_idx):
+        if Path(file_name).suffix in SOURCE_EXTENSIONS:
+            combined[file_name] = code_idx.get(file_name, IndexedFileDetail(line_locations={}, line_ranges=[]))
+        elif Path(file_name).suffix in DOC_EXTENSIONS:
+            combined[file_name] = doc_idx.get(file_name, IndexedFileDetail(line_locations={}, line_ranges=[]))
+        else:
+            combined[file_name] = code_idx.get(file_name, doc_idx.get(file_name, IndexedFileDetail(line_locations={}, line_ranges=[])))
+    return combined
 
 
 def resolve_parent_revision(vcs_type: str, repo_dir: Path, repo_url: str, branch: str, revision_id: str) -> str | None:
@@ -1908,8 +2021,8 @@ def build_result(args: argparse.Namespace) -> dict:
         )
     if args.algorithm != "A":
         raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
-    if args.scope != "A":
-        raise UnsupportedConfigurationError("Only Scope A is implemented in the current Git/SVN Algorithm A slice")
+    if args.scope not in ("A", "B", "C", "D"):
+        raise UnsupportedConfigurationError("Only Scope A, B, C, and D are implemented in the current Git/SVN Algorithm A slice")
     if args.outputFormat != "json":
         raise UnsupportedConfigurationError("Only JSON output is implemented in the current Git/SVN Algorithm A slice")
     if args.vcsType not in {"git", "svn"}:
@@ -1923,11 +2036,21 @@ def build_result(args: argparse.Namespace) -> dict:
     end_bound = parse_day_end(args.endTime)
     if args.vcsType == "git":
         end_revision_id = resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
-        source_files = list_source_files(repo_dir, end_revision_id)
+        if args.scope == "C":
+            source_files = list_doc_files(repo_dir, end_revision_id)
+        elif args.scope == "D":
+            source_files = list_source_files(repo_dir, end_revision_id) + list_doc_files(repo_dir, end_revision_id)
+        else:
+            source_files = list_source_files(repo_dir, end_revision_id)
         repo_identity_url = logical_repo_url
     else:
         end_revision_id = resolve_svn_end_revision(args.repoURL, args.repoBranch, args.endTime)
-        source_files = list_svn_source_files(args.repoURL, args.repoBranch, end_revision_id)
+        if args.scope == "C":
+            source_files = list_svn_doc_files(args.repoURL, args.repoBranch, end_revision_id)
+        elif args.scope == "D":
+            source_files = list_svn_source_files(args.repoURL, args.repoBranch, end_revision_id) + list_svn_doc_files(args.repoURL, args.repoBranch, end_revision_id)
+        else:
+            source_files = list_svn_source_files(args.repoURL, args.repoBranch, end_revision_id)
         repo_identity_url = logical_repo_url
     logger.info(
         f"Starting analysis for repo={repo_identity_url} branch={args.repoBranch} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
@@ -1951,7 +2074,7 @@ def build_result(args: argparse.Namespace) -> dict:
             else parse_svn_blame(args.repoURL, args.repoBranch, end_revision_id, relative_path)
         )
         for blame_line in blame_lines:
-            if not is_code_line(blame_line.content):
+            if not is_code_line(blame_line.content, args.scope):
                 logger.debug(f"Skip non-code line {relative_path}:{blame_line.final_line}")
                 continue
 
@@ -1978,7 +2101,12 @@ def build_result(args: argparse.Namespace) -> dict:
                 # revision model instead of repeating the same fetch per line.
                 protocol = provider.get_revision_metadata(args.repoURL, args.repoBranch, blame_line.revision_id, args.vcsType)
                 protocols[blame_line.revision_id] = protocol
-                protocol_indexes[blame_line.revision_id] = build_protocol_index(protocol)
+                if args.scope == "C":
+                    protocol_indexes[blame_line.revision_id] = build_doc_protocol_index(protocol)
+                elif args.scope == "D":
+                    protocol_indexes[blame_line.revision_id] = build_combined_protocol_index(protocol)
+                else:
+                    protocol_indexes[blame_line.revision_id] = build_protocol_index(protocol)
             else:
                 logger.debug(f"Reuse cached genCodeDesc for revision {blame_line.revision_id}")
 
@@ -2020,13 +2148,22 @@ def build_result(args: argparse.Namespace) -> dict:
         f"elapsed={elapsed:.2f}s"
     )
 
-    return build_result_document(
-        args,
-        {
+    if args.scope == "C":
+        summary = {
+            "totalDocLines": total_code_lines,
+            "fullGeneratedDocLines": full_generated_code_lines,
+            "partialGeneratedDocLines": partial_generated_code_lines,
+        }
+    else:
+        summary = {
             "totalCodeLines": total_code_lines,
             "fullGeneratedCodeLines": full_generated_code_lines,
             "partialGeneratedCodeLines": partial_generated_code_lines,
-        },
+        }
+
+    return build_result_document(
+        args,
+        summary,
         end_revision_id,
         logger,
         repo_url_override=repo_identity_url,

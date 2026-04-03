@@ -38,6 +38,12 @@ That means internal implementation-routing seams should not be treated as normal
 
 - `Algorithm A + Git + Scope A`: production target
 - `Algorithm A + SVN + Scope A`: production target
+- `Algorithm A + Git + Scope B`: production target (source code with comments)
+- `Algorithm A + SVN + Scope B`: production target (source code with comments)
+- `Algorithm A + Git + Scope C`: production target (documentation text lines)
+- `Algorithm A + SVN + Scope C`: production target (documentation text lines)
+- `Algorithm A + Git + Scope D`: production target (all text: source + documentation)
+- `Algorithm A + SVN + Scope D`: production target (all text: source + documentation)
 
 ### Narrow replay baseline path
 
@@ -118,6 +124,24 @@ Default is `A`.
 Required only for fixture-driven `Algorithm B` replay.
 
 In the intended `Algorithm B` replay contract, this directory is the ordered diff stream that is paired with `--genCodeDescSetDir`.
+
+### `--scope`
+
+Controls which file types and line types are included in the aggregate result.
+
+- `A`: pure source code — count only code lines, exclude comment lines and blank lines (default)
+- `B`: source code with comments — count all non-blank lines in source files, including comment lines
+- `C`: documentation text lines — count non-blank lines in documentation files (`.md`, `.rst`, `.txt`) using the `docLines` protocol field
+- `D`: all text — union of source files and documentation files, counting all non-blank lines from both; uses `codeLines` for source files and `docLines` for doc files
+
+Default is `A`.
+
+Scope is orthogonal to the algorithm choice. Scope controls the file filter and line filter; the algorithm controls how line-origin attribution is computed.
+
+Output field names change with scope:
+
+- Scope A and B use `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines`
+- Scope C uses `totalDocLines`, `fullGeneratedDocLines`, `partialGeneratedDocLines`
 Together, those two inputs let the runtime replay revision changes and aggregate the final `generatedTextDesc` result without relying on live repository history access.
 
 The replay artifacts may come from either Git or SVN history, but they must be normalized into the patch format the current runtime parser supports.
@@ -344,6 +368,28 @@ Typical output is protocol-shaped JSON such as:
 ```
 
 `WARNINGS` is optional and appears only when the runtime had to degrade and you enabled diagnostic warning mode, for example with `--warnOnMissingProtocol` when a required middle `genCodeDesc` record was missing.
+
+### Scope C output shape
+
+When `--scope C` is used, the output fields change to reflect documentation line counting:
+
+```json
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalDocLines": 4,
+    "fullGeneratedDocLines": 2,
+    "partialGeneratedDocLines": 1
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "/path/to/repo",
+    "repoBranch": "main",
+    "revisionId": "abc123"
+  }
+}
+```
 
 ## Common Problems And Fixes
 

@@ -654,6 +654,98 @@ The following items are intentionally treated as `Heavy` production gates rather
    **WHEN** the analyzer completes successfully
    **THEN** the test must verify both correctness of the final aggregate result and scalability-oriented behavior such as reuse of branch-origin metadata lookups, bounded revision-time queries, or other explicit reuse signals defined by the test harness
 
+## Scope Expansion Stories
+
+The following stories extend the analyzer beyond the original `Scope A` (pure source code) baseline to cover broader line-type classifications. These are orthogonal to the Algorithm A/B axis — scope controls which files and line types are counted, while the algorithm controls how origin attribution is computed.
+
+### US-20: Scope B Source Code With Comments Must Include Comment Lines In Totals
+
+**As a** repository analyst,
+**I want** `--scope B` to count all non-blank lines in source files — including comment lines — in the aggregate result,
+**so that** I can measure AI contribution across the full textual content of source files, not just executable code.
+
+#### Acceptance Criteria For US-20
+
+1. **GIVEN** a source file containing both code lines and comment lines
+   **WHEN** the analyzer runs with `--scope B`
+   **THEN** `totalCodeLines` must include all non-blank lines (code and comments) rather than only the code-only subset counted by `Scope A`
+
+2. **GIVEN** a `genCodeDesc` protocol with `codeLines` entries that cover comment lines in a source file
+   **WHEN** the analyzer attributes those lines under `--scope B`
+   **THEN** comment lines with `genRatio 100` must count as `fullGeneratedCodeLines` and comment lines with `genRatio` between 1 and 99 must count as `partialGeneratedCodeLines`
+
+3. **GIVEN** the same repository and metadata
+   **WHEN** the analyzer runs with `--scope A` instead of `--scope B`
+   **THEN** comment lines must still be excluded from the totals, confirming backward compatibility
+
+Fixture: `testdata/us20_scope_b_source_with_comments`
+
+### US-21: Scope C Documentation Text Lines Must Be Counted From Doc Files Using docLines Protocol
+
+**As a** repository analyst,
+**I want** `--scope C` to analyze documentation text files (such as `.md`, `.rst`, `.txt`) and use the `docLines` protocol field for AI attribution,
+**so that** I can measure AI contribution to documentation artifacts separately from source code.
+
+#### Acceptance Criteria For US-21
+
+1. **GIVEN** a repository containing documentation files with extensions in the `DOC_EXTENSIONS` set (`.md`, `.rst`, `.txt`)
+   **WHEN** the analyzer runs with `--scope C`
+   **THEN** the file listing must include only documentation files, not source code files
+
+2. **GIVEN** a `genCodeDesc` protocol with `docLines` entries for a documentation file
+   **WHEN** the analyzer attributes those lines under `--scope C`
+   **THEN** the output must use `totalDocLines`, `fullGeneratedDocLines`, and `partialGeneratedDocLines` instead of the `*CodeLines` field names
+
+3. **GIVEN** the same repository containing both source and documentation files
+   **WHEN** the analyzer runs with `--scope A` or `--scope B`
+   **THEN** documentation files must not appear in the analysis, confirming scope isolation
+
+Fixture: `testdata/us21_scope_c_doc_lines`
+
+### US-22: Scope D All Text Must Unify Source And Documentation Files Into A Single Aggregate
+
+**As a** repository analyst,
+**I want** `--scope D` to count all non-blank lines from both source files and documentation files in one combined result,
+**so that** I can measure total AI contribution across the entire textual content of the repository.
+
+#### Acceptance Criteria For US-22
+
+1. **GIVEN** a repository containing both source files and documentation files
+   **WHEN** the analyzer runs with `--scope D`
+   **THEN** the file listing must include both source files (matching `SOURCE_EXTENSIONS`) and documentation files (matching `DOC_EXTENSIONS`)
+
+2. **GIVEN** a `genCodeDesc` protocol with `codeLines` for source files and `docLines` for documentation files
+   **WHEN** the analyzer attributes lines under `--scope D`
+   **THEN** source file lines must be attributed using `codeLines` and documentation file lines must be attributed using `docLines`, with the combined result using `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines`
+
+3. **GIVEN** the same repository
+   **WHEN** the analyzer runs with `--scope A`, `--scope B`, or `--scope C`
+   **THEN** the result must not include files from the other scope family, confirming scope isolation
+
+Fixture: `testdata/us22_scope_d_all_text`
+
+### US-23: Scope Parity Matrix Must Confirm All Four Scopes Produce Correct And Isolated Results
+
+**As a** repository analyst,
+**I want** a cross-scope verification that runs Scope A, B, C, and D on the same repository and confirms each produces the expected distinct result,
+**so that** I can trust that scope selection genuinely controls the measurement boundary.
+
+#### Acceptance Criteria For US-23
+
+1. **GIVEN** a repository with both source files (containing code and comment lines) and documentation files
+   **WHEN** the analyzer runs four times with `--scope A`, `--scope B`, `--scope C`, and `--scope D`
+   **THEN** each scope must produce a correct summary matching its definition:
+   - Scope A: only code lines from source files
+   - Scope B: all non-blank lines from source files
+   - Scope C: all non-blank lines from doc files (with Doc field names)
+   - Scope D: all non-blank lines from both source and doc files
+
+2. **GIVEN** the four scope results
+   **WHEN** compared for output field name families
+   **THEN** Scope C must use `totalDocLines` / `fullGeneratedDocLines` / `partialGeneratedDocLines` while Scopes A, B, and D must use `totalCodeLines` / `fullGeneratedCodeLines` / `partialGeneratedCodeLines`
+
+Fixture: `testdata/us23_scope_parity_matrix`
+
 ### Future Algorithm-B Story Intent
 
 The next intended Algorithm-B user stories are:

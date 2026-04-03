@@ -1,0 +1,35 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 1,
+    "totalDocLines": 2,
+    "fullGeneratedDocLines": 1,
+    "partialGeneratedDocLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/calc.py",
+      "codeLines": [
+        {"lineLocation": 1, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 3, "genRatio": 50, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "docs/spec.md",
+      "docLines": [
+        {"lineLocation": 1, "genRatio": 100, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/demo",
+    "repoBranch": "main",
+    "revisionId": "us23-r1"
+  }
+}

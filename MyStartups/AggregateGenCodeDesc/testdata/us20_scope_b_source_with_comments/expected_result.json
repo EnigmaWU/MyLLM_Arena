@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalCodeLines": 6,
+    "fullGeneratedCodeLines": 3,
+    "partialGeneratedCodeLines": 1
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/demo",
+    "repoBranch": "main",
+    "revisionId": "us20-r1"
+  }
+}

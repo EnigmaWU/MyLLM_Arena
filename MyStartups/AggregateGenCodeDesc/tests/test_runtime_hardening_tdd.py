@@ -39,7 +39,7 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError) as context:
                 run_cli(repo_dir, output_file, protocol_dir, query, extra_args=["--algorithm", "B"])
 
-            self.assertIn("Only Algorithm A is implemented", context.exception.stderr)
+            self.assertIn("Current Algorithm B routing requires either --metric or a query.json metric", context.exception.stderr)
             self.assertNotIn("Traceback", context.exception.stderr)
 
     def test_cli_fails_cleanly_for_missing_file_name_in_protocol_detail(self) -> None:
@@ -282,8 +282,83 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
             )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("No commit diff patch files found", result.stderr)
+        self.assertIn("Current Algorithm B routing requires either --metric or a query.json metric", result.stderr)
         self.assertNotIn("--workingDir is required for git", result.stderr)
+
+    def test_cli_rejects_repo_branch_with_path_traversal(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                "--repoURL",
+                "/tmp/local-repo",
+                "--repoBranch",
+                "../../etc/passwd",
+                "--startTime",
+                "2026-03-01",
+                "--endTime",
+                "2026-03-31",
+                "--vcsType",
+                "git",
+            ],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--repoBranch must not contain path traversal", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_rejects_empty_repo_branch(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                "--repoURL",
+                "/tmp/local-repo",
+                "--repoBranch",
+                "",
+                "--startTime",
+                "2026-03-01",
+                "--endTime",
+                "2026-03-31",
+                "--vcsType",
+                "git",
+            ],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--repoBranch must not be empty", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_rejects_start_time_after_end_time(self) -> None:
+        result = subprocess.run(
+            [
+                "python3",
+                str(Path(__file__).resolve().parent.parent / "aggregateGenCodeDesc.py"),
+                "--repoURL",
+                "/tmp/local-repo",
+                "--repoBranch",
+                "main",
+                "--startTime",
+                "2026-04-01",
+                "--endTime",
+                "2026-03-01",
+                "--vcsType",
+                "git",
+            ],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--startTime must not be after --endTime", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_parse_svn_blame_fails_when_blame_entries_and_file_lines_diverge(self) -> None:
         def fake_run_svn(args: list[str]) -> str:
