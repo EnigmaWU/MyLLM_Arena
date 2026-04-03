@@ -56,6 +56,40 @@ class GitRepoHarness:
         self.commit_ids[label] = commit_id
         return commit_id
 
+    def merge_with_manual_resolution(
+        self,
+        branch_name: str,
+        label: str,
+        date: str,
+        resolved_files: dict[str, str],
+    ) -> str:
+        env = {
+            "GIT_AUTHOR_DATE": date,
+            "GIT_COMMITTER_DATE": date,
+        }
+        result = subprocess.run(
+            ["git", "merge", "--no-ff", branch_name, "-m", label],
+            cwd=self.repo_dir,
+            env={**os.environ, **env},
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            commit_id = self._run(["git", "rev-parse", "HEAD"])
+            self.commit_ids[label] = commit_id
+            return commit_id
+        if result.returncode != 1:
+            raise subprocess.CalledProcessError(result.returncode, result.args, output=result.stdout, stderr=result.stderr)
+
+        for relative_path, content in resolved_files.items():
+            self.write(relative_path, content)
+        self._run(["git", "add", "-A"], env=env)
+        self._run(["git", "commit", "-m", label], env=env)
+        commit_id = self._run(["git", "rev-parse", "HEAD"])
+        self.commit_ids[label] = commit_id
+        return commit_id
+
     def merge_octopus(self, branch_names: list[str], label: str, date: str) -> str:
         env = {
             "GIT_AUTHOR_DATE": date,
