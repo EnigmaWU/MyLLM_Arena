@@ -798,6 +798,30 @@ Test: `tests/test_us25_algorithm_b_scope_c_tdd.py`
 
 Test: `tests/test_us26_algorithm_b_scope_d_tdd.py`
 
+### Cross-Algorithm Scope Parity Stories
+
+#### US-27: Algorithm A And Algorithm B Must Produce Identical SUMMARY For Every Scope
+
+**As a** repository analyst,
+**I want** Algorithm A (blame-based) and Algorithm B (replay-based) to produce the same SUMMARY for every scope (A, B, C, D) on the same repository content,
+**so that** I can trust that the choice of algorithm does not change the measurement result.
+
+##### Acceptance Criteria For US-27
+
+1. **GIVEN** a repository with source files (code + comments) and documentation files
+   **WHEN** both Algorithm A and Algorithm B analyze the same content with `--scope A`
+   **THEN** both must produce identical `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines`
+
+2. **GIVEN** the same repository
+   **WHEN** both algorithms analyze with `--scope B`, `--scope C`, and `--scope D`
+   **THEN** each scope must produce identical SUMMARY between algorithms, including correct field name families (Doc vs Code)
+
+3. **GIVEN** both algorithm results
+   **WHEN** compared for protocol contract shape
+   **THEN** `protocolName` and `protocolVersion` must match across algorithms for every scope
+
+Test: `tests/test_us27_cross_algorithm_scope_parity_tdd.py`
+
 ### Future Algorithm-B Story Intent
 
 The next intended Algorithm-B user stories are:

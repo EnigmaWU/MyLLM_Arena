@@ -56,6 +56,7 @@ Current example:
 - `US-24`: `Fast` tier Algorithm B + Scope B (source code with comments via replay)
 - `US-25`: `Fast` tier Algorithm B + Scope C (documentation text lines via replay)
 - `US-26`: `Fast` tier Algorithm B + Scope D (all text: source + documentation via replay)
+- `US-27`: `Fast` tier cross-algorithm × cross-scope parity matrix — verifies Algorithm A and B produce identical results for all scopes
 - experimental SVN lineage work: separate `Experimental` tier
 
 ## Recommended Commands
