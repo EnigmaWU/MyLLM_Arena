@@ -746,6 +746,58 @@ Fixture: `testdata/us22_scope_d_all_text`
 
 Fixture: `testdata/us23_scope_parity_matrix`
 
+### Algorithm-B Scope Broadening Stories
+
+#### US-24: Algorithm B Must Support Scope B (Source Files Including Comments)
+
+**As a** repository analyst,
+**I want** `--algorithm B --scope B` to count all non-blank source lines including comments during replay,
+**so that** I can measure total AI contribution to all source text using the incremental replay algorithm.
+
+##### Acceptance Criteria For US-24
+
+1. **GIVEN** a source file with code and comment lines
+   **WHEN** Algorithm B runs with `--scope B`
+   **THEN** `totalCodeLines` must include all non-blank lines (code + comments)
+
+Test: `tests/test_us24_algorithm_b_scope_b_tdd.py`
+
+#### US-25: Algorithm B Must Support Scope C (Documentation Files)
+
+**As a** repository analyst,
+**I want** `--algorithm B --scope C` to replay and count documentation file lines using the `docLines` protocol field,
+**so that** I can measure AI contribution to documentation using the incremental replay algorithm.
+
+##### Acceptance Criteria For US-25
+
+1. **GIVEN** a documentation file (`.md`) with non-blank lines
+   **WHEN** Algorithm B runs with `--scope C`
+   **THEN** the output uses `totalDocLines` / `fullGeneratedDocLines` / `partialGeneratedDocLines` field names
+
+2. **GIVEN** the protocol DETAIL entry for the doc file uses `docLines` (not `codeLines`)
+   **WHEN** Algorithm B attributes gen-ratios during replay
+   **THEN** the doc protocol index is used for line-ratio lookup
+
+Test: `tests/test_us25_algorithm_b_scope_c_tdd.py`
+
+#### US-26: Algorithm B Must Support Scope D (Union Of Source And Documentation)
+
+**As a** repository analyst,
+**I want** `--algorithm B --scope D` to replay both source files and documentation files into a unified result,
+**so that** I can measure total AI contribution across all textual repository content using the incremental replay algorithm.
+
+##### Acceptance Criteria For US-26
+
+1. **GIVEN** a repository with both source files and documentation files
+   **WHEN** Algorithm B runs with `--scope D`
+   **THEN** replay must include both source and doc files, using `codeLines` for source and `docLines` for doc files
+
+2. **GIVEN** the combined replay
+   **WHEN** the summary is computed
+   **THEN** the output uses `totalCodeLines` / `fullGeneratedCodeLines` / `partialGeneratedCodeLines` field names
+
+Test: `tests/test_us26_algorithm_b_scope_d_tdd.py`
+
 ### Future Algorithm-B Story Intent
 
 The next intended Algorithm-B user stories are:

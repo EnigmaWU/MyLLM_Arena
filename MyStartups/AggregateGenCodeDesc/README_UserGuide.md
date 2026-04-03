@@ -49,6 +49,9 @@ That means internal implementation-routing seams should not be treated as normal
 
 - `Algorithm B + Git + Scope A`: supported for the current approved replay scenarios
 - `Algorithm B + SVN + Scope A`: supported for the current approved baseline replay scenarios where the fixture/query contract is explicitly proven
+- `Algorithm B + Git + Scope B`: supported (source code with comments via replay)
+- `Algorithm B + Git + Scope C`: supported (documentation text lines via replay)
+- `Algorithm B + Git + Scope D`: supported (all text: source + documentation via replay)
 
 Important boundary:
 

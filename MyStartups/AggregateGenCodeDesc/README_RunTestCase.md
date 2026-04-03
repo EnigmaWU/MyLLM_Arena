@@ -53,6 +53,9 @@ Current example:
 - `US-21`: `Fast` tier Scope C (documentation text lines) end-to-end verification
 - `US-22`: `Fast` tier Scope D (all text: source + documentation) end-to-end verification
 - `US-23`: `Fast` tier scope parity matrix — cross-scope isolation verification for all four scopes
+- `US-24`: `Fast` tier Algorithm B + Scope B (source code with comments via replay)
+- `US-25`: `Fast` tier Algorithm B + Scope C (documentation text lines via replay)
+- `US-26`: `Fast` tier Algorithm B + Scope D (all text: source + documentation via replay)
 - experimental SVN lineage work: separate `Experimental` tier
 
 ## Recommended Commands

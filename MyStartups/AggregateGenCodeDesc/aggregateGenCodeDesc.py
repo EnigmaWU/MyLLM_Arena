@@ -672,6 +672,12 @@ def summarize_period_added_line_states(
     return summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids, scope)
 
 
+def _summary_field_names(scope: str) -> tuple[str, str, str]:
+    if scope == "C":
+        return "totalDocLines", "fullGeneratedDocLines", "partialGeneratedDocLines"
+    return "totalCodeLines", "fullGeneratedCodeLines", "partialGeneratedCodeLines"
+
+
 def summarize_live_changed_line_states_by_revision_ids(
     line_states: list[LineState],
     included_revision_ids: list[str],
@@ -694,10 +700,11 @@ def summarize_live_changed_line_states_by_revision_ids(
         elif line_state.gen_ratio > 0:
             partial_generated_code_lines += 1
 
+    total_key, full_key, partial_key = _summary_field_names(scope)
     return {
-        "totalCodeLines": total_code_lines,
-        "fullGeneratedCodeLines": full_generated_code_lines,
-        "partialGeneratedCodeLines": partial_generated_code_lines,
+        total_key: total_code_lines,
+        full_key: full_generated_code_lines,
+        partial_key: partial_generated_code_lines,
     }
 
 
@@ -723,7 +730,21 @@ def is_source_file_path(path_value: str) -> bool:
     return Path(path_value).suffix in SOURCE_EXTENSIONS
 
 
-def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str) -> list[str]:
+def is_doc_file_path(path_value: str) -> bool:
+    if not path_value or path_value == "/dev/null":
+        return False
+    return Path(path_value).suffix in DOC_EXTENSIONS
+
+
+def is_included_file_path(path_value: str, scope: str = "A") -> bool:
+    if scope == "C":
+        return is_doc_file_path(path_value)
+    if scope == "D":
+        return is_source_file_path(path_value) or is_doc_file_path(path_value)
+    return is_source_file_path(path_value)
+
+
+def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str, scope: str = "A") -> list[str]:
     parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
     if parent_revision is None:
         output = run_git(repo_dir, ["show", "--format=", "--name-status", "--find-renames", "--root", revision_id])
@@ -745,7 +766,7 @@ def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str) -> list
             continue
 
         for relative_path in candidate_paths:
-            if is_source_file_path(relative_path) and relative_path not in source_paths:
+            if is_included_file_path(relative_path, scope) and relative_path not in source_paths:
                 source_paths.append(relative_path)
 
     return source_paths
@@ -822,13 +843,13 @@ def resolve_algorithm_b_git_revision_ids(args: argparse.Namespace, repo_dir: Pat
     return revision_ids, end_revision_id
 
 
-def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: list[str]) -> list[RevisionCommitDiff]:
+def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: list[str], scope: str = "A") -> list[RevisionCommitDiff]:
     loaded_sequence: list[RevisionCommitDiff] = []
 
     for revision_id in revision_ids:
         parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
         parent_revision_ids = list_git_parent_revisions(repo_dir, revision_id)
-        source_paths = list_git_source_paths_for_revision(repo_dir, revision_id)
+        source_paths = list_git_source_paths_for_revision(repo_dir, revision_id, scope)
         if not source_paths:
             continue
 
@@ -842,14 +863,14 @@ def load_git_commit_diff_sequence_from_repository(repo_dir: Path, revision_ids: 
         if parent_revision is not None:
             for commit_diff_file in parsed_patch.files:
                 old_path = commit_diff_file.old_path
-                if not is_source_file_path(old_path) or old_path in base_file_lines_by_old_path:
+                if not is_included_file_path(old_path, scope) or old_path in base_file_lines_by_old_path:
                     continue
                 base_file_lines = read_git_file_lines_at_revision(repo_dir, parent_revision, old_path)
                 if base_file_lines is not None:
                     base_file_lines_by_old_path[old_path] = base_file_lines
         for commit_diff_file in parsed_patch.files:
             new_path = commit_diff_file.new_path
-            if not is_source_file_path(new_path) or new_path in final_file_lines_by_new_path:
+            if not is_included_file_path(new_path, scope) or new_path in final_file_lines_by_new_path:
                 continue
             final_file_lines = read_git_file_lines_at_revision(repo_dir, revision_id, new_path)
             if final_file_lines is not None:
@@ -992,6 +1013,7 @@ def reconstruct_final_line_states_from_commit_diff_sequence(
 def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
     commit_diff_sequence: list[RevisionCommitDiff],
     protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
+    scope: str = "A",
 ) -> dict[str, list[LineState]]:
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B replay requires at least one replayable commit diff patch")
@@ -1009,7 +1031,7 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
             }
 
         for commit_diff_file in revision_diff.parsed_patch.files:
-            if not is_source_file_path(commit_diff_file.old_path) and not is_source_file_path(commit_diff_file.new_path):
+            if not is_included_file_path(commit_diff_file.old_path, scope) and not is_included_file_path(commit_diff_file.new_path, scope):
                 continue
 
             if len(parent_revision_ids) > 1 and revision_diff.final_file_lines_by_new_path is not None:
@@ -1072,20 +1094,21 @@ def summarize_live_changed_file_states_by_revision_ids(
     included_revision_ids: list[str],
     scope: str = "A",
 ) -> dict[str, int]:
+    total_key, full_key, partial_key = _summary_field_names(scope)
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
 
     for line_states in file_states_by_path.values():
         file_summary = summarize_live_changed_line_states_by_revision_ids(line_states, included_revision_ids, scope)
-        total_code_lines += file_summary["totalCodeLines"]
-        full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
-        partial_generated_code_lines += file_summary["partialGeneratedCodeLines"]
+        total_code_lines += file_summary[total_key]
+        full_generated_code_lines += file_summary[full_key]
+        partial_generated_code_lines += file_summary[partial_key]
 
     return {
-        "totalCodeLines": total_code_lines,
-        "fullGeneratedCodeLines": full_generated_code_lines,
-        "partialGeneratedCodeLines": partial_generated_code_lines,
+        total_key: total_code_lines,
+        full_key: full_generated_code_lines,
+        partial_key: partial_generated_code_lines,
     }
 
 
@@ -1122,10 +1145,11 @@ def summarize_live_snapshot_line_states(
         elif line_state.gen_ratio > 0:
             partial_generated_code_lines += 1
 
+    total_key, full_key, partial_key = _summary_field_names(scope)
     return {
-        "totalCodeLines": total_code_lines,
-        "fullGeneratedCodeLines": full_generated_code_lines,
-        "partialGeneratedCodeLines": partial_generated_code_lines,
+        total_key: total_code_lines,
+        full_key: full_generated_code_lines,
+        partial_key: partial_generated_code_lines,
     }
 
 
@@ -1136,6 +1160,7 @@ def summarize_live_snapshot_file_states(
     end_bound: datetime,
     scope: str = "A",
 ) -> dict[str, int]:
+    total_key, full_key, partial_key = _summary_field_names(scope)
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
@@ -1148,15 +1173,38 @@ def summarize_live_snapshot_file_states(
             end_bound,
             scope,
         )
-        total_code_lines += file_summary["totalCodeLines"]
-        full_generated_code_lines += file_summary["fullGeneratedCodeLines"]
-        partial_generated_code_lines += file_summary["partialGeneratedCodeLines"]
+        total_code_lines += file_summary[total_key]
+        full_generated_code_lines += file_summary[full_key]
+        partial_generated_code_lines += file_summary[partial_key]
 
     return {
-        "totalCodeLines": total_code_lines,
-        "fullGeneratedCodeLines": full_generated_code_lines,
-        "partialGeneratedCodeLines": partial_generated_code_lines,
+        total_key: total_code_lines,
+        full_key: full_generated_code_lines,
+        partial_key: partial_generated_code_lines,
     }
+
+
+def _build_protocol_index_for_scope(protocol: dict, scope: str) -> dict[str, "IndexedFileDetail"]:
+    if scope == "C":
+        return build_doc_protocol_index(protocol)
+    if scope == "D":
+        return build_combined_protocol_index(protocol)
+    return build_protocol_index(protocol)
+
+
+def _log_algorithm_b_summary(logger: "RuntimeLogger", label: str, summary: dict, end_revision_id: str, scope: str) -> None:
+    if scope == "C":
+        logger.info(
+            f"Finished Algorithm B {label} analysis with totalDocLines={summary['totalDocLines']} "
+            f"fullGeneratedDocLines={summary['fullGeneratedDocLines']} "
+            f"partialGeneratedDocLines={summary['partialGeneratedDocLines']} endRevision={end_revision_id}"
+        )
+    else:
+        logger.info(
+            f"Finished Algorithm B {label} analysis with totalCodeLines={summary['totalCodeLines']} "
+            f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
+            f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+        )
 
 
 def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -1179,23 +1227,21 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
         raise ProtocolValidationError("Algorithm B offline slice requires at least one replayable commit diff patch")
 
     protocol_indexes = {
-        revision_diff.revision_id: build_protocol_index(
-            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        revision_diff.revision_id: _build_protocol_index_for_scope(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
+            args.scope,
         )
         for revision_diff in commit_diff_sequence
     }
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
     )
 
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
-    logger.info(
-        f"Finished Algorithm B offline analysis with totalCodeLines={summary['totalCodeLines']} "
-        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
-        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
-    )
+    _log_algorithm_b_summary(logger, "offline", summary, end_revision_id, args.scope)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1205,27 +1251,25 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
 
     repo_dir = resolve_local_git_repository_dir(args)
     revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
-    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids)
+    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids, args.scope)
 
     provider = build_gen_code_desc_provider(args, logger)
     protocol_indexes = {
-        revision_diff.revision_id: build_protocol_index(
-            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        revision_diff.revision_id: _build_protocol_index_for_scope(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
+            args.scope,
         )
         for revision_diff in commit_diff_sequence
     }
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
     )
     replay_revision_ids = [revision_diff.revision_id for revision_diff in commit_diff_sequence]
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids, args.scope)
 
-    logger.info(
-        f"Finished Algorithm B local git period-added analysis with totalCodeLines={summary['totalCodeLines']} "
-        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
-        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
-    )
+    _log_algorithm_b_summary(logger, "local git period-added", summary, end_revision_id, args.scope)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1247,23 +1291,21 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
         raise ProtocolValidationError("Algorithm B live-snapshot slice requires at least one replayable commit diff patch")
 
     protocol_indexes = {
-        revision_diff.revision_id: build_protocol_index(
-            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        revision_diff.revision_id: _build_protocol_index_for_scope(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
+            args.scope,
         )
         for revision_diff in commit_diff_sequence
     }
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
     )
 
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
-    logger.info(
-        f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
-        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
-        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
-    )
+    _log_algorithm_b_summary(logger, "live-snapshot", summary, end_revision_id, args.scope)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1273,18 +1315,20 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
 
     repo_dir = resolve_local_git_repository_dir(args)
     revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
-    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids)
+    commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids, args.scope)
 
     provider = build_gen_code_desc_provider(args, logger)
     protocol_indexes = {
-        revision_diff.revision_id: build_protocol_index(
-            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType)
+        revision_diff.revision_id: _build_protocol_index_for_scope(
+            provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
+            args.scope,
         )
         for revision_diff in commit_diff_sequence
     }
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
     )
     revision_commit_times = collect_git_revision_commit_times(
         repo_dir,
@@ -1298,11 +1342,7 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
         args.scope,
     )
 
-    logger.info(
-        f"Finished Algorithm B local git live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
-        f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
-        f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
-    )
+    _log_algorithm_b_summary(logger, "local git live-snapshot", summary, end_revision_id, args.scope)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
