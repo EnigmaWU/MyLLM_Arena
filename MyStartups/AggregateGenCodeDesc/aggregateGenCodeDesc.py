@@ -3,7 +3,7 @@
 This implementation is intentionally narrow:
 - Git and SVN
 - Algorithm A production baseline plus active Algorithm B replay slices
-- Scope A only
+- Scope A, B, C, and D
 - JSON output only
 - external revision metadata resolved through the current genCodeDesc provider path
 
@@ -32,6 +32,7 @@ PROTOCOL_VERSION = "26.03"
 
 COMMAND_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RUNTIME_SECONDS = 3600
+MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB hard limit for single-file VCS output
 
 _VALID_URL_SCHEMES = re.compile(r"^(https?://|svn://|svn\+ssh://|file://|/)", re.IGNORECASE)
 
@@ -911,6 +912,11 @@ def read_git_file_lines_at_revision(repo_dir: Path, revision_id: str, relative_p
     result = run_command(["git", "show", f"{revision_id}:{relative_path}"], cwd=repo_dir, check=False)
     if result.returncode != 0:
         return None
+    if len(result.stdout) > MAX_FILE_SIZE_BYTES:
+        raise RepositoryStateError(
+            f"File {relative_path} at {revision_id} exceeds {MAX_FILE_SIZE_BYTES} byte limit "
+            f"({len(result.stdout)} bytes) — possible binary or generated file"
+        )
     return result.stdout.splitlines()
 
 
@@ -1475,6 +1481,8 @@ def validate_inputs(args: argparse.Namespace) -> None:
         raise InputValidationError("--startTime must not be after --endTime")
     if args.vcsType not in {"git", "svn"}:
         raise InputValidationError("--vcsType must be one of: git, svn")
+    if args.scope not in {"A", "B", "C", "D"}:
+        raise InputValidationError("--scope must be one of: A, B, C, D")
     if args.commitDiffSetDir:
         validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
         if args.algorithm != "B":
@@ -1620,6 +1628,11 @@ def list_svn_doc_files(repo_url: str, branch: str, revision_id: str) -> list[str
 
 def parse_blame(repo_dir: Path, revision_id: str, relative_path: str) -> list[BlameLine]:
     output = run_git(repo_dir, ["blame", "--line-porcelain", revision_id, "--", relative_path])
+    if len(output) > MAX_FILE_SIZE_BYTES:
+        raise RepositoryStateError(
+            f"Blame output for {relative_path} at {revision_id} exceeds {MAX_FILE_SIZE_BYTES} byte limit "
+            f"({len(output)} bytes) — possible binary or generated file"
+        )
     lines = output.splitlines()
     parsed: list[BlameLine] = []
     index = 0

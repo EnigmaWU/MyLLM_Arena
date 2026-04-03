@@ -822,6 +822,28 @@ Test: `tests/test_us26_algorithm_b_scope_d_tdd.py`
 
 Test: `tests/test_us27_cross_algorithm_scope_parity_tdd.py`
 
+#### US-28: Production Hardening — Scope Validation And File-Size Guard
+
+**As a** CLI operator,
+**I want** invalid `--scope` values to be rejected at input validation and oversized VCS outputs to be caught before processing,
+**so that** the tool fails fast with clear diagnostics instead of producing silent wrong results or running out of memory.
+
+##### Acceptance Criteria For US-28
+
+1. **GIVEN** an invalid `--scope` value (e.g. `Z`, `a`, empty string)
+   **WHEN** invoking the CLI with either `--algorithm A` or `--algorithm B`
+   **THEN** the tool exits with `EXIT_INPUT_ERROR` and a message containing `--scope must be one of: A, B, C, D`
+
+2. **GIVEN** a git repository containing a file whose `git show` output exceeds `MAX_FILE_SIZE_BYTES` (100 MB)
+   **WHEN** Algorithm B calls `read_git_file_lines_at_revision`
+   **THEN** a `RepositoryStateError` is raised with a clear diagnostic
+
+3. **GIVEN** a git repository where `git blame --line-porcelain` output exceeds `MAX_FILE_SIZE_BYTES`
+   **WHEN** Algorithm A calls `parse_blame`
+   **THEN** a `RepositoryStateError` is raised with a clear diagnostic
+
+Test: `tests/test_us28_production_hardening_tdd.py`
+
 ### Future Algorithm-B Story Intent
 
 The next intended Algorithm-B user stories are:
