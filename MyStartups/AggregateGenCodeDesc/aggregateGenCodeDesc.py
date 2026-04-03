@@ -146,6 +146,8 @@ class RuntimeLogger:
     def __init__(self, level: str):
         self.level = level
         self._level_num = self._LEVELS.get(level, 0)
+        self._warnings: list[str] = []
+        self._warning_keys: set[str] = set()
 
     def _emit(self, severity: str, message: str) -> None:
         ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
@@ -155,8 +157,15 @@ class RuntimeLogger:
         self._emit("ERROR", message)
 
     def warn(self, message: str) -> None:
+        self._warnings.append(message)
         if self._level_num >= 1:
             self._emit("WARN", message)
+
+    def warn_once(self, key: str, message: str) -> None:
+        if key in self._warning_keys:
+            return
+        self._warning_keys.add(key)
+        self.warn(message)
 
     def info(self, message: str) -> None:
         if self._level_num >= 1:
@@ -165,6 +174,9 @@ class RuntimeLogger:
     def debug(self, message: str) -> None:
         if self._level_num >= 2:
             self._emit("DEBUG", message)
+
+    def warnings(self) -> list[str]:
+        return list(self._warnings)
 
 
 class GenCodeDescProvider(ABC):
@@ -180,14 +192,21 @@ class CommitDiffProvider(ABC):
 
 
 class EmptyGenCodeDescProvider(GenCodeDescProvider):
-    def __init__(self, fail_on_missing: bool, logger: RuntimeLogger):
+    def __init__(self, fail_on_missing: bool, warn_on_missing: bool = False, logger: RuntimeLogger | None = None):
         self.fail_on_missing = fail_on_missing
-        self.logger = logger
+        self.warn_on_missing = warn_on_missing
+        self.logger = RuntimeLogger("quiet") if logger is None else logger
 
     def get_revision_metadata(self, repo_url: str, repo_branch: str, revision_id: str, vcs_type: str) -> dict:
         if self.fail_on_missing:
             raise ProtocolValidationError(f"Missing genCodeDesc provider data for revision {revision_id}")
-        self.logger.debug(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
+        if self.warn_on_missing:
+            self.logger.warn_once(
+                f"missing-protocol:{repo_url}:{repo_branch}:{revision_id}:{vcs_type}",
+                f"Missing genCodeDesc provider data for revision {revision_id}; treating affected lines as human/unattributed",
+            )
+        else:
+            self.logger.debug(f"No external genCodeDesc found for revision {revision_id}; treating all lines as human/unattributed")
         return {}
 
 
@@ -201,10 +220,11 @@ class EmptyCommitDiffProvider(CommitDiffProvider):
 
 
 class GenCodeDescSetDirProvider(GenCodeDescProvider):
-    def __init__(self, base_dir: Path, fail_on_missing: bool, logger: RuntimeLogger):
+    def __init__(self, base_dir: Path, fail_on_missing: bool, warn_on_missing: bool = False, logger: RuntimeLogger | None = None):
         self.base_dir = base_dir
         self.fail_on_missing = fail_on_missing
-        self.logger = logger
+        self.warn_on_missing = warn_on_missing
+        self.logger = RuntimeLogger("quiet") if logger is None else logger
 
     def _find_protocol_path(self, revision_id: str) -> Path | None:
         direct_path = self.base_dir / f"{revision_id}_genCodeDesc.json"
@@ -229,9 +249,15 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
                 raise ProtocolValidationError(
                     f"Protocol file not found for revision {revision_id} in {self.base_dir}"
                 )
-            self.logger.debug(
-                f"No genCodeDesc file found for revision {revision_id} in {self.base_dir}; treating revision as human/unattributed"
-            )
+            if self.warn_on_missing:
+                self.logger.warn_once(
+                    f"missing-protocol:{repo_url}:{repo_branch}:{revision_id}:{vcs_type}",
+                    f"Protocol file not found for revision {revision_id} in {self.base_dir}; treating affected lines as human/unattributed",
+                )
+            else:
+                self.logger.debug(
+                    f"No genCodeDesc file found for revision {revision_id} in {self.base_dir}; treating revision as human/unattributed"
+                )
             return {}
         protocol = load_json_document(protocol_path.read_text(encoding="utf-8"))
         repository = protocol.get("REPOSITORY", {})
@@ -507,6 +533,42 @@ def load_commit_diff_sequence(
             )
         )
     return loaded_sequence
+
+
+def build_result_document(
+    args: argparse.Namespace,
+    summary: dict[str, int],
+    revision_id: str,
+    logger: RuntimeLogger,
+    repo_url_override: str | None = None,
+) -> dict:
+    result = {
+        "protocolName": "generatedTextDesc",
+        "protocolVersion": PROTOCOL_VERSION,
+        "SUMMARY": summary,
+        "REPOSITORY": {
+            "vcsType": args.vcsType,
+            "repoURL": args.repoURL if repo_url_override is None else repo_url_override,
+            "repoBranch": args.repoBranch,
+            "revisionId": revision_id,
+        },
+    }
+    warnings = logger.warnings()
+    if warnings:
+        result["WARNINGS"] = warnings
+    return result
+
+
+def resolve_algorithm_b_offline_revision_ids(args: argparse.Namespace) -> list[str]:
+    query_document = load_algorithm_b_query(args)
+    if query_document is not None:
+        included_revision_ids = query_document.get("includedRevisionIds")
+        if included_revision_ids is not None:
+            if not isinstance(included_revision_ids, list) or not all(isinstance(value, str) and value for value in included_revision_ids):
+                raise ProtocolValidationError("query.json includedRevisionIds must be a non-empty list of revision-id strings")
+            return included_revision_ids
+
+    return list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
 
 
 def resolve_added_line_gen_ratios(
@@ -1093,7 +1155,7 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
 
     provider = build_gen_code_desc_provider(args, logger)
     diff_provider = build_commit_diff_provider(args, logger)
-    revision_ids = list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
+    revision_ids = resolve_algorithm_b_offline_revision_ids(args)
     commit_diff_sequence = load_commit_diff_sequence(
         diff_provider,
         args.repoURL,
@@ -1122,17 +1184,7 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
-    return {
-        "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
-        "SUMMARY": summary,
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": args.repoURL,
-            "repoBranch": args.repoBranch,
-            "revisionId": end_revision_id,
-        },
-    }
+    return build_result_document(args, summary, end_revision_id, logger)
 
 
 def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -1162,17 +1214,7 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
-    return {
-        "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
-        "SUMMARY": summary,
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": args.repoURL,
-            "repoBranch": args.repoBranch,
-            "revisionId": end_revision_id,
-        },
-    }
+    return build_result_document(args, summary, end_revision_id, logger)
 
 
 def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -1181,7 +1223,7 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
 
     provider = build_gen_code_desc_provider(args, logger)
     diff_provider = build_commit_diff_provider(args, logger)
-    revision_ids = list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
+    revision_ids = resolve_algorithm_b_offline_revision_ids(args)
     commit_diff_sequence = load_commit_diff_sequence(
         diff_provider,
         args.repoURL,
@@ -1203,33 +1245,14 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
         protocol_indexes,
     )
 
-    included_revision_ids = revision_ids
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        query_included_revision_ids = query_document.get("includedRevisionIds")
-        if query_included_revision_ids is not None:
-            if not isinstance(query_included_revision_ids, list) or not all(isinstance(value, str) for value in query_included_revision_ids):
-                raise ProtocolValidationError("query.json includedRevisionIds must be a list of revision-id strings")
-            included_revision_ids = query_included_revision_ids
-
-    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, included_revision_ids)
+    summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
     logger.info(
         f"Finished Algorithm B live-snapshot analysis with totalCodeLines={summary['totalCodeLines']} "
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
-    return {
-        "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
-        "SUMMARY": summary,
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": args.repoURL,
-            "repoBranch": args.repoBranch,
-            "revisionId": end_revision_id,
-        },
-    }
+    return build_result_document(args, summary, end_revision_id, logger)
 
 
 def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -1267,17 +1290,7 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
         f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
         f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
     )
-    return {
-        "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
-        "SUMMARY": summary,
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": args.repoURL,
-            "repoBranch": args.repoBranch,
-            "revisionId": end_revision_id,
-        },
-    }
+    return build_result_document(args, summary, end_revision_id, logger)
 
 
 def strip_json_comments(raw_text: str) -> str:
@@ -1437,6 +1450,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--commitDiffSetDir")
     parser.add_argument("--workingDir")
     parser.add_argument("--failOnMissingProtocol", action="store_true")
+    parser.add_argument("--warnOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
     parser.add_argument("--logLevel", choices=["quiet", "info", "debug"], default="quiet")
     parser.add_argument("--timeout", type=int, default=COMMAND_TIMEOUT_SECONDS, help="Per-command timeout in seconds")
@@ -1638,8 +1652,13 @@ def is_code_line(content: str) -> bool:
 def build_gen_code_desc_provider(args: argparse.Namespace, logger: RuntimeLogger) -> GenCodeDescProvider:
     if args.metadataSource == "genCodeDesc":
         if args.genCodeDescSetDir:
-            return GenCodeDescSetDirProvider(Path(args.genCodeDescSetDir), args.failOnMissingProtocol, logger)
-        return EmptyGenCodeDescProvider(args.failOnMissingProtocol, logger)
+            return GenCodeDescSetDirProvider(
+                Path(args.genCodeDescSetDir),
+                args.failOnMissingProtocol,
+                args.warnOnMissingProtocol,
+                logger,
+            )
+        return EmptyGenCodeDescProvider(args.failOnMissingProtocol, args.warnOnMissingProtocol, logger)
 
     raise UnsupportedConfigurationError(
         f"Unsupported metadataSource: {args.metadataSource}. Only 'genCodeDesc' is supported in the current slice."
@@ -2001,21 +2020,17 @@ def build_result(args: argparse.Namespace) -> dict:
         f"elapsed={elapsed:.2f}s"
     )
 
-    return {
-        "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
-        "SUMMARY": {
+    return build_result_document(
+        args,
+        {
             "totalCodeLines": total_code_lines,
             "fullGeneratedCodeLines": full_generated_code_lines,
             "partialGeneratedCodeLines": partial_generated_code_lines,
         },
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": repo_identity_url,
-            "repoBranch": args.repoBranch,
-            "revisionId": end_revision_id,
-        },
-    }
+        end_revision_id,
+        logger,
+        repo_url_override=repo_identity_url,
+    )
 
 
 # Exit codes for distinct failure categories.

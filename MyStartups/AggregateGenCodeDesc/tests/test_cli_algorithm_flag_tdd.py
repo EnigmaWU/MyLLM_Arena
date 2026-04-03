@@ -875,6 +875,203 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("requires either --metric or a query.json metric", result.stderr)
 
+    def test_cli_algorithm_b_offline_uses_query_included_revision_ids_as_authoritative_replay_sequence(self) -> None:
+        query = {
+            "vcsType": "git",
+            "repoURL": "https://example.local/repo/demo",
+            "repoBranch": "main",
+            "scope": "A",
+            "startTime": "2026-03-01",
+            "endTime": "2026-03-31",
+            "metric": "live_changed_source_ratio",
+            "includedRevisionIds": ["r1"],
+            "endRevisionId": "r1",
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            protocol_dir = root_dir / "protocols"
+            commit_diff_dir = root_dir / "commitDiffSet"
+            output_file = root_dir / "out.json"
+            protocol_dir.mkdir()
+            commit_diff_dir.mkdir()
+
+            (protocol_dir / "query.json").write_text(json.dumps(query), encoding="utf-8")
+            (protocol_dir / "r1_genCodeDesc.json").write_text(
+                json.dumps(
+                    {
+                        "protocolName": "generatedTextDesc",
+                        "protocolVersion": PROTOCOL_VERSION,
+                        "SUMMARY": {
+                            "totalCodeLines": 1,
+                            "fullGeneratedCodeLines": 1,
+                            "partialGeneratedCodeLines": 0,
+                        },
+                        "REPOSITORY": {
+                            "vcsType": "git",
+                            "repoURL": query["repoURL"],
+                            "repoBranch": query["repoBranch"],
+                            "revisionId": "r1",
+                        },
+                        "DETAIL": [
+                            {
+                                "fileName": "src/demo.py",
+                                "codeLines": [{"lineLocation": 1, "genRatio": 100}],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (protocol_dir / "r2_genCodeDesc.json").write_text(
+                json.dumps(
+                    {
+                        "protocolName": "generatedTextDesc",
+                        "protocolVersion": PROTOCOL_VERSION,
+                        "SUMMARY": {
+                            "totalCodeLines": 1,
+                            "fullGeneratedCodeLines": 0,
+                            "partialGeneratedCodeLines": 0,
+                        },
+                        "REPOSITORY": {
+                            "vcsType": "git",
+                            "repoURL": query["repoURL"],
+                            "repoBranch": query["repoBranch"],
+                            "revisionId": "r2",
+                        },
+                        "DETAIL": [{"fileName": "src/demo.py", "codeLines": []}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (commit_diff_dir / "0001_r1_commitDiff.patch").write_text(
+                "diff --git a/src/demo.py b/src/demo.py\n"
+                "--- a/src/demo.py\n"
+                "+++ b/src/demo.py\n"
+                "@@ -0,0 +1 @@\n"
+                "+print('ai')\n",
+                encoding="utf-8",
+            )
+            (commit_diff_dir / "0002_r2_commitDiff.patch").write_text(
+                "diff --git a/src/demo.py b/src/demo.py\n"
+                "--- a/src/demo.py\n"
+                "+++ b/src/demo.py\n"
+                "@@ -1 +1,2 @@\n"
+                " print('ai')\n"
+                "+print('human')\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType",
+                    query["vcsType"],
+                    "--repoURL",
+                    query["repoURL"],
+                    "--repoBranch",
+                    query["repoBranch"],
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "B",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--genCodeDescSetDir",
+                    str(protocol_dir),
+                    "--commitDiffSetDir",
+                    str(commit_diff_dir),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertEqual(
+                load_json(output_file),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "SUMMARY": {
+                        "totalCodeLines": 1,
+                        "fullGeneratedCodeLines": 1,
+                        "partialGeneratedCodeLines": 0,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": query["repoURL"],
+                        "repoBranch": query["repoBranch"],
+                        "revisionId": "r1",
+                    },
+                },
+            )
+
+    def test_cli_algorithm_b_period_added_continues_with_warning_when_middle_protocol_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo, protocol_dir, query, ai_revision, human_revision = self._build_local_git_algorithm_b_period_repo(Path(temp_dir))
+            output_file = Path(temp_dir) / "period-out.json"
+
+            missing_protocol_path = protocol_dir / f"{ai_revision}_genCodeDesc.json"
+            missing_protocol_path.unlink()
+            write_revision_protocol(
+                protocol_dir,
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "SUMMARY": {
+                        "totalCodeLines": 2,
+                        "fullGeneratedCodeLines": 0,
+                        "partialGeneratedCodeLines": 0,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo.repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": human_revision,
+                    },
+                    "DETAIL": [{"fileName": "src/report.py", "codeLines": []}],
+                },
+                repo.repo_dir,
+                human_revision,
+            )
+
+            result = run_cli(
+                repo.repo_dir,
+                output_file,
+                protocol_dir,
+                query,
+                extra_args=["--algorithm", "B", "--metric", "period_added_ai_ratio", "--warnOnMissingProtocol"],
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(
+                load_json(output_file),
+                {
+                    "protocolName": "generatedTextDesc",
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "SUMMARY": {
+                        "totalCodeLines": 2,
+                        "fullGeneratedCodeLines": 0,
+                        "partialGeneratedCodeLines": 0,
+                    },
+                    "REPOSITORY": {
+                        "vcsType": "git",
+                        "repoURL": str(repo.repo_dir),
+                        "repoBranch": "main",
+                        "revisionId": human_revision,
+                    },
+                    "WARNINGS": [
+                        f"Protocol file not found for revision {ai_revision} in {protocol_dir}; treating affected lines as human/unattributed"
+                    ],
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

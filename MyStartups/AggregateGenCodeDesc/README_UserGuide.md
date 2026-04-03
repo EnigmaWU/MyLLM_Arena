@@ -42,7 +42,7 @@ That means internal implementation-routing seams should not be treated as normal
 ### Narrow replay baseline path
 
 - `Algorithm B + Git + Scope A`: supported for the current approved replay scenarios
-- `Algorithm B + SVN + Scope A`: supported for the current approved replay scenarios
+- `Algorithm B + SVN + Scope A`: supported for the current approved baseline replay scenarios where the fixture/query contract is explicitly proven
 
 Important boundary:
 
@@ -130,7 +130,7 @@ Exact offline replay contract:
 
 - pair `--commitDiffSetDir` with `--genCodeDescSetDir`; they are the diff side and metadata side of the same replay run.
 - every replayed revision is expected to have both `<timeSeq>_<revisionId>_commitDiff.patch` and `<revisionId>_genCodeDesc.json`.
-- if `query.json` provides `includedRevisionIds`, that list defines the replay order.
+- if `query.json` provides `includedRevisionIds`, that list defines the authoritative replay sequence and any extra patch files in the directory are ignored for that run.
 - otherwise the current offline path falls back to the `<timeSeq>` filename prefix.
 - `query.json endRevisionId` can pin the final repository revision reported in the aggregate output.
 - the patch artifacts may originate from either Git or SVN history, but they must be normalized into the unified patch format the current parser supports.
@@ -147,6 +147,8 @@ Current implementation note:
 
 - some current `Algorithm B` code paths still use `--metric` internally as a dispatch seam
 - that is an implementation detail, not the intended long-term CLI contract for end users
+- today, local Git `Algorithm B` runs still require either `--metric` or a `query.json` metric so the runtime can route to the correct replay mode
+- if you want degraded runs to surface missing metadata as operator-facing diagnostics, add `--warnOnMissingProtocol`; `--failOnMissingProtocol` still keeps the strict fail-fast behavior
 - user-facing examples below are written in the target production form
 
 ## Typical Usage Examples
@@ -231,6 +233,7 @@ python3 aggregateGenCodeDesc.py \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
+  --metric live_changed_source_ratio \
   --scope A \
   --outputFile /tmp/agg-b-git-out.json \
   --genCodeDescSetDir /path/to/genCodeDescSet
@@ -333,9 +336,14 @@ Typical output is protocol-shaped JSON such as:
     "repoURL": "/path/to/repo",
     "repoBranch": "main",
     "revisionId": "abc123"
-  }
+  },
+  "WARNINGS": [
+    "Protocol file not found for revision abc122 in /path/to/genCodeDescSet; treating affected lines as human/unattributed"
+  ]
 }
 ```
+
+`WARNINGS` is optional and appears only when the runtime had to degrade and you enabled diagnostic warning mode, for example with `--warnOnMissingProtocol` when a required middle `genCodeDesc` record was missing.
 
 ## Common Problems And Fixes
 
@@ -368,6 +376,7 @@ Cause:
 Fix:
 
 - add the missing `<revisionId>_genCodeDesc.json`
+- if you pass `--warnOnMissingProtocol` without `--failOnMissingProtocol`, the runtime continues in degraded mode, treats affected lines as human or unattributed, and emits a `WARNINGS` entry in the output for diagnosis
 
 ### `Commit diff patch file not found`
 
