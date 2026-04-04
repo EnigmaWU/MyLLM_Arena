@@ -153,6 +153,38 @@ class TestUS19PeriodAddedSvnSubset(unittest.TestCase):
         self.assertEqual(actual["REPOSITORY"]["vcsType"], "svn")
         self.assertEqual(actual["REPOSITORY"]["revisionId"], "3")
 
+    def test_svn_period_added_works_without_repoURL_and_repoBranch(self) -> None:
+        """When --commitDiffSetDir is provided, --repoURL and --repoBranch are optional."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            protocol_dir, commit_diff_dir = self._build_svn_fixtures(Path(temp_dir))
+            output_file = Path(temp_dir) / "out.json"
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--vcsType", "svn",
+                    "--startTime", "2026-03-01",
+                    "--endTime", "2026-03-31",
+                    "--algorithm", "B",
+                    "--metric", "period_added_ai_ratio",
+                    "--scope", "A",
+                    "--outputFile", str(output_file),
+                    "--genCodeDescSetDir", str(protocol_dir),
+                    "--commitDiffSetDir", str(commit_diff_dir),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            actual = _load_json(output_file)
+
+        self.assertEqual(actual["SUMMARY"]["totalCodeLines"], 3)
+        self.assertEqual(actual["SUMMARY"]["fullGeneratedCodeLines"], 2)
+        self.assertEqual(actual["REPOSITORY"]["revisionId"], "3")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -330,7 +330,7 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("--repoBranch must not be empty", result.stderr)
+        self.assertIn("--repoBranch is required", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_rejects_start_time_after_end_time(self) -> None:

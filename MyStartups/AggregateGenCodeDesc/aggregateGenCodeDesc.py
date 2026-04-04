@@ -280,7 +280,7 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
             )
 
         protocol_repo_url = repository.get("repoURL")
-        if protocol_repo_url and protocol_repo_url != repo_url:
+        if repo_url and protocol_repo_url and protocol_repo_url != repo_url:
             raise ProtocolValidationError(
                 f"Metadata repoURL mismatch for revision {revision_id}: expected {repo_url}, got {protocol_repo_url}"
             )
@@ -1468,11 +1468,22 @@ def validate_iso_date(value: str, label: str) -> None:
 
 
 def validate_inputs(args: argparse.Namespace) -> None:
-    validate_url(args.repoURL, "--repoURL")
-    if not args.repoBranch or not args.repoBranch.strip():
-        raise InputValidationError("--repoBranch must not be empty")
-    if ".." in args.repoBranch:
-        raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
+    if args.commitDiffSetDir:
+        validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
+        if args.algorithm != "B":
+            raise InputValidationError("--commitDiffSetDir is only supported with --algorithm B")
+        if args.repoURL:
+            validate_url(args.repoURL, "--repoURL")
+        if args.repoBranch and ".." in args.repoBranch:
+            raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
+    else:
+        if not args.repoURL:
+            raise InputValidationError("--repoURL is required when --commitDiffSetDir is not provided")
+        validate_url(args.repoURL, "--repoURL")
+        if not args.repoBranch or not args.repoBranch.strip():
+            raise InputValidationError("--repoBranch is required when --commitDiffSetDir is not provided")
+        if ".." in args.repoBranch:
+            raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
     validate_iso_date(args.startTime, "--startTime")
     validate_iso_date(args.endTime, "--endTime")
     if parse_day_start(args.startTime) > parse_day_end(args.endTime):
@@ -1481,10 +1492,6 @@ def validate_inputs(args: argparse.Namespace) -> None:
         raise InputValidationError("--vcsType must be one of: git, svn")
     if args.scope not in {"A", "B", "C", "D"}:
         raise InputValidationError("--scope must be one of: A, B, C, D")
-    if args.commitDiffSetDir:
-        validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
-        if args.algorithm != "B":
-            raise InputValidationError("--commitDiffSetDir is only supported with --algorithm B")
     if args.workingDir:
         validate_directory(args.workingDir, "--workingDir")
     elif args.vcsType == "git" and args.algorithm != "B" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
@@ -1500,8 +1507,8 @@ def parse_args() -> argparse.Namespace:
         description="Aggregate AI-generated code ratio from VCS blame and genCodeDesc metadata.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__} (protocol {PROTOCOL_VERSION})")
-    parser.add_argument("--repoURL", required=True)
-    parser.add_argument("--repoBranch", required=True)
+    parser.add_argument("--repoURL", default="")
+    parser.add_argument("--repoBranch", default="")
     parser.add_argument("--startTime", required=True)
     parser.add_argument("--endTime", required=True)
     parser.add_argument("--vcsType", default="git")
