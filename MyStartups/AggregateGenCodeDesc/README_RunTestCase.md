@@ -58,6 +58,11 @@ Current example:
 - `US-26`: `Fast` tier Algorithm B + Scope D (all text: source + documentation via replay)
 - `US-27`: `Fast` tier cross-algorithm × cross-scope parity matrix — verifies Algorithm A and B produce identical results for all scopes
 - `US-28`: `Fast` tier production hardening — scope validation at input boundary and file-size OOM guard
+- `US-15`: `Fast` tier Algorithm B period-added single-branch baseline (no merges, no renames)
+- `US-16`: `Fast` tier Algorithm B period-added with deletions, resets, and mixed rewrites
+- `US-17`: `Fast` tier Algorithm B period-added Git rename and move handling
+- `US-18`: `Fast` tier Algorithm B period-added merge-aware contribution
+- `US-19`: `Fast` tier Algorithm B period-added SVN subset via offline fixtures
 - experimental SVN lineage work: separate `Experimental` tier
 
 ## Recommended Commands

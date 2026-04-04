@@ -241,7 +241,7 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         for candidate_path in sorted(self.base_dir.glob("*_genCodeDesc.json")):
             try:
                 candidate_protocol = load_json_document(candidate_path.read_text(encoding="utf-8"))
-            except Exception:
+            except (json.JSONDecodeError, OSError, UnicodeDecodeError):
                 continue
             candidate_revision_id = candidate_protocol.get("REPOSITORY", {}).get("revisionId")
             if candidate_revision_id == revision_id:
@@ -275,13 +275,13 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
         # real repository revision with the wrong external record.
         protocol_vcs_type = repository.get("vcsType")
         if protocol_vcs_type and protocol_vcs_type != vcs_type:
-            raise ValueError(
+            raise ProtocolValidationError(
                 f"Metadata vcsType mismatch for revision {revision_id}: expected {vcs_type}, got {protocol_vcs_type}"
             )
 
         protocol_repo_url = repository.get("repoURL")
         if protocol_repo_url and protocol_repo_url != repo_url:
-            raise ValueError(
+            raise ProtocolValidationError(
                 f"Metadata repoURL mismatch for revision {revision_id}: expected {repo_url}, got {protocol_repo_url}"
             )
 
@@ -298,7 +298,7 @@ class GenCodeDescSetDirProvider(GenCodeDescProvider):
 
         protocol_revision_id = repository.get("revisionId")
         if protocol_revision_id and protocol_revision_id != revision_id:
-            raise ValueError(
+            raise ProtocolValidationError(
                 f"Metadata revisionId mismatch for revision {revision_id}: expected {revision_id}, got {protocol_revision_id}"
             )
 
@@ -1214,8 +1214,6 @@ def _log_algorithm_b_summary(logger: "RuntimeLogger", label: str, summary: dict,
 
 
 def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
-    if args.vcsType != "git":
-        raise UnsupportedConfigurationError("Current Algorithm B offline slice only supports git")
     if not args.commitDiffSetDir:
         raise UnsupportedConfigurationError("Current Algorithm B offline slice requires --commitDiffSetDir")
 
@@ -2239,6 +2237,8 @@ def main() -> None:
         if hasattr(signal, "SIGALRM"):
             signal.signal(signal.SIGALRM, _timeout_handler)
             signal.alarm(args.maxRuntime)
+        else:
+            print("WARNING: --maxRuntime timeout not supported on this platform", file=sys.stderr)
 
         result = build_result(args)
         output = json.dumps(result, indent=2)
@@ -2255,7 +2255,7 @@ def main() -> None:
     except RepositoryStateError as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(EXIT_REPOSITORY_ERROR) from exc
-    except (ProtocolValidationError, ValueError) as exc:
+    except ProtocolValidationError as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(EXIT_PROTOCOL_ERROR) from exc
     except CommandExecutionError as exc:

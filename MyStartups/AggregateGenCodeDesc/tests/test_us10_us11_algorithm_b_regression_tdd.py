@@ -90,7 +90,7 @@ class TestUs10Us11AlgorithmBRegressionTdd(unittest.TestCase):
                         output_file,
                         protocol_dir,
                         query,
-                        extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                        extra_args=["--algorithm", "B"],
                     )
 
                     actual_result = load_json(output_file)

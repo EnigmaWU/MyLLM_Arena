@@ -417,7 +417,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 output_file,
                 protocol_dir,
                 query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             self.assertEqual(result.returncode, 0)
@@ -455,7 +455,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                 output_file,
                 protocol_dir,
                 query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
                 repo_url_override=logical_repo_url,
                 working_dir_override=repo.repo_dir,
             )
@@ -538,8 +538,6 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     query["endTime"],
                     "--algorithm",
                     "B",
-                    "--metric",
-                    "live_changed_source_ratio",
                     "--scope",
                     query["scope"],
                     "--outputFile",
@@ -833,7 +831,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     "startTime": "2026-03-01",
                     "endTime": "2026-03-31",
                 },
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             actual_result = load_json(output_file)

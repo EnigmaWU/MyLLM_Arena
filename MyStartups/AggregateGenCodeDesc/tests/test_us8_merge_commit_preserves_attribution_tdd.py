@@ -177,7 +177,7 @@ class TestUs8MergeCommitPreservesAttributionTdd(unittest.TestCase):
                 output_b,
                 protocol_dir,
                 query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             self.assertEqual(result_a.returncode, 0, msg=result_a.stderr)
@@ -354,7 +354,7 @@ class TestUs8MergeCommitPreservesAttributionTdd(unittest.TestCase):
                 output_b,
                 protocol_dir,
                 query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             self.assertEqual(result_a.returncode, 0, msg=result_a.stderr)

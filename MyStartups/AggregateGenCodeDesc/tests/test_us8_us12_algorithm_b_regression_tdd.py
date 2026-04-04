@@ -120,7 +120,7 @@ class TestUs8Us12AlgorithmBRegressionTdd(unittest.TestCase):
                 output_file,
                 protocol_dir,
                 us8_query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             actual_result = load_json(output_file)
@@ -141,7 +141,7 @@ class TestUs8Us12AlgorithmBRegressionTdd(unittest.TestCase):
                 output_file,
                 protocol_dir,
                 us12_query,
-                extra_args=["--algorithm", "B", "--metric", "live_changed_source_ratio"],
+                extra_args=["--algorithm", "B"],
             )
 
             actual_result = load_json(output_file)

@@ -94,13 +94,13 @@ Algorithm B should be expanded in TDD order with scenario-first contracts:
 - `B5` SVN parity subset: add only the subset of SVN Algorithm-B behavior that can be defended under real SVN history semantics.
 - `B6` scalability gate: add dedicated performance and large-history tests only after the correctness contract is stable.
 
-Recommended future scenario names:
+Implemented scenario names:
 
-- `US-15` -> `testdata/us15_period_added_single_branch_baseline` (`Algorithm B`)
-- `US-16` -> `testdata/us16_period_added_with_deletions_and_resets` (`Algorithm B`)
-- `US-17` -> `testdata/us17_period_added_git_rename_handling` (`Algorithm B`)
-- `US-18` -> `testdata/us18_period_added_git_merge_window` (`Algorithm B`)
-- `US-19` -> `testdata/us19_period_added_svn_supported_subset` (`Algorithm B`)
+- `US-15` -> `tests/test_us15_period_added_single_branch_baseline_tdd.py` (`Algorithm B`, local-git replay, `Fast`)
+- `US-16` -> `tests/test_us16_period_added_deletions_and_rewrites_tdd.py` (`Algorithm B`, local-git replay, `Fast`)
+- `US-17` -> `tests/test_us17_period_added_git_rename_tdd.py` (`Algorithm B`, local-git replay, `Fast`)
+- `US-18` -> `tests/test_us18_period_added_merge_aware_tdd.py` (`Algorithm B`, local-git replay, `Fast`)
+- `US-19` -> `tests/test_us19_period_added_svn_subset_tdd.py` (`Algorithm B`, offline SVN fixtures, `Fast`)
 
 ## User Stories
 
@@ -844,14 +844,70 @@ Test: `tests/test_us27_cross_algorithm_scope_parity_tdd.py`
 
 Test: `tests/test_us28_production_hardening_tdd.py`
 
-### Future Algorithm-B Story Intent
+### US-15: Single-Branch Period-Added Baseline Without Merges Or Renames
 
-The next intended Algorithm-B user stories are:
+**Algorithm B** period-added metric on a single-branch linear Git history.
 
-1. `US-15`: single-branch period-added baseline without merges or renames
-2. `US-16`: period-added accounting with deletions, resets, and mixed rewrites inside one window
-3. `US-17`: Git rename and move handling for period contribution
-4. `US-18`: merge-aware Git period contribution inside one requested window
-5. `US-19`: SVN-supported subset for Algorithm-B period contribution
+#### Acceptance Criteria
 
-These should be introduced one by one under TDD with explicit `query.json` and `expected_result.json` artifacts before any Algorithm-B production-readiness claim is made.
+1. **GIVEN** a single-branch Git repository with 1 pre-window commit (human) and 2 in-window commits (AI + human)
+   **WHEN** the tool runs with `--algorithm B --metric period_added_ai_ratio`
+   **THEN** `totalCodeLines` counts only lines originated by in-window commits, pre-window lines are excluded, and `fullGeneratedCodeLines` counts only the AI-attributed lines
+
+2. **GIVEN** Scope B (source + comments)
+   **WHEN** the same repository is analyzed
+   **THEN** results correctly reflect the scope without changing period-added semantics
+
+Test: `tests/test_us15_period_added_single_branch_baseline_tdd.py`
+
+### US-16: Period-Added Accounting With Deletions, Resets, And Mixed Rewrites
+
+**Algorithm B** period-added metric with deletions and AI↔human rewrites inside one window.
+
+#### Acceptance Criteria
+
+1. **GIVEN** an AI line added in-window then deleted/replaced by a later in-window commit
+   **WHEN** the tool runs with period-added metric
+   **THEN** the deleted AI line does NOT appear in the result
+
+2. **GIVEN** a pre-window human line rewritten in-window
+   **WHEN** the origin shifts to the rewriting commit
+   **THEN** the line is counted as in-window with the rewriter's attribution
+
+Test: `tests/test_us16_period_added_deletions_and_rewrites_tdd.py`
+
+### US-17: Git Rename And Move Handling For Period Contribution
+
+**Algorithm B** period-added metric correctly tracks lines across file renames.
+
+#### Acceptance Criteria
+
+1. **GIVEN** a file renamed in-window with a new AI line added
+   **WHEN** the tool runs with period-added metric
+   **THEN** only the new line counts; pre-window lines that survived the rename are excluded
+
+Test: `tests/test_us17_period_added_git_rename_tdd.py`
+
+### US-18: Merge-Aware Git Period Contribution Inside One Window
+
+**Algorithm B** period-added metric with branch-and-merge topology inside the window.
+
+#### Acceptance Criteria
+
+1. **GIVEN** AI lines added on main and a feature branch, then merged (no-ff) in-window
+   **WHEN** the tool runs with period-added metric
+   **THEN** both branch contributions survive the merge and count correctly
+
+Test: `tests/test_us18_period_added_merge_aware_tdd.py`
+
+### US-19: SVN-Supported Subset For Algorithm-B Period Contribution
+
+**Algorithm B** period-added metric for SVN repositories via the offline fixtures path.
+
+#### Acceptance Criteria
+
+1. **GIVEN** SVN-style offline commit diff fixtures with 2 revisions and protocol files
+   **WHEN** the tool runs with `--vcsType svn --algorithm B --metric period_added_ai_ratio --commitDiffSetDir`
+   **THEN** the period-added result correctly counts AI vs human lines from the SVN patches
+
+Test: `tests/test_us19_period_added_svn_subset_tdd.py`
