@@ -195,7 +195,7 @@ def run_cli(
     repo_url_override: str | None = None,
     working_dir_override: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    result = subprocess.run(
         [
             "python3",
             str(UTILITY_PATH),
@@ -222,3 +222,11 @@ def run_cli(
         capture_output=True,
         check=True,
     )
+    if os.environ.get("SHOW_CLI_LOGS") == "1" and result.stderr:
+        import sys
+        print(f"\n{'='*60}", file=sys.stderr)
+        print(f"CLI LOGS (stderr):", file=sys.stderr)
+        print(f"{'='*60}", file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        print(f"{'='*60}", file=sys.stderr)
+    return result

@@ -505,6 +505,11 @@ For the current repository state, this section should be read as the intended of
   - fail immediately if a required revision-level protocol file is missing
 - `--includeBreakdown <genMethod|directory|none>`
   - optional extra summary breakdowns
+- `--logLevel <quiet|info|debug>`
+  - default: `quiet`
+  - `quiet` suppresses all runtime log output to stderr
+  - `info` emits a three-phase narrative to stderr: (1) initial `Starting analysis` banner with repo, branch, window, and end revision, (2) per-line `LiveLine` classification and `TransitionHint` lines showing which live lines transferred state between revisions (e.g. AI→human or human→AI), (3) `Finished analysis` summary with totals and elapsed time
+  - `debug` adds metadata loading (`Loaded genCodeDesc`), file scanning (`Scanning file`), out-of-window skip, and cached-protocol reuse messages on top of all info-level output
 
 Recommended default behavior:
 
@@ -585,3 +590,69 @@ First implementation advice:
 - keep `metadataSource=genCodeDesc` as the only active mode in the current slice
 - evolve the production path later around an external metadata provider keyed by `repoURL + repoBranch + revisionId`
 - make the rest optional so the CLI stays narrow and testable
+
+## ======>>>REAL LOG MESSAGES<<<======
+
+All log messages are written to `stderr`. Output format:
+
+```
+<timestamp> [<SEVERITY>] [agg] <message>
+```
+
+The examples below are captured from real test runs using `--logLevel debug`.
+Revision hashes are abbreviated for readability; in real output they are full 40-character SHA-1 values.
+
+### Example 1: Human overwrites AI line (US-2)
+
+Scenario: revision r1 has line 2 as 100% AI-generated. In revision r2, a human rewrites that line.
+
+```
+[INFO]  Starting analysis for repo=.../repo branch=main window=2026-03-01..2026-03-31 endRevision=6d9ca47...
+[DEBUG] Resolved 1 source files in the end snapshot
+[DEBUG] Scanning file src/normalize.py
+[DEBUG] Loaded genCodeDesc for revision 710fd74... from .../protocols/710fd74..._genCodeDesc.json
+[INFO]  LiveLine src/normalize.py:1 aggregate origin=src/normalize.py:1@710fd74... classification=100%-ai                        # ← line 1 unchanged, still AI
+[DEBUG] Loaded genCodeDesc for revision 6d9ca47... from .../protocols/6d9ca47..._genCodeDesc.json
+[DEBUG] TransitionHint src/normalize.py:2 origin=src/normalize.py:2@6d9ca47... best_effort_transition=100%-ai->human/unattributed  # ← STATE TRANSFER: AI → human
+[INFO]  LiveLine src/normalize.py:2 aggregate origin=src/normalize.py:2@6d9ca47... classification=human/unattributed               # ← line 2 now counted as human
+[DEBUG] Reuse cached genCodeDesc for revision 710fd74...
+[INFO]  LiveLine src/normalize.py:3 aggregate origin=src/normalize.py:3@710fd74... classification=100%-ai                        # ← line 3 unchanged, still AI
+[INFO]  Finished analysis with totalCodeLines=3 fullGeneratedCodeLines=2 partialGeneratedCodeLines=0 elapsed=0.11s
+```
+
+Key observations:
+- `LiveLine ... classification=100%-ai` — this line's current form is 100% AI-generated.
+- `TransitionHint ... best_effort_transition=100%-ai->human/unattributed` — **state transferred from AI to human** between the parent revision and the current blame-resolved revision.
+- The `TransitionHint` is a debug-only diagnostic. It compares the same `origin_file:origin_line` in the parent revision's protocol vs the current revision's protocol.
+
+### Example 2: AI overwrites human line (US-3)
+
+Scenario: revision r1 has all human-written lines. In revision r2, AI rewrites line 2 (100%) and line 3 (80%).
+
+```
+[INFO]  Starting analysis for repo=.../repo branch=main window=2026-03-01..2026-03-31 endRevision=cc13bf1...
+[DEBUG] Resolved 1 source files in the end snapshot
+[DEBUG] Scanning file src/score.py
+[DEBUG] Loaded genCodeDesc for revision e03d29a... from .../protocols/e03d29a..._genCodeDesc.json
+[INFO]  LiveLine src/score.py:1 aggregate origin=src/score.py:1@e03d29a... classification=human/unattributed                     # ← line 1 unchanged, still human
+[DEBUG] Loaded genCodeDesc for revision cc13bf1... from .../protocols/cc13bf1..._genCodeDesc.json
+[DEBUG] TransitionHint src/score.py:2 origin=src/score.py:2@cc13bf1... best_effort_transition=human/unattributed->100%-ai         # ← STATE TRANSFER: human → AI
+[INFO]  LiveLine src/score.py:2 aggregate origin=src/score.py:2@cc13bf1... classification=100%-ai                                # ← line 2 now counted as 100% AI
+[DEBUG] Reuse cached genCodeDesc for revision cc13bf1...
+[DEBUG] TransitionHint src/score.py:3 origin=src/score.py:3@cc13bf1... best_effort_transition=human/unattributed->80%-ai          # ← STATE TRANSFER: human → 80% AI
+[INFO]  LiveLine src/score.py:3 aggregate origin=src/score.py:3@cc13bf1... classification=80%-ai                                 # ← line 3 now counted as 80% AI
+[INFO]  Finished analysis with totalCodeLines=3 fullGeneratedCodeLines=1 partialGeneratedCodeLines=1 elapsed=0.11s
+```
+
+Key observations:
+- `best_effort_transition=human/unattributed->100%-ai` — **state transferred from human to AI**.
+- `best_effort_transition=human/unattributed->80%-ai` — partial AI rewrite (80% AI-generated).
+- A `TransitionHint` only appears when the ratio changed between parent and current revision. Lines that stayed the same (line 1) have no hint.
+
+### Log level summary
+
+| Level | What you see on stderr |
+|-------|------------------------|
+| `quiet` | Nothing (errors only on fatal exit) |
+| `info` | `Starting analysis ...`, per-line `LiveLine ... classification=...`, `Finished analysis ...` |
+| `debug` | Everything in `info` + `Scanning file ...`, `Loaded genCodeDesc ...`, `Skip non-code line ...`, `Skip out-of-window line ...`, `Reuse cached genCodeDesc ...`, `TransitionHint ... best_effort_transition=<old>-><new>` |

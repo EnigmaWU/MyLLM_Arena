@@ -45,3 +45,31 @@ python3 -m pytest -q tests/test_us8_us12_algorithm_b_regression_tdd.py -v
 ```bash
 python3 -m pytest -q "tests/test_us8_merge_commit_preserves_attribution_tdd.py::TestUs8MergeCommitPreservesAttributionTdd::test_cli_matches_us8_expected_result_after_merge_preserves_effective_origin" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-8 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves merge commit attribution is preserved: line 3 shows a transition from human to AI through the feature branch merge.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] LiveLine src/merge_case.py:1 aggregate origin=src/merge_case.py:1@<commit> classification=human/unattributed
+[INFO] [agg] LiveLine src/merge_case.py:2 aggregate origin=src/merge_case.py:2@<commit> classification=human/unattributed
+[INFO] [agg] TransitionHint src/merge_case.py:3 origin=src/merge_case.py:3@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/merge_case.py:3 aggregate origin=src/merge_case.py:3@<commit> classification=100%-ai
+[INFO] [agg] LiveLine src/merge_case.py:4 aggregate origin=src/merge_case.py:4@<commit> classification=human/unattributed
+[INFO] [agg] Finished analysis with totalCodeLines=4 fullGeneratedCodeLines=1 partialGeneratedCodeLines=0 elapsed=<N>s
+```
+
+**How to read it:**
+- `TransitionHint ...merge_case.py:3 ... human/unattributed->100%-ai` — line 3 (`value`) was human in r1, then rewritten by AI on the `feature-ai` branch and merged back
+- After the no-ff merge, blame correctly traces line 3 to the feature branch commit where AI made the change
+- `totalCodeLines=4, fullGeneratedCodeLines=1` — only the merged AI line counts as AI-attributed
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us8_merge_commit_preserves_attribution_tdd.py -k "test_cli_info_logging" -v
+```

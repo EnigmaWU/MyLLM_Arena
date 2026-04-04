@@ -276,7 +276,6 @@ class TestUs1LiveChangedSourceRatioTdd(unittest.TestCase):
                 result.stderr,
                 [
                     "Loaded genCodeDesc for revision",
-                    "best_effort_transition=",
                 ],
             )
 

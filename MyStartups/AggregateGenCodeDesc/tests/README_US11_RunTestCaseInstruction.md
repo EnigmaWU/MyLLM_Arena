@@ -56,3 +56,34 @@ The US-10/11 cluster regression in `test_us10_us11_algorithm_b_regression_tdd.py
 ```bash
 python3 -m pytest -q "tests/test_us11_deep_history_preserves_attribution_tdd.py::TestUs11DeepHistoryPreservesAttributionTdd::test_cli_matches_us11_expected_result_for_deep_history" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-11 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves deep history attribution is preserved: only in-window lines (r3, r4) appear, and transitions show the prior revision's attribution.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] TransitionHint src/deep_history.py:2 origin=src/deep_history.py:2@<commit> best_effort_transition=50%-ai->human/unattributed
+[INFO] [agg] LiveLine src/deep_history.py:2 aggregate origin=src/deep_history.py:2@<commit> classification=human/unattributed
+[INFO] [agg] TransitionHint src/deep_history.py:3 origin=src/deep_history.py:3@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/deep_history.py:3 aggregate origin=src/deep_history.py:3@<commit> classification=100%-ai
+[INFO] [agg] TransitionHint src/deep_history.py:4 origin=src/deep_history.py:4@<commit> best_effort_transition=human/unattributed->60%-ai
+[INFO] [agg] LiveLine src/deep_history.py:4 aggregate origin=src/deep_history.py:4@<commit> classification=60%-ai
+[INFO] [agg] LiveLine src/deep_history.py:5 aggregate origin=src/deep_history.py:5@<commit> classification=human/unattributed
+[INFO] [agg] Finished analysis with totalCodeLines=4 fullGeneratedCodeLines=1 partialGeneratedCodeLines=1 elapsed=<N>s
+```
+
+**How to read it:**
+- Line 1 (pre-window, from r1) is excluded — only lines with in-window origin appear
+- `TransitionHint ...deep_history.py:2 ... 50%-ai->human/unattributed` — line 2 was 50% AI in the pre-window commit, now human in r3
+- `TransitionHint ...deep_history.py:3 ... human/unattributed->100%-ai` — new AI line added in r3
+- `totalCodeLines=4` — 4 in-window lines; pre-window line 1 correctly excluded
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us11_deep_history_preserves_attribution_tdd.py -k "test_cli_info_logging" -v
+```

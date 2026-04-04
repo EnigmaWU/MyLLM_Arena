@@ -911,3 +911,60 @@ Test: `tests/test_us18_period_added_merge_aware_tdd.py`
    **THEN** the period-added result correctly counts AI vs human lines from the SVN patches
 
 Test: `tests/test_us19_period_added_svn_subset_tdd.py`
+
+### US-29: Info-Level Log Must Show Initial Load, Per-Line State Transition, And Final Summary
+
+**As a** CLI operator running with `--logLevel info`,
+**I want** to see a three-phase narrative on stderr: (1) initial load state showing what was resolved, (2) per-line state transition hints showing which live lines transferred from AI to human or human to AI, and (3) a final summary of the aggregate result,
+**so that** I can understand the full attribution story without switching to `--logLevel debug`.
+
+#### Rationale
+
+Currently `--logLevel info` emits `LiveLine` classification per line and a start/finish banner but omits the `TransitionHint` that reveals state transfers between revisions.
+Operators need the transition story at info level to answer "which lines changed ownership between AI and human?" without the noise of debug-only metadata loading, file scanning, and cache-reuse messages.
+
+#### Acceptance Criteria For US-29
+
+##### AC-29.1: Initial load state is visible at info level
+
+**GIVEN** a valid analysis request with `--logLevel info`
+**WHEN** the analysis begins
+**THEN** stderr contains an `[INFO]` line matching `Starting analysis for repo=...` that includes `repo=`, `branch=`, `window=`, and `endRevision=`
+
+##### AC-29.2: Per-line TransitionHint is emitted at info level
+
+**GIVEN** a repository where at least one live line's current revision rewrites an earlier version (e.g. human→AI or AI→human)
+**WHEN** the tool runs with `--logLevel info`
+**THEN** stderr contains `[INFO]` lines with `TransitionHint` showing `best_effort_transition=` for each line whose parent-revision attribution differs from the current revision attribution
+
+##### AC-29.3: Final summary is visible at info level
+
+**GIVEN** a valid analysis request with `--logLevel info`
+**WHEN** the analysis finishes
+**THEN** stderr contains an `[INFO]` line matching `Finished analysis with totalCodeLines=...` that includes `totalCodeLines=`, `fullGeneratedCodeLines=`, `partialGeneratedCodeLines=`, and `elapsed=`
+
+##### AC-29.4: TransitionHint is suppressed at quiet level
+
+**GIVEN** the same repository as AC-29.2
+**WHEN** the tool runs with `--logLevel quiet` (the default)
+**THEN** stderr contains no `TransitionHint` lines and no `LiveLine` lines
+
+##### AC-29.5: Debug level still shows all messages
+
+**GIVEN** the same repository as AC-29.2
+**WHEN** the tool runs with `--logLevel debug`
+**THEN** stderr contains `[DEBUG]` lines for metadata loading (`Loaded genCodeDesc`), file scanning (`Scanning file`), out-of-window skips (`Skip out-of-window`), and cached-protocol reuse (`Reuse cached genCodeDesc`), in addition to all info-level lines including `TransitionHint`
+
+##### AC-29.6: Human-overwrites-AI transition is visible at info level
+
+**GIVEN** a `US-2`-shaped repository where a human commit overwrites a previously AI-generated line
+**WHEN** the tool runs with `--logLevel info`
+**THEN** stderr contains a `TransitionHint` line with `best_effort_transition=100%-ai->human/unattributed`
+
+##### AC-29.7: AI-overwrites-human transition is visible at info level
+
+**GIVEN** a `US-3`-shaped repository where an AI commit overwrites a previously human-written line
+**WHEN** the tool runs with `--logLevel info`
+**THEN** stderr contains a `TransitionHint` line with `best_effort_transition=human/unattributed->100%-ai`
+
+Test: `tests/test_us29_info_level_log_narrative_tdd.py`

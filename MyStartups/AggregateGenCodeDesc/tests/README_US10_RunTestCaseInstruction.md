@@ -53,3 +53,42 @@ python3 -m pytest -q tests/test_us10_us11_algorithm_b_regression_tdd.py -v
 ```bash
 python3 -m pytest -q "tests/test_us10_large_repository_snapshot_tdd.py::TestUs10LargeRepositorySnapshotTdd::test_cli_matches_us10_expected_result_for_large_snapshot" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-10 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves large multi-file snapshots are correctly analyzed with state transitions across 8 files in 4 directories.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] TransitionHint src/app/theta.py:2 origin=src/app/theta.py:2@<commit> best_effort_transition=human/unattributed->40%-ai
+[INFO] [agg] LiveLine src/app/theta.py:2 aggregate origin=src/app/theta.py:2@<commit> classification=40%-ai
+[INFO] [agg] TransitionHint src/core/alpha.py:2 origin=src/core/alpha.py:2@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/core/alpha.py:2 aggregate origin=src/core/alpha.py:2@<commit> classification=100%-ai
+[INFO] [agg] TransitionHint src/core/beta.py:2 origin=src/core/beta.py:2@<commit> best_effort_transition=100%-ai->human/unattributed
+[INFO] [agg] LiveLine src/core/beta.py:2 aggregate origin=src/core/beta.py:2@<commit> classification=human/unattributed
+[INFO] [agg] TransitionHint src/core/gamma.py:2 origin=src/core/gamma.py:2@<commit> best_effort_transition=human/unattributed->50%-ai
+[INFO] [agg] LiveLine src/core/gamma.py:2 aggregate origin=src/core/gamma.py:2@<commit> classification=50%-ai
+[INFO] [agg] TransitionHint src/services/delta.py:2 origin=src/services/delta.py:2@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/services/delta.py:2 aggregate origin=src/services/delta.py:2@<commit> classification=100%-ai
+[INFO] [agg] TransitionHint src/services/epsilon.py:2 origin=src/services/epsilon.py:2@<commit> best_effort_transition=human/unattributed->60%-ai
+[INFO] [agg] LiveLine src/services/epsilon.py:2 aggregate origin=src/services/epsilon.py:2@<commit> classification=60%-ai
+[INFO] [agg] LiveLine src/utils/eta.py:2 aggregate origin=src/utils/eta.py:2@<commit> classification=human/unattributed
+[INFO] [agg] TransitionHint src/utils/zeta.py:2 origin=src/utils/zeta.py:2@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/utils/zeta.py:2 aggregate origin=src/utils/zeta.py:2@<commit> classification=100%-ai
+[INFO] [agg] Finished analysis with totalCodeLines=8 fullGeneratedCodeLines=3 partialGeneratedCodeLines=3 elapsed=<N>s
+```
+
+**How to read it:**
+- 6 of 8 files show `TransitionHint` — their line-2 changed attribution between commits
+- `beta.py` reversed: `100%-ai->human/unattributed` (AI line rewritten by human)
+- `eta.py` has no transition — it stayed `human/unattributed` across both commits
+- `totalCodeLines=8, fullGeneratedCodeLines=3, partialGeneratedCodeLines=3` — matches expected result
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us10_large_repository_snapshot_tdd.py -k "test_cli_info_logging" -v
+```

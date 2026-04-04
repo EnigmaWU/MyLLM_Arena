@@ -34,3 +34,28 @@ The US-2/3/4 cluster regression in `test_us2_us3_us4_algorithm_b_regression_tdd.
 ```bash
 python3 -m pytest -q "tests/test_us4_deleted_lines_tdd.py::TestUs4DeletedLinesTdd::test_cli_matches_us4_expected_result_when_ai_lines_are_deleted_before_endtime" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-4 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves deleted lines are correctly excluded: only 2 surviving lines appear, not the 4 original lines.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] LiveLine src/temp_rules.py:1 aggregate origin=src/temp_rules.py:1@<commit> classification=100%-ai
+[INFO] [agg] LiveLine src/temp_rules.py:2 aggregate origin=src/temp_rules.py:2@<commit> classification=100%-ai
+[INFO] [agg] Finished analysis with totalCodeLines=2 fullGeneratedCodeLines=2 partialGeneratedCodeLines=0 elapsed=<N>s
+```
+
+**How to read it:**
+- Only lines 1 and 2 appear — lines 3 (`rule_three`) and 4 (`rule_four`) were deleted in r2 and are absent
+- `totalCodeLines=2` — confirms deleted lines do not count toward the metric
+- No `TransitionHint` lines — the surviving lines kept the same AI attribution across both commits
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us4_deleted_lines_tdd.py -k "test_cli_info_logging" -v
+```

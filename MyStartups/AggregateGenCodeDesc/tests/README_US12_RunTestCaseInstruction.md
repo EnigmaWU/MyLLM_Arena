@@ -64,3 +64,38 @@ The US-8/12 cluster regression in `test_us8_us12_algorithm_b_regression_tdd.py` 
 ```bash
 python3 -m pytest -q "tests/test_us12_many_merged_branches_preserve_attribution_tdd.py::TestUs12ManyMergedBranchesPreserveAttributionTdd::test_cli_matches_us12_expected_result_with_many_merged_branches" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-12 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves multi-branch merge attribution is preserved: transitions show how lines from different branches carry their AI classification through merges.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] LiveLine src/branch_matrix.py:2 aggregate origin=src/branch_matrix.py:2@<commit> classification=human/unattributed
+[INFO] [agg] TransitionHint src/branch_matrix.py:3 origin=src/branch_matrix.py:3@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/branch_matrix.py:3 aggregate origin=src/branch_matrix.py:3@<commit> classification=100%-ai
+[INFO] [agg] TransitionHint src/branch_matrix.py:4 origin=src/branch_matrix.py:4@<commit> best_effort_transition=human/unattributed->70%-ai
+[INFO] [agg] LiveLine src/branch_matrix.py:4 aggregate origin=src/branch_matrix.py:4@<commit> classification=70%-ai
+[INFO] [agg] TransitionHint src/branch_matrix.py:5 origin=src/branch_matrix.py:5@<commit> best_effort_transition=human/unattributed->100%-ai
+[INFO] [agg] LiveLine src/branch_matrix.py:5 aggregate origin=src/branch_matrix.py:5@<commit> classification=100%-ai
+[INFO] [agg] TransitionHint src/branch_matrix.py:6 origin=src/branch_matrix.py:6@<commit> best_effort_transition=human/unattributed->40%-ai
+[INFO] [agg] LiveLine src/branch_matrix.py:6 aggregate origin=src/branch_matrix.py:6@<commit> classification=40%-ai
+[INFO] [agg] LiveLine src/branch_matrix.py:7 aggregate origin=src/branch_matrix.py:7@<commit> classification=human/unattributed
+[INFO] [agg] LiveLine src/branch_matrix.py:9 aggregate origin=src/branch_matrix.py:9@<commit> classification=human/unattributed
+[INFO] [agg] Finished analysis with totalCodeLines=7 fullGeneratedCodeLines=2 partialGeneratedCodeLines=2 elapsed=<N>s
+```
+
+**How to read it:**
+- Lines 3 and 5 from `branch-a` and `branch-c` show `->100%-ai` transitions through merges
+- Lines 4 and 6 show partial AI (`70%-ai`, `40%-ai`) from `branch-c`
+- Lines 2, 7, 9 have no transition or stay human — base or merge-introduced lines without AI attribution
+- `totalCodeLines=7, fullGeneratedCodeLines=2, partialGeneratedCodeLines=2` — matches expected result
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us12_many_merged_branches_preserve_attribution_tdd.py -k "test_cli_info_logging" -v
+```

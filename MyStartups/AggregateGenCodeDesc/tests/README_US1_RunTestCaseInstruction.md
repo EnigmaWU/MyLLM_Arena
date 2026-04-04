@@ -53,3 +53,31 @@ python3 -m pytest -q tests/test_us1_matrix_parity_tdd.py -v
 ```bash
 python3 -m pytest -q "tests/test_us1_live_changed_source_ratio_tdd.py::TestUs1LiveChangedSourceRatioTdd::test_cli_matches_us1_expected_result_for_real_git_repo" -v
 ```
+
+## Real Info-Level Log Output (`--logLevel info`)
+
+When running US-1 with `--logLevel info`, the tool emits the following three-phase narrative to stderr.
+This proves the analysis works end-to-end: each live line is classified, and the final summary matches the expected result.
+
+```
+[INFO] [agg] Starting analysis for repo=<repoDir> branch=main window=2026-03-01..2026-03-31 endRevision=<commit>
+[INFO] [agg] LiveLine src/calc.py:1 aggregate origin=src/calc.py:1@<commit> classification=100%-ai
+[INFO] [agg] LiveLine src/calc.py:2 aggregate origin=src/calc.py:2@<commit> classification=50%-ai
+[INFO] [agg] LiveLine src/calc.py:3 aggregate origin=src/calc.py:3@<commit> classification=100%-ai
+[INFO] [agg] LiveLine src/calc.py:4 aggregate origin=src/calc.py:4@<commit> classification=human/unattributed
+[INFO] [agg] Finished analysis with totalCodeLines=4 fullGeneratedCodeLines=2 partialGeneratedCodeLines=1 elapsed=<N>s
+```
+
+**How to read it:**
+- `Starting analysis` — initial load: repo, branch, time window, and resolved end revision
+- `LiveLine` — each live code line's file:line, origin commit, and AI classification
+- `Finished analysis` — final summary with totals matching `expected_result.json`
+- No `TransitionHint` lines appear here because US-1 has only one commit (no state transfers)
+
+### See Real Logs Live
+
+The pytest assertions verify log content internally. To see the actual log output in your terminal:
+
+```bash
+SHOW_CLI_LOGS=1 python3 -m pytest -s tests/test_us1_live_changed_source_ratio_tdd.py -k "test_cli_info_logging" -v
+```

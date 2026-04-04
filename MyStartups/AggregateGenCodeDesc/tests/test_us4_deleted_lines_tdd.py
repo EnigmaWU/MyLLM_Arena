@@ -235,7 +235,6 @@ class TestUs4DeletedLinesTdd(unittest.TestCase):
                 result.stderr,
                 [
                     "Loaded genCodeDesc for revision",
-                    "best_effort_transition=",
                     "LiveLine src/temp_rules.py:3 aggregate",
                     "LiveLine src/temp_rules.py:4 aggregate",
                 ],

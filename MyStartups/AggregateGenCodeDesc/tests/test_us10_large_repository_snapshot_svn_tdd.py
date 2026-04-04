@@ -310,7 +310,6 @@ class TestUs10LargeRepositorySnapshotSvnTdd(unittest.TestCase):
                 result.stderr,
                 [
                     "Loaded genCodeDesc for revision",
-                    "best_effort_transition=",
                     "LiveLine src/core/alpha.py:1 aggregate",
                 ],
             )

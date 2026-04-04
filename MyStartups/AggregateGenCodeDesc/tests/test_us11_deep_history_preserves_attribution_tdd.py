@@ -296,7 +296,6 @@ class TestUs11DeepHistoryPreservesAttributionTdd(unittest.TestCase):
                 result.stderr,
                 [
                     "Loaded genCodeDesc for revision",
-                    "best_effort_transition=",
                     "LiveLine src/deep_history.py:1 aggregate",
                 ],
             )

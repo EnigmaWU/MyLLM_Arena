@@ -1973,7 +1973,7 @@ def best_effort_transition_hint(
     protocol_indexes: dict[str, dict[str, IndexedFileDetail]],
     parent_revisions: dict[str, str | None],
 ) -> str | None:
-    if logger.level != "debug":
+    if logger.level == "quiet":
         return None
 
     parent_revision = parent_revisions.get(blame_line.revision_id)
@@ -2182,7 +2182,7 @@ def build_result(args: argparse.Namespace) -> dict:
                 f"classification={describe_ratio(ratio)}"
             )
             if transition_hint:
-                logger.debug(
+                logger.info(
                     f"TransitionHint {relative_path}:{blame_line.final_line} "
                     f"origin={blame_line.origin_file}:{blame_line.origin_line}@{blame_line.revision_id} "
                     f"{transition_hint}"
