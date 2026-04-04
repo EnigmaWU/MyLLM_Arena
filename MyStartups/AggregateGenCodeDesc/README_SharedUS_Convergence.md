@@ -1,5 +1,11 @@
 # Shared-US Algorithm Convergence Roadmap
 
+> **STATUS: ALL PHASES COMPLETED (2026-04)**
+>
+> Every phase (0–7) in this roadmap has been achieved. All shared stories
+> (US-1 through US-12) have full 2×2 matrix coverage (Algorithm A/B × Git/SVN)
+> with Scope A/B/C/D support. This document is retained as historical record.
+
 ## Purpose
 
 This document defines the concrete execution path from the current `US-6` baseline to the long-term target where every shared user story has defensible acceptance coverage across the full production matrix: `Algorithm A` and `Algorithm B`, each on both Git and SVN, unless an explicitly approved unsupported subset is documented.

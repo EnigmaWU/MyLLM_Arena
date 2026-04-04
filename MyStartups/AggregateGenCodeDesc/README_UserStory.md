@@ -76,7 +76,7 @@ For production-oriented runs, the analyzer should discover relevant revisions fr
 - `Step 4`: treat `US-9` as a shared contract story whose first explicit split is Git vs SVN. The approved `US-1` baseline shape now has narrow Git/SVN `Algorithm B` parity, while broader algorithm convergence should still be added only scenario-first.
 - `Step 5`: keep `US-13` and `US-14` as `Heavy` production gates rather than forcing them into the ordinary shared-story pattern.
 
-The executable phase-by-phase roadmap for this sequence is documented in `README_SharedUS_Convergence.md`. For production-ready shared-story claims, the target is the full `Algorithm A`/`Algorithm B` x Git/SVN matrix unless an unsupported subset is explicitly accepted.
+The phase-by-phase roadmap for this sequence was documented in `README_SharedUS_Convergence.md` and is now fully completed. All shared stories have full `Algorithm A`/`Algorithm B` × Git/SVN matrix coverage with Scope A/B/C/D support.
 
 ## Algorithm-B TDD Roadmap
 

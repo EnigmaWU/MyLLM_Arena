@@ -4,7 +4,7 @@
 
 Operator-facing guide for running `aggregateGenCodeDesc.py`.
 
-For acceptance criteria and roadmap, see `README_UserStory.md` and `README_SharedUS_Convergence.md`.
+For acceptance criteria, see `README_UserStory.md`.
 
 ## Quick Start
 
@@ -323,7 +323,7 @@ A single file in the repository is larger than 100 MB. This is likely a binary o
 |----------|---------|
 | `README.md` | Product scope and measurement definitions |
 | `README_UserStory.md` | Story-level acceptance criteria |
-| `README_SharedUS_Convergence.md` | Production convergence roadmap |
+| `README_SharedUS_Convergence.md` | Production convergence roadmap (completed) |
 | `README_RunTestCase.md` | Test commands |
 | `README_ArchDesign.md` | Architecture and design decisions |
 | `README_UbiLang.md` | Ubiquitous Language glossary |

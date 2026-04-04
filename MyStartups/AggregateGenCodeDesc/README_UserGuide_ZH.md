@@ -4,7 +4,7 @@
 
 面向操作人员的 `aggregateGenCodeDesc.py` 运行指南。
 
-如需验收标准和路线图，请参见 `README_UserStory.md` 和 `README_SharedUS_Convergence.md`。
+如需验收标准，请参见 `README_UserStory.md`。
 
 ## 快速开始
 
@@ -323,7 +323,7 @@ Scope 值无效（例如小写 `a` 或 `Z`）。
 |------|------|
 | `README.md` | 产品范围与指标定义 |
 | `README_UserStory.md` | 故事级验收标准 |
-| `README_SharedUS_Convergence.md` | 生产收敛路线图 |
+| `README_SharedUS_Convergence.md` | 生产收敛路线图（已完成） |
 | `README_RunTestCase.md` | 测试运行命令 |
 | `README_ArchDesign.md` | 架构与设计决策 |
 | `README_UbiLang.md` | 统一语言词汇表 |
