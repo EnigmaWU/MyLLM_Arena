@@ -29,6 +29,7 @@
 - Shared-US convergence roadmap: `README_SharedUS_Convergence.md`
 - Concrete Algorithm-B execution plan: `README_AlgorithmB_TDD.md`
 - Architecture design: `README_ArchDesign.md`
+- Ubiquitous Language glossary: `README_UbiLang.md`
 - Test run guide: `README_RunTestCase.md`
 - Scenario-based test fixtures: `testdata/`
 

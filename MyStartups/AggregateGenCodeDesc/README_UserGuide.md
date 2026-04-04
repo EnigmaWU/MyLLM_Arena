@@ -87,7 +87,7 @@ cd /path/to/AggregateGenCodeDesc
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--logLevel` | `quiet` | `quiet`, `info`, or `debug`. `info` shows per-line classification progress (e.g. `LiveLine src/calc.py:3 classification=full_generated`). `debug` adds per-file scanning, skip reasons, cache hits, and transition hints. Output goes to stderr. |
+| `--logLevel` | `quiet` | `quiet`, `info`, or `debug`. `info` emits a three-phase narrative: (1) `Starting analysis` banner with repo/branch/window/endRevision, (2) per-line `LiveLine` classification (e.g. `LiveLine src/calc.py:3 classification=100%-ai`) and `TransitionHint` lines showing state transfers between revisions (e.g. `100%-ai->human/unattributed`), (3) `Finished analysis` summary with totals and elapsed time. `debug` adds metadata loading, file scanning, out-of-window skips, and cached-protocol reuse messages. Output goes to stderr. |
 | `--timeout` | `30` | Per-command timeout in seconds (each `git blame`, `git show`, etc.). |
 | `--maxRuntime` | `3600` | Overall analysis timeout in seconds. |
 | `--warnOnMissingProtocol` | off | Continue in degraded mode when a revision's metadata file is missing; emit a `WARNINGS` entry in the output. |
@@ -326,3 +326,4 @@ A single file in the repository is larger than 100 MB. This is likely a binary o
 | `README_SharedUS_Convergence.md` | Production convergence roadmap |
 | `README_RunTestCase.md` | Test commands |
 | `README_ArchDesign.md` | Architecture and design decisions |
+| `README_UbiLang.md` | Ubiquitous Language glossary |

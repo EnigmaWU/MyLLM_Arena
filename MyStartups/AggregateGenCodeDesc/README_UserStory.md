@@ -920,8 +920,8 @@ Test: `tests/test_us19_period_added_svn_subset_tdd.py`
 
 #### Rationale
 
-Currently `--logLevel info` emits `LiveLine` classification per line and a start/finish banner but omits the `TransitionHint` that reveals state transfers between revisions.
-Operators need the transition story at info level to answer "which lines changed ownership between AI and human?" without the noise of debug-only metadata loading, file scanning, and cache-reuse messages.
+Before US-29, `--logLevel info` emitted `LiveLine` classification per line and a start/finish banner but omitted the `TransitionHint` that revealed state transfers between revisions.
+US-29 promoted `TransitionHint` to info level so operators can answer "which lines changed ownership between AI and human?" without the noise of debug-only metadata loading, file scanning, and cache-reuse messages.
 
 #### Acceptance Criteria For US-29
 

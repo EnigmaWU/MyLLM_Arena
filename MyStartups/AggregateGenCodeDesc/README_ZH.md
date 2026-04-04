@@ -18,6 +18,7 @@
 - 使用指南与典型命令示例：`README_UserGuide_ZH.md`
 - 共享故事收敛路线图：`README_SharedUS_Convergence.md`
 - 架构设计：`README_ArchDesign.md`
+- 统一语言词汇表：`README_UbiLang_ZH.md`
 - 测试运行指南：`README_RunTestCase.md`
 - 基于场景的测试夹具：`testdata/`
 
