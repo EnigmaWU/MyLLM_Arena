@@ -2,191 +2,15 @@
 
 ## Purpose
 
-This document is the operator-facing guide for running `aggregateGenCodeDesc.py`.
+Operator-facing guide for running `aggregateGenCodeDesc.py`.
 
-Use it when you want practical commands, not architecture discussion.
-
-It focuses on:
-
-- what the tool needs as input
-- which command to run for common cases
-- how to choose `Algorithm A` vs `Algorithm B`
-- how `repoURL` and `workingDir` should be used
-- what the current support boundary is
-
-For acceptance criteria and roadmap details, use:
-
-- `README_UserStory.md`
-- `README_SharedUS_Convergence.md`
-- `README_ArchDesign.md`
+For acceptance criteria and roadmap, see `README_UserStory.md` and `README_SharedUS_Convergence.md`.
 
 ## Quick Start
 
-The most common current usage is:
-
-1. prepare revision-level `genCodeDesc` metadata under `--genCodeDescSetDir`
-2. choose `--vcsType git` or `--vcsType svn`
-3. run `Algorithm A` for real repository analysis
-4. use `Algorithm B` only when you intentionally want the current narrow replay-based path, either through local Git live-snapshot replay or through fixture-driven `--commitDiffSetDir`
-
-This guide is written from the intended production operator perspective.
-That means internal implementation-routing seams should not be treated as normal user responsibilities.
-
-## Current Support Matrix
-
-### Production-oriented path
-
-- `Algorithm A + Git + Scope A`: production target
-- `Algorithm A + SVN + Scope A`: production target
-- `Algorithm A + Git + Scope B`: production target (source code with comments)
-- `Algorithm A + SVN + Scope B`: production target (source code with comments)
-- `Algorithm A + Git + Scope C`: production target (documentation text lines)
-- `Algorithm A + SVN + Scope C`: production target (documentation text lines)
-- `Algorithm A + Git + Scope D`: production target (all text: source + documentation)
-- `Algorithm A + SVN + Scope D`: production target (all text: source + documentation)
-
-### Narrow replay baseline path
-
-- `Algorithm B + Git + Scope A`: supported for the current approved replay scenarios
-- `Algorithm B + SVN + Scope A`: supported for the current approved baseline replay scenarios where the fixture/query contract is explicitly proven
-- `Algorithm B + Git + Scope B`: supported (source code with comments via replay)
-- `Algorithm B + Git + Scope C`: supported (documentation text lines via replay)
-- `Algorithm B + Git + Scope D`: supported (all text: source + documentation via replay)
-
-Important boundary:
-
-- `Algorithm B` is still a narrow replay-based path
-- it is good for the currently approved fixture shapes
-- it is not yet a claim that all broader history topologies are production-ready
-
-## Prerequisites
-
-### Required runtime
-
-- Python 3
-- local Git installed for Git runs
-- local SVN installed for SVN runs
-
-### Required inputs
-
-Every run needs:
-
-- `--repoURL`
-- `--repoBranch`
-- `--startTime`
-- `--endTime`
-
-Most useful runs also need:
-
-- `--genCodeDescSetDir`
-
-`Algorithm B` runs additionally require:
-
-- `--algorithm B`
-- `--commitDiffSetDir` only when you intentionally want the fixture-driven replay path
-
-## Core Arguments
-
-### `--repoURL`
-
-Logical repository identity.
-
-- For Git local-path runs, this can be the local repository path.
-- For Git logical-URL runs such as `https://example.local/repo/demo.git`, this is the metadata identity and output identity, not the checkout path.
-- For SVN, this is both the logical repository identity and the live SVN access target.
-
-### `--workingDir`
-
-Git-only helper for logical `repoURL` mode.
-
-Use it when:
-
-- `--vcsType git`
-- `--repoURL` is not a local absolute path
-- you still want Git commands to run against a local checkout
-
-Do not use it for normal SVN URL-based runs.
-
-### `--genCodeDescSetDir`
-
-Directory containing revision-level metadata files such as:
-
-- `<revisionId>_genCodeDesc.json`
-
-The current runtime validates metadata identity fields, so the metadata `REPOSITORY` block must match the target run.
-
-### `--algorithm`
-
-- `A`: the current production-oriented live-repository path
-- `B`: the current narrow replay-based path
-
-Default is `A`.
-
-### `--commitDiffSetDir`
-
-Required only for fixture-driven `Algorithm B` replay.
-
-In the intended `Algorithm B` replay contract, this directory is the ordered diff stream that is paired with `--genCodeDescSetDir`.
-
-### `--scope`
-
-Controls which file types and line types are included in the aggregate result.
-
-- `A`: pure source code — count only code lines, exclude comment lines and blank lines (default)
-- `B`: source code with comments — count all non-blank lines in source files, including comment lines
-- `C`: documentation text lines — count non-blank lines in documentation files (`.md`, `.rst`, `.txt`) using the `docLines` protocol field
-- `D`: all text — union of source files and documentation files, counting all non-blank lines from both; uses `codeLines` for source files and `docLines` for doc files
-
-Default is `A`.
-
-Scope is orthogonal to the algorithm choice. Scope controls the file filter and line filter; the algorithm controls how line-origin attribution is computed.
-
-Output field names change with scope:
-
-- Scope A and B use `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines`
-- Scope C uses `totalDocLines`, `fullGeneratedDocLines`, `partialGeneratedDocLines`
-Together, those two inputs let the runtime replay revision changes and aggregate the final `generatedTextDesc` result without relying on live repository history access.
-
-The replay artifacts may come from either Git or SVN history, but they must be normalized into the patch format the current runtime parser supports.
-
-This directory must contain raw unified diff patch files such as:
-
-- `<timeSeq>_<revisionId>_commitDiff.patch`
-
-Exact offline replay contract:
-
-- pair `--commitDiffSetDir` with `--genCodeDescSetDir`; they are the diff side and metadata side of the same replay run.
-- every replayed revision is expected to have both `<timeSeq>_<revisionId>_commitDiff.patch` and `<revisionId>_genCodeDesc.json`.
-- if `query.json` provides `includedRevisionIds`, that list defines the authoritative replay sequence and any extra patch files in the directory are ignored for that run.
-- otherwise the current offline path falls back to the `<timeSeq>` filename prefix.
-- `query.json endRevisionId` can pin the final repository revision reported in the aggregate output.
-- the patch artifacts may originate from either Git or SVN history, but they must be normalized into the unified patch format the current parser supports.
-- legacy `<revisionId>_commitDiff.patch` naming is still accepted for older fixtures, but new fixtures should use the time-sequenced form.
-- do not mix legacy and time-sequenced patch filenames in the same directory; the runtime rejects mixed naming because it would imply two competing replay-order rules.
-
-## Production UX Note
-
-In the intended production-ready user experience, operators should not need to provide internal routing flags just to reach the right `Algorithm B` behavior.
-
-So this guide does not treat `--metric` as a normal operator-facing argument for the primary `Algorithm B` examples.
-
-Current implementation note:
-
-- some current `Algorithm B` code paths still use `--metric` internally as a dispatch seam
-- that is an implementation detail, not the intended long-term CLI contract for end users
-- today, local Git `Algorithm B` runs still require either `--metric` or a `query.json` metric so the runtime can route to the correct replay mode
-- if you want degraded runs to surface missing metadata as operator-facing diagnostics, add `--warnOnMissingProtocol`; `--failOnMissingProtocol` still keeps the strict fail-fast behavior
-- user-facing examples below are written in the target production form
-
-## Typical Usage Examples
-
-### 1. Typical Git production-style run with `Algorithm A`
-
-Use this when you have a real local Git repository and local metadata files.
+Analyze a local Git repository with default settings (Algorithm A, Scope A):
 
 ```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
 python3 aggregateGenCodeDesc.py \
   --vcsType git \
   --repoURL /path/to/local/git/repo \
@@ -197,19 +21,129 @@ python3 aggregateGenCodeDesc.py \
   --genCodeDescSetDir /path/to/genCodeDescSet
 ```
 
-Use this when:
-
-- Git history is available locally
-- you want the main live-snapshot metric path
-- you are not intentionally testing replay fixtures
-
-### 2. Typical Git run with logical `repoURL` and separate checkout
-
-Use this when metadata identity must use a logical URL, but Git commands still run against a local checkout.
+All examples below assume you run from the project directory:
 
 ```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
+cd /path/to/AggregateGenCodeDesc
+```
 
+## Current Support Matrix
+
+| Algorithm | VCS | Scope A | Scope B | Scope C | Scope D |
+|-----------|-----|---------|---------|---------|---------|
+| **A** (live repository) | Git | ✅ production | ✅ production | ✅ production | ✅ production |
+| **A** (live repository) | SVN | ✅ production | ✅ production | ✅ production | ✅ production |
+| **B** (replay, local Git) | Git | ✅ supported | ✅ supported | ✅ supported | ✅ supported |
+| **B** (replay, offline fixtures) | Git | ✅ supported | ✅ supported | ✅ supported | ✅ supported |
+| **B** (replay, offline fixtures) | SVN | ✅ supported | — | — | — |
+
+**Algorithm A** is the recommended production path. It works against a live repository checkout.
+
+**Algorithm B** replays commit diffs to reconstruct line states. It is designed for two modes:
+
+- **Local Git replay**: reads diffs directly from a local Git checkout
+- **Offline fixture replay**: reads pre-exported patch files from `--commitDiffSetDir` (works with both Git and SVN-sourced fixtures for Scope A)
+
+## Prerequisites
+
+- Python 3.10+
+- Git installed locally (for Git runs)
+- SVN installed locally (for SVN runs)
+
+## Arguments Reference
+
+### Required for every run
+
+| Argument | Description |
+|----------|-------------|
+| `--repoURL` | Repository identity. For Git, can be a local path (`/path/to/repo`) or a logical URL (`https://...`). For SVN, the server or `file:///` URL. |
+| `--repoBranch` | Branch name (e.g. `main`, `trunk`). |
+| `--startTime` | Start date in ISO-8601 format (e.g. `2026-03-01`). |
+| `--endTime` | End date in ISO-8601 format (e.g. `2026-03-31`). |
+
+### Commonly used
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--genCodeDescSetDir` | — | Directory containing `<revisionId>_genCodeDesc.json` metadata files. The `REPOSITORY` block inside each file must match the CLI `--repoURL`. |
+| `--outputFile` | stdout | Path to write the JSON result. |
+| `--scope` | `A` | Which files and lines to count. See [Scope](#--scope) below. |
+| `--algorithm` | `A` | `A` for live-repository analysis, `B` for replay-based analysis. |
+| `--vcsType` | `git` | `git` or `svn`. |
+
+### Algorithm B specific
+
+| Argument | Description |
+|----------|-------------|
+| `--commitDiffSetDir` | Directory of pre-exported patch files for offline replay. Required for fixture-driven Algorithm B. Must be paired with `--genCodeDescSetDir`. |
+
+### Git logical URL mode
+
+| Argument | Description |
+|----------|-------------|
+| `--workingDir` | Local Git checkout path. Required when `--repoURL` is a logical URL (not a local path) and `--vcsType` is `git`. Not needed for SVN. |
+
+### Diagnostics and limits
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--logLevel` | `quiet` | `quiet`, `info`, or `debug`. `info` shows per-line classification progress (e.g. `LiveLine src/calc.py:3 classification=full_generated`). `debug` adds per-file scanning, skip reasons, cache hits, and transition hints. Output goes to stderr. |
+| `--timeout` | `30` | Per-command timeout in seconds (each `git blame`, `git show`, etc.). |
+| `--maxRuntime` | `3600` | Overall analysis timeout in seconds. |
+| `--warnOnMissingProtocol` | off | Continue in degraded mode when a revision's metadata file is missing; emit a `WARNINGS` entry in the output. |
+| `--failOnMissingProtocol` | off | Fail immediately when a revision's metadata file is missing. |
+
+### `--scope`
+
+Controls which file types and line types are included in the result.
+
+| Scope | Files included | Lines counted | Output fields |
+|-------|----------------|---------------|---------------|
+| **A** (default) | Source files (`.c`, `.cc`, `.cpp`, `.cxx`, `.go`, `.h`, `.hpp`, `.java`, `.js`, `.py`, `.rs`, `.ts`) | Code lines only (exclude comments and blanks) | `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines` |
+| **B** | Source files | All non-blank lines including comments | `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines` |
+| **C** | Doc files (`.md`, `.rst`, `.txt`) | Non-blank lines, using the `docLines` protocol field | `totalDocLines`, `fullGeneratedDocLines`, `partialGeneratedDocLines` |
+| **D** | Source files + Doc files | All non-blank lines from both; `codeLines` for source, `docLines` for docs | `totalCodeLines`, `fullGeneratedCodeLines`, `partialGeneratedCodeLines` |
+
+Scope is orthogonal to algorithm choice. Scope controls *what* to count; algorithm controls *how* line-origin attribution is computed.
+
+### `--commitDiffSetDir` contract
+
+When using Algorithm B with offline fixtures:
+
+- Pair `--commitDiffSetDir` with `--genCodeDescSetDir` — they are the diff side and metadata side of the same replay run.
+- Every replayed revision needs both `<timeSeq>_<revisionId>_commitDiff.patch` and `<revisionId>_genCodeDesc.json`.
+- If `query.json` provides `includedRevisionIds`, that list defines the replay sequence; extra patch files are ignored.
+- Otherwise, the `<timeSeq>` filename prefix determines replay order.
+- Legacy `<revisionId>_commitDiff.patch` naming is accepted for older fixtures, but new fixtures should use the time-sequenced form.
+- Do not mix legacy and time-sequenced naming in the same directory.
+- Patch artifacts may originate from Git or SVN history but must be in unified diff format.
+
+## Usage Examples
+
+### 1. Git + Algorithm A (production)
+
+The most common case: analyze a local Git repository.
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL /path/to/local/git/repo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+To count documentation lines instead of code lines, change `--scope A` to `--scope C`.
+To count everything (source + docs), use `--scope D`.
+
+### 2. Git + Algorithm A with logical URL
+
+When metadata uses a logical URL but Git commands run against a local checkout:
+
+```bash
 python3 aggregateGenCodeDesc.py \
   --vcsType git \
   --repoURL https://example.local/repo/demo.git \
@@ -217,137 +151,69 @@ python3 aggregateGenCodeDesc.py \
   --repoBranch main \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
+  --scope A \
   --outputFile /tmp/agg-out.json \
   --genCodeDescSetDir /path/to/genCodeDescSet
 ```
 
-Use this when:
-
-- metadata records are indexed by a logical Git URL
-- you still want to analyze a local checkout
-
-### 3. Typical SVN production-style run with `Algorithm A`
-
-Use this when you want the current production-oriented SVN path.
+### 3. SVN + Algorithm A (production)
 
 ```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
 python3 aggregateGenCodeDesc.py \
   --vcsType svn \
   --repoURL file:///path/to/local/svn/repo \
   --repoBranch trunk \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
+  --scope A \
   --outputFile /tmp/agg-out.json \
   --genCodeDescSetDir /path/to/genCodeDescSet
 ```
 
-You can also use an SVN server URL instead of `file:///...` if the environment supports it.
+You can also use an SVN server URL (e.g. `svn://host/repo`) instead of `file:///`.
 
-### 4. Typical `Algorithm B` Git live-snapshot run on a local checkout
+### 4. Algorithm B — local Git replay
 
-Use this only when you intentionally want the current narrow replay-based `Algorithm B` path on Git, but with a real local checkout rather than pre-generated commit diff fixtures.
+Replay commit diffs from a live Git checkout.
 
 ```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
 python3 aggregateGenCodeDesc.py \
   --vcsType git \
-  --repoURL https://example.local/repo/demo \
-  --workingDir /path/to/local/git/checkout \
+  --repoURL /path/to/local/git/repo \
   --repoBranch main \
   --startTime 2026-03-01 \
   --endTime 2026-03-31 \
   --algorithm B \
-  --metric live_changed_source_ratio \
   --scope A \
-  --outputFile /tmp/agg-b-git-out.json \
+  --outputFile /tmp/agg-b-out.json \
   --genCodeDescSetDir /path/to/genCodeDescSet
 ```
 
-### 5. Typical `Algorithm B` Git fixture replay run
+Scopes B, C, and D are also supported — just change `--scope`.
 
-Use this only when you intentionally want the current narrow replay-based path.
+### 5. Algorithm B — offline fixture replay
+
+Replay from pre-exported patch files. No live repository access needed.
 
 ```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
 python3 aggregateGenCodeDesc.py \
   --vcsType git \
   --repoURL https://example.local/repo/demo \
   --repoBranch main \
-  --startTime 2026-03-01 \
+  --startTime 2026-03-10 \
   --endTime 2026-03-31 \
   --algorithm B \
   --scope A \
-  --outputFile /tmp/agg-b-git-out.json \
+  --outputFile /tmp/agg-b-fixture-out.json \
   --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
   --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
 ```
 
-### 6. Typical `Algorithm B` SVN replay run
-
-Use this only when you intentionally want the current narrow replay-based path on SVN.
-
-```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
-python3 aggregateGenCodeDesc.py \
-  --vcsType svn \
-  --repoURL https://svn.example.com/repos/project \
-  --repoBranch trunk \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-svn-out.json \
-  --genCodeDescSetDir testdata/us1_live_changed_source_ratio_svn \
-  --commitDiffSetDir testdata/us1_live_changed_source_ratio_svn/commitDiffSet
-```
-
-### 7. Current `US-6` style period-added replay example
-
-```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL https://example.local/repo/demo \
-  --repoBranch main \
-  --startTime 2026-03-10 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-period-out.json \
-  --genCodeDescSetDir testdata/us6_period_added_ratio \
-  --commitDiffSetDir testdata/us6_period_added_ratio/commitDiffSet
-```
-
-### 8. Current `US-6` style period-added run on a local Git checkout
-
-Use this when you want the same narrow period-added `Algorithm B` mode, but against a real local Git checkout rather than fixture diff files.
-
-```bash
-cd /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc
-
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL https://example.local/repo/demo \
-  --workingDir /path/to/local/git/checkout \
-  --repoBranch main \
-  --startTime 2026-03-10 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-period-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet \
-  --metric period_added_ai_ratio
-```
+SVN-sourced fixtures also work for Scope A — just change `--vcsType svn` and point to SVN fixture directories.
 
 ## Output Shape
 
-Typical output is protocol-shaped JSON such as:
+### Scope A, B, or D
 
 ```json
 {
@@ -363,18 +229,11 @@ Typical output is protocol-shaped JSON such as:
     "repoURL": "/path/to/repo",
     "repoBranch": "main",
     "revisionId": "abc123"
-  },
-  "WARNINGS": [
-    "Protocol file not found for revision abc122 in /path/to/genCodeDescSet; treating affected lines as human/unattributed"
-  ]
+  }
 }
 ```
 
-`WARNINGS` is optional and appears only when the runtime had to degrade and you enabled diagnostic warning mode, for example with `--warnOnMissingProtocol` when a required middle `genCodeDesc` record was missing.
-
-### Scope C output shape
-
-When `--scope C` is used, the output fields change to reflect documentation line counting:
+### Scope C
 
 ```json
 {
@@ -394,74 +253,76 @@ When `--scope C` is used, the output fields change to reflect documentation line
 }
 ```
 
+### Optional `WARNINGS` field
+
+When `--warnOnMissingProtocol` is enabled and a revision's metadata is missing, the output includes:
+
+```json
+{
+  "WARNINGS": [
+    "Protocol file not found for revision abc122 in /path/to/genCodeDescSet; treating affected lines as human/unattributed"
+  ]
+}
+```
+
 ## Common Problems And Fixes
 
 ### `--workingDir is required for git`
 
-Cause:
+You used a logical `--repoURL` (e.g. `https://...`) without telling the tool where the local checkout is.
 
-- you used a logical Git `repoURL` instead of a local absolute path
-
-Fix:
-
-- add `--workingDir /path/to/local/git/checkout`
+**Fix:** Add `--workingDir /path/to/local/git/checkout`.
 
 ### `Metadata repoURL mismatch`
 
-Cause:
+The `REPOSITORY.repoURL` inside the metadata JSON does not match your CLI `--repoURL`.
 
-- the metadata file and the CLI target do not use the same repository identity string
-
-Fix:
-
-- make `REPOSITORY.repoURL` inside the metadata exactly match the CLI `--repoURL`
+**Fix:** Ensure they are identical strings.
 
 ### `Protocol file not found for revision`
 
-Cause:
+The `--genCodeDescSetDir` is missing a `<revisionId>_genCodeDesc.json` file.
 
-- the metadata directory does not contain the required revision-level `genCodeDesc` file
-
-Fix:
-
-- add the missing `<revisionId>_genCodeDesc.json`
-- if you pass `--warnOnMissingProtocol` without `--failOnMissingProtocol`, the runtime continues in degraded mode, treats affected lines as human or unattributed, and emits a `WARNINGS` entry in the output for diagnosis
+**Fix:** Add the missing file, or use `--warnOnMissingProtocol` to continue in degraded mode.
 
 ### `Commit diff patch file not found`
 
-Cause:
+Algorithm B expects a patch file that is not in `--commitDiffSetDir`.
 
-- the current `Algorithm B` replay sequence expects a patch file that is missing from `--commitDiffSetDir`
+**Fix:** Add the missing `<timeSeq>_<revisionId>_commitDiff.patch`.
 
-Fix:
+### `--scope must be one of: A, B, C, D`
 
-- add the missing `<timeSeq>_<revisionId>_commitDiff.patch`
+Invalid scope value (e.g. lowercase `a`, or `Z`).
 
-### `Algorithm B` seems to require an unexpected internal flag
-
-Cause:
-
-- you are hitting a transitional implementation seam rather than the intended production UX
-
-Fix:
-
-- follow this guide as the target operator contract
-- if you are debugging the current internal implementation rather than using the intended operator flow, consult the developer-facing docs and tests
+**Fix:** Use uppercase `A`, `B`, `C`, or `D`.
 
 ### `--vcsType must be one of: git, svn`
 
-Cause:
+**Fix:** Use `git` or `svn`.
 
-- unsupported VCS value
+### `File ... exceeds ... byte limit`
 
-Fix:
+A single file in the repository is larger than 100 MB. This is likely a binary or generated file that should not be tracked as source code.
 
-- use `git` or `svn`
+**Fix:** Exclude the file from tracking, or check if it was committed by mistake.
 
-## Which Document Should I Read Next?
+## Exit Codes
 
-- Use `README.md` for product scope and metric definition.
-- Use `README_UserStory.md` for story-level acceptance criteria.
-- Use `README_SharedUS_Convergence.md` for the production convergence roadmap.
-- Use `README_RunTestCase.md` for test commands.
-- Use `tests/README_US1_ManualInstruction.md` for a more detailed US-1 manual walkthrough.
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Input validation error (bad arguments) |
+| `2` | Repository access error (git/svn command failed) |
+| `3` | Protocol/metadata error (malformed JSON, missing fields) |
+| `4` | Timeout (exceeded `--maxRuntime`) |
+
+## Further Reading
+
+| Document | Content |
+|----------|---------|
+| `README.md` | Product scope and measurement definitions |
+| `README_UserStory.md` | Story-level acceptance criteria |
+| `README_SharedUS_Convergence.md` | Production convergence roadmap |
+| `README_RunTestCase.md` | Test commands |
+| `README_ArchDesign.md` | Architecture and design decisions |

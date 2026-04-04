@@ -848,7 +848,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
             },
         )
 
-    def test_cli_rejects_algorithm_b_when_routing_metric_cannot_be_inferred(self) -> None:
+    def test_cli_algorithm_b_defaults_to_live_snapshot_when_no_metric_in_query(self) -> None:
         query = {
             "vcsType": "git",
             "repoURL": "https://example.local/repo/demo",
@@ -872,8 +872,9 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
 
             result = self._run_algorithm_b_offline_cli(query, commit_diff_dir)
 
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("requires either --metric or a query.json metric", result.stderr)
+        # Should not fail for missing metric — defaults to live_changed_source_ratio
+        # May fail for other reasons (missing genCodeDesc, etc.) but NOT for missing metric
+        self.assertNotIn("requires either --metric or a query.json metric", result.stderr)
 
     def test_cli_algorithm_b_offline_uses_query_included_revision_ids_as_authoritative_replay_sequence(self) -> None:
         query = {

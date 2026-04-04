@@ -12,7 +12,7 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us1_live_ch
 
 
 class TestRuntimeHardeningTdd(unittest.TestCase):
-    def test_cli_fails_cleanly_for_unsupported_algorithm(self) -> None:
+    def test_cli_algorithm_b_defaults_to_live_snapshot_when_no_metric_given(self) -> None:
         query = load_json(FIXTURE_DIR / "query.json")
         revision_protocol = load_json(FIXTURE_DIR / "01_genCodeDesc.json")
 
@@ -36,11 +36,10 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
             revision_id = repo.commit_all("us1-r1", "2026-03-10T09:00:00Z")
             write_revision_protocol(protocol_dir, revision_protocol, repo_dir, revision_id)
 
-            with self.assertRaises(subprocess.CalledProcessError) as context:
-                run_cli(repo_dir, output_file, protocol_dir, query, extra_args=["--algorithm", "B"])
+            result = run_cli(repo_dir, output_file, protocol_dir, query, extra_args=["--algorithm", "B"])
 
-            self.assertIn("Current Algorithm B routing requires either --metric or a query.json metric", context.exception.stderr)
-            self.assertNotIn("Traceback", context.exception.stderr)
+            self.assertEqual(result.returncode, 0)
+            self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_fails_cleanly_for_missing_file_name_in_protocol_detail(self) -> None:
         query = load_json(FIXTURE_DIR / "query.json")
@@ -282,7 +281,6 @@ class TestRuntimeHardeningTdd(unittest.TestCase):
             )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Current Algorithm B routing requires either --metric or a query.json metric", result.stderr)
         self.assertNotIn("--workingDir is required for git", result.stderr)
 
     def test_cli_rejects_repo_branch_with_path_traversal(self) -> None:

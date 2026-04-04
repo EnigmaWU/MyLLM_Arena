@@ -2018,11 +2018,7 @@ def resolve_algorithm_b_metric(args: argparse.Namespace) -> str:
             f"--metric {explicit_metric} does not match query.json metric {inferred_metric} in --genCodeDescSetDir"
         )
 
-    resolved_metric = explicit_metric or inferred_metric
-    if not resolved_metric:
-        raise UnsupportedConfigurationError(
-            "Current Algorithm B routing requires either --metric or a query.json metric in --genCodeDescSetDir"
-        )
+    resolved_metric = explicit_metric or inferred_metric or "live_changed_source_ratio"
 
     return resolved_metric
 
