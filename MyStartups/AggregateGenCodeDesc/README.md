@@ -24,7 +24,8 @@
 
 ## ======>>>RELATED DOCS<<<======
 
-- User stories and acceptance criteria: `README_UserStory.md`
+- Legacy user-story source during migration: `README_UserStory.md`
+- Authoritative next-generation user stories: `README_UserStoryNG.md`
 - User guide and typical usage examples: `README_UserGuide.md`
 - Shared-US convergence roadmap (completed): `README_SharedUS_Convergence.md`
 - Concrete Algorithm-B execution plan: `README_AlgorithmB_TDD.md`

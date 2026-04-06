@@ -7,7 +7,8 @@ This document explains how to run the current AggregateGenCodeDesc test cases cl
 It complements:
 
 - `README.md` for product and CLI scope
-- `README_UserStory.md` for shared user stories and acceptance criteria
+- `README_UserStoryNG.md` for the authoritative next-generation user stories and acceptance criteria
+- `README_UserStory.md` for legacy migration context only
 - `tests/README.md` for real repository and manual verification notes
 
 ## Verification Tiers

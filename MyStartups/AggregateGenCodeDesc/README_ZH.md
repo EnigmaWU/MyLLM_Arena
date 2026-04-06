@@ -14,7 +14,7 @@
 
 ## ======>>>相关文档<<<======
 
-- 用户故事与验收标准：`README_UserStory.md`
+- 用户故事与验收标准：`README_UserStoryNG_ZH.md`
 - 使用指南与典型命令示例：`README_UserGuide_ZH.md`
 - 共享故事收敛路线图（已完成）：`README_SharedUS_Convergence.md`
 - 架构设计：`README_ArchDesign.md`

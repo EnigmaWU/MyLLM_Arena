@@ -4,7 +4,8 @@
 
 Operator-facing guide for running `aggregateGenCodeDesc.py`.
 
-For acceptance criteria, see `README_UserStory.md`.
+For the authoritative next-generation user stories and acceptance model, see `README_UserStoryNG.md`.
+`README_UserStory.md` remains available only as the legacy migration source.
 
 ## Quick Start
 
