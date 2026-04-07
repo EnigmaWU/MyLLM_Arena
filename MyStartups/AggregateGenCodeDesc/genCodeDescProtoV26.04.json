@@ -1,0 +1,120 @@
+{
+    "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
+    "_summarySemantics": {
+        "totalCodeLines": "Count only the code lines represented by this record. Do not include deleted historical lines.",
+        "fullGeneratedCodeLines": "Subset of represented code lines whose genRatio is 100.",
+        "partialGeneratedCodeLines": "Subset of represented code lines whose genRatio is greater than 0 and less than 100."
+    },
+    "_blameSemantics": {
+        "blame": "VCS blame attribution recorded at write time by the codeAgent for each described line or range.",
+        "blame.revisionId": "[mandatory] The VCS commit SHA (git) or revision number (svn) that last introduced the current form of this line.",
+        "blame.originalFilePath": "[mandatory] The file path inside the repository where this line originated (may differ from fileName due to renames or moves).",
+        "blame.originalLine": "[mandatory] The line number inside originalFilePath at the originating revision.",
+        "blame.timestamp": "[mandatory] ISO 8601 UTC timestamp of the originating revision. Enables AlgA/AlgC startTime~endTime filtering without live repository access.",
+        "blame.author": "[optional] The committer identity (email or username) of the originating revision."
+    },
+    "_detailSemantics": {
+        "completeness": "For AlgC (offline, no repository access), DETAIL must be exhaustive: every surviving line in the file must be listed, including human-written lines as genRatio=0 / genMethod=Manual. This makes the genCodeDesc self-sufficient to reproduce the same result as AlgA/AlgB.",
+        "manual": "genRatio=0 with genMethod=Manual represents a human-written line. It must carry a blame entry identical in structure to AI-generated lines.",
+        "lineRange_constraint": "A lineRange entry (including Manual ones) is only valid when all lines in that range share the same blame origin (same revisionId, originalFilePath, and a contiguous originalLine block). Lines with different blame origins must each have their own lineLocation entry."
+    },
+
+    "protocolName": "generatedTextDesc", //Text=Code(c/cxx,...) or Document(md,...)
+    "protocolVersion": "26.04",
+    "codeAgent": "HuayanCoder",
+
+    "SUMMARY":
+    {
+        "totalCodeLines": 99,
+        "fullGeneratedCodeLines": 19,
+        "partialGeneratedCodeLines": 2,
+        "totalDocLines": 50,
+        "fullGeneratedDocLines": 10,
+        "partialGeneratedDocLines": 5
+    },
+
+    "DETAIL":
+    [
+        {
+            "fileName": "relativePath/2/nameOfFileA.cxx",
+            "codeLines": 
+            [
+                {
+                    "lineLocation": 1, "genRatio": 0, "genMethod": "Manual",
+                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 1, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
+                },
+                {
+                    "lineRange": { "from": 2, "to": 14 }, "genRatio": 0, "genMethod": "Manual",
+                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 2, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
+                },
+                {
+                    "lineLocation": 15, "genRatio": 100, "genMethod": "codeCompletion",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 15, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                },
+                {
+                    "lineLocation": 16, "genRatio": 95, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 16, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                },
+                {
+                    "lineLocation": 17, "genRatio": 30, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/oldNameOfFileA.cxx", "originalLine": 10, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
+                },
+                {
+                    "lineLocation": 18, "genRatio": 0, "genMethod": "Manual",
+                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 18, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
+                },
+                {
+                    "lineLocation": 19, "genRatio": 0, "genMethod": "Manual",
+                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/oldNameOfFileA.cxx", "originalLine": 12, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
+                },
+                {
+                    "lineRange": { "from": 20, "to": 26 }, "genRatio": 100, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 20, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                }
+            ]
+        },
+        {
+            "fileName": "relativePath/2/nameOfFileB.md",
+            "docLines":
+            [
+                {
+                    "lineLocation": 15, "genRatio": 90, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 15, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                },
+                {
+                    "lineLocation": 16, "genRatio": 80, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 16, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                },
+                {
+                    "lineLocation": 17, "genRatio": 20, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 17, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
+                },
+                {
+                    "lineRange": { "from": 20, "to": 29 }, "genRatio": 100, "genMethod": "vibeCoding",
+                    "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 20, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
+                },
+                {
+                    "lineLocation": 30, "genRatio": 50, "genMethod": "codeCompletion",
+                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 30, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
+                },
+                {
+                    "lineLocation": 31, "genRatio": 20, "genMethod": "codeCompletion",
+                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 31, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
+                }
+            ]
+        }
+    ],
+
+    "CREDENTIAL":
+    {
+        "accessToken": "1234567890abcdef"
+    },
+
+    "REPOSITORY":
+    {
+        "vcsType": "git",
+        "repoURL": "https://yfgitlab/PATH/2/nameOfRepo",
+        "repoBranch": "main",
+        "revisionId": "1234567890abcdef"
+    }
+}
