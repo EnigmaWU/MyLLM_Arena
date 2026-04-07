@@ -37,7 +37,7 @@ mindmap
       embedded blame
       genCodeDesc v26.04 only
       zero VCS access
-      exhaustive DETAIL required
+      incremental add/delete DETAIL
       planned
 ```
 
@@ -46,7 +46,7 @@ mindmap
 | Core technique | live `git/svn blame` | offline diff replay | embedded `blame` in genCodeDesc |
 | Repository access at runtime | **required** | not required | **not required** |
 | genCodeDesc version | v26.03 | v26.03 | **v26.04** |
-| DETAIL completeness | AI lines only | AI lines only | **all surviving lines** |
+| DETAIL completeness | AI lines only | AI lines only | **incremental: adds + deletes per commit** |
 | Production status | production quality | narrow replay paths active | planned |
 | Correctness authority | VCS blame (authoritative) | rebuilt partial blame (risk) | codeAgent at write time (trusted) |
 
@@ -154,46 +154,56 @@ flowchart TD
 
 Algorithm C is a planned offline algorithm that requires **no repository access and
 no diff artifacts at runtime**.
-The codeAgent embeds `git blame` or `svn blame` information directly into each line
-entry of a `genCodeDescProtoV26.04.json` file at write time.
-Because every surviving line carries `blame.revisionId`, `blame.originalFilePath`,
-`blame.originalLine`, and `blame.timestamp`, a downstream consumer can apply the
-`[startTime, endTime]` filter and read `genRatio` directly — no VCS, no diffs needed.
+The codeAgent records only the lines **added** or **deleted** in each commit, with
+`git blame` or `svn blame` info per added line, into a `genCodeDescProtoV26.04.json` file.
+Because each add entry carries `blame.revisionId`, `blame.originalFilePath`,
+`blame.originalLine`, and `blame.timestamp`, a downstream consumer can accumulate
+the full surviving-line set across all files up to `endTime`, apply the
+`[startTime, endTime]` filter, and read `genRatio` directly — no VCS, no diffs needed.
 
-DETAIL must be **exhaustive**: every surviving line must appear, including human lines
-recorded as `genRatio=0 / genMethod=Manual`.
+DETAIL is **incremental**: each commit's file records only `changeType=add` and
+`changeType=delete` entries for lines changed in that commit.
+Human lines added by a commit are recorded as `genRatio=0 / genMethod=Manual`.
+A line deleted in a commit is recorded with just its blame origin (revisionId +
+originalFilePath + originalLine) — enough to remove it from the accumulated set.
 
 ### Data Flow
 
 ```mermaid
 flowchart TD
-    W[codeAgent at commit time\ngit blame / svn blame]
-    W --> GCD["genCodeDescProtoV26.04.json\nexhaustive DETAIL:\n• AI lines genRatio>0\n• Manual lines genRatio=0\n• blame per line"]
+    W[codeAgent at commit time\ngit blame / svn blame\nonly on changed lines]
+    W --> GCD["genCodeDescProtoV26.04.json\nREPOSITORY.revisionTimestamp = commit time\nincremental DETAIL:\n• changeType=add: blame + genRatio/genMethod\n• changeType=delete: blame origin only"]
 
     subgraph Runtime["Algorithm C Runtime (zero VCS access)"]
-        GCD --> F["Filter DETAIL entries\nblame.timestamp ∈ [startTime, endTime]"]
+        SET["all genCodeDesc v26.04 files"] --> SORT["Sort by REPOSITORY.revisionTimestamp\nprocess files where revisionTimestamp <= endTime\nin ascending order"]
+        SORT --> ACC["Accumulate surviving_lines map\nkeyed by (revisionId, originalFilePath, originalLine)\n→ apply deletes first, then adds per file"]
+        ACC --> F["Filter surviving_lines\nblame.timestamp ∈ [startTime, endTime]"]
         F --> AI[AI lines: genRatio > 0\ncount full / partial]
         F --> HU[Manual lines: genRatio = 0\ncount total only]
         AI & HU --> O[SUMMARY output\ntotalCodeLines · fullGenerated · partialGenerated]
     end
+
+    GCD -.->|"stored in set"| SET
 ```
 
 ### What problem it solves
 
 - Zero VCS access at analysis time — no checkout, no subprocess, no network.
-- Simpler deployment: one JSON file per revision is all that is needed.
+- Small per-commit files: only changed lines are recorded, not the full snapshot.
 - Same metric semantics as Algorithm A and Algorithm B.
 - Works for both Git-origin and SVN-origin blame (VCS type is embedded metadata).
-- Single-file self-contained analysis enables fully air-gapped or edge deployments.
+- Air-gapped or edge deployments: analysis needs only the set of v26.04 files.
 
 ### Pitfalls
 
 | Pitfall | Detail |
 |---|---|
-| Requires v26.04 exhaustive DETAIL | The codeAgent must record every surviving line, not just AI-generated ones. File size grows significantly compared to v26.03. |
+| Requires **all** genCodeDesc files up to `endTime` | AlgC must process every commit's file from the beginning up to endRevision to accumulate the surviving-line set. A missing file in the chain corrupts the result. |
+| `REPOSITORY.revisionTimestamp` is mandatory | AlgC uses this field to sort and select which files to process. Without it, AlgC cannot determine processing order. |
+| Delete entries must reference the exact blame origin | `blame.revisionId + originalFilePath + originalLine` must precisely match the earlier add entry. A mismatch silently leaves a ghost line in the accumulated set. |
 | Blame accuracy depends on codeAgent | Correctness at consume time is entirely trusted from the codeAgent's write-time blame call. No independent VCS verification is possible during analysis. |
-| lineRange constraint for Manual lines | A lineRange entry is only valid when all lines in that range share the same blame origin. Lines with different blame origins must each have a separate `lineLocation` entry. |
-| No catch for stale blame | If a codeAgent produced a genCodeDesc file and the repository was later force-pushed or amended, the embedded blame is silently stale. |
+| lineRange constraint for add entries | A lineRange entry is only valid when all lines share the same blame origin. Lines with different blame origins must each have a separate entry. |
+| No catch for stale blame | If a force-push or amend happens after the file was written, the embedded blame is silently stale. |
 | Implementation not yet started | Algorithm C is planned only. Protocol shape is defined in `genCodeDescProtoV26.04.json`; no runtime exists yet. |
 
 ---
@@ -205,7 +215,7 @@ flowchart LR
     subgraph Input["Inputs at analysis time"]
         R[(Live repository\ngit / svn)]
         D[(commitDiffSet\norderd patch files)]
-        J[(genCodeDescProtoV26.04\nexhaustive + blame embedded)]
+        J[(genCodeDescProtoV26.04\nincremental add/delete + blame embedded)]
     end
 
     subgraph Meta["Per-revision genCodeDesc"]
@@ -242,7 +252,7 @@ flowchart TD
     Q2 -->|Yes| AlgA[✅ Algorithm A\npreferred baseline]
     Q2 -->|No| Q3
     Q3 -->|Yes| Q4{Merge-heavy\nhistory?}
-    Q3 -->|No| Q5{genCodeDesc v26.04\nwith exhaustive DETAIL?}
+    Q3 -->|No| Q5{genCodeDesc v26.04\nincremental add/delete?}
     Q4 -->|No| AlgB[⚠️ Algorithm B\noffline replay]
     Q4 -->|Yes, defended by TDD| AlgB
     Q5 -->|Yes| AlgC[🔬 Algorithm C\nplanned · zero VCS]

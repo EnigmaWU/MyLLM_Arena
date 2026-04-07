@@ -1,22 +1,30 @@
 {
     "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
     "_summarySemantics": {
-        "totalCodeLines": "Count only the code lines represented by this record. Do not include deleted historical lines.",
-        "fullGeneratedCodeLines": "Subset of represented code lines whose genRatio is 100.",
-        "partialGeneratedCodeLines": "Subset of represented code lines whose genRatio is greater than 0 and less than 100."
+        "totalCodeLines": "Count only the code lines ADDED by this commit (changeType=add). Do not count deleted lines.",
+        "fullGeneratedCodeLines": "Subset of added code lines whose genRatio is 100.",
+        "partialGeneratedCodeLines": "Subset of added code lines whose genRatio is greater than 0 and less than 100."
     },
     "_blameSemantics": {
-        "blame": "VCS blame attribution recorded at write time by the codeAgent for each described line or range.",
+        "blame": "VCS blame attribution recorded at write time by the codeAgent.",
         "blame.revisionId": "[mandatory] The VCS commit SHA (git) or revision number (svn) that last introduced the current form of this line.",
         "blame.originalFilePath": "[mandatory] The file path inside the repository where this line originated (may differ from fileName due to renames or moves).",
         "blame.originalLine": "[mandatory] The line number inside originalFilePath at the originating revision.",
-        "blame.timestamp": "[mandatory] ISO 8601 UTC timestamp of the originating revision. Enables AlgA/AlgC startTime~endTime filtering without live repository access.",
-        "blame.author": "[optional] The committer identity (email or username) of the originating revision."
+        "blame.timestamp": "[mandatory for add entries] ISO 8601 UTC timestamp of the originating revision. Enables AlgC startTime~endTime filtering. Not required for delete entries.",
+        "blame.author": "[optional] The committer identity (email or username) of the originating revision.",
+        "delete_entry_blame": "For changeType=delete, only revisionId + originalFilePath + originalLine are required — together they are the stable identity key to locate the line in the accumulated surviving set. timestamp and author are not needed."
+    },
+    "_repositorySemantics": {
+        "revisionTimestamp": "[mandatory] ISO 8601 UTC timestamp of the commit described by this record (i.e. the timestamp of REPOSITORY.revisionId). AlgC sorts all genCodeDesc files by revisionTimestamp and processes those with revisionTimestamp <= endTime in ascending order to accumulate the surviving-line set."
     },
     "_detailSemantics": {
-        "completeness": "For AlgC (offline, no repository access), DETAIL must be exhaustive: every surviving line in the file must be listed, including human-written lines as genRatio=0 / genMethod=Manual. This makes the genCodeDesc self-sufficient to reproduce the same result as AlgA/AlgB.",
-        "manual": "genRatio=0 with genMethod=Manual represents a human-written line. It must carry a blame entry identical in structure to AI-generated lines.",
-        "lineRange_constraint": "A lineRange entry (including Manual ones) is only valid when all lines in that range share the same blame origin (same revisionId, originalFilePath, and a contiguous originalLine block). Lines with different blame origins must each have their own lineLocation entry."
+        "model": "INCREMENTAL — each commit's DETAIL records only lines ADDED or DELETED in that commit, not the full snapshot of all surviving lines.",
+        "changeType_add": "changeType=add: a line introduced by this commit. Required fields: changeType, lineLocation (or lineRange), genRatio, genMethod, blame (full: revisionId, originalFilePath, originalLine, timestamp). author is optional.",
+        "changeType_delete": "changeType=delete: a line removed by this commit. Required field: blame.revisionId + blame.originalFilePath + blame.originalLine — this triple is the identity key. lineLocation is optional (was the location before deletion, useful for debugging). No genRatio or genMethod.",
+        "algC_accumulation": "AlgC processes files in ascending revisionTimestamp order (for revisionTimestamp <= endTime). Within each file, deletes are applied before adds (standard diff order). Result: surviving_lines keyed by (revisionId, originalFilePath, originalLine). Then filter by blame.timestamp in [startTime, endTime] and sum genRatio.",
+        "delete_range": "For bulk deletion of a contiguous block from the same origin, a single delete entry may use blame.originalLineRange={from,to} instead of repeating one entry per line.",
+        "manual": "changeType=add with genRatio=0 and genMethod=Manual represents a human-written line introduced by this commit.",
+        "lineRange_constraint": "A lineRange entry is only valid when all lines in that range share the same blame origin (same revisionId, originalFilePath, and a contiguous originalLine block). Lines with different blame origins must each have their own entry."
     },
 
     "protocolName": "generatedTextDesc", //Text=Code(c/cxx,...) or Document(md,...)
@@ -40,34 +48,40 @@
             "codeLines": 
             [
                 {
+                    "changeType": "delete",
+                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 8 }
+                },
+                {
+                    "changeType": "delete",
+                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLineRange": { "from": 9, "to": 14 } }
+                },
+                {
+                    "changeType": "add",
                     "lineLocation": 1, "genRatio": 0, "genMethod": "Manual",
                     "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 1, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineRange": { "from": 2, "to": 14 }, "genRatio": 0, "genMethod": "Manual",
                     "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 2, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 15, "genRatio": 100, "genMethod": "codeCompletion",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 15, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 16, "genRatio": 95, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 16, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 17, "genRatio": 30, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/oldNameOfFileA.cxx", "originalLine": 10, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
                 },
                 {
-                    "lineLocation": 18, "genRatio": 0, "genMethod": "Manual",
-                    "blame": { "revisionId": "fedcba9876543210", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 18, "author": "john.smith@example.com", "timestamp": "2026-01-10T09:00:00Z" }
-                },
-                {
-                    "lineLocation": 19, "genRatio": 0, "genMethod": "Manual",
-                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/oldNameOfFileA.cxx", "originalLine": 12, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
-                },
-                {
+                    "changeType": "add",
                     "lineRange": { "from": 20, "to": 26 }, "genRatio": 100, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileA.cxx", "originalLine": 20, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 }
@@ -78,28 +92,33 @@
             "docLines":
             [
                 {
+                    "changeType": "delete",
+                    "blame": { "revisionId": "oldrev0000000001", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 18 }
+                },
+                {
+                    "changeType": "add",
                     "lineLocation": 15, "genRatio": 90, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 15, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 16, "genRatio": 80, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 16, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 17, "genRatio": 20, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 17, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineRange": { "from": 20, "to": 29 }, "genRatio": 100, "genMethod": "vibeCoding",
                     "blame": { "revisionId": "1234567890abcdef", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 20, "author": "jane.doe@example.com", "timestamp": "2026-03-15T10:30:00Z" }
                 },
                 {
+                    "changeType": "add",
                     "lineLocation": 30, "genRatio": 50, "genMethod": "codeCompletion",
                     "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 30, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
-                },
-                {
-                    "lineLocation": 31, "genRatio": 20, "genMethod": "codeCompletion",
-                    "blame": { "revisionId": "abcdef1234567890", "originalFilePath": "relativePath/2/nameOfFileB.md", "originalLine": 31, "author": "john.smith@example.com", "timestamp": "2026-03-20T14:00:00Z" }
                 }
             ]
         }
@@ -115,6 +134,7 @@
         "vcsType": "git",
         "repoURL": "https://yfgitlab/PATH/2/nameOfRepo",
         "repoBranch": "main",
-        "revisionId": "1234567890abcdef"
+        "revisionId": "1234567890abcdef",
+        "revisionTimestamp": "2026-03-15T10:30:00Z"
     }
 }
