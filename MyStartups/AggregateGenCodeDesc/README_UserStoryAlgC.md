@@ -22,9 +22,12 @@ allow consumers to distinguish origin VCS without repository access.
 
 ## Protocol Precondition
 
-All AlgC stories require `protocolVersion: "26.04"` and **exhaustive DETAIL**:
-every surviving line in the file must appear in `codeLines` (or `docLines`), including
+All AlgC stories require `protocolVersion: "26.04"` and expect **exhaustive DETAIL**:
+every surviving line in the file should appear in `codeLines` (or `docLines`), including
 human-written lines as `genRatio=0 / genMethod=Manual`.
+If a surviving line is omitted from DETAIL, Algorithm C imputes that line as
+`genRatio=0 / genMethod=Manual` and emits a WARNING.
+Exact parity and golden-result guarantees apply only when no such omission warning occurs.
 A `genCodeDescProtoV26.03.json` input is not sufficient for AlgC.
 
 ## Relationship To Algorithm A and Algorithm B
@@ -34,7 +37,7 @@ A `genCodeDescProtoV26.03.json` input is not sufficient for AlgC.
 | Repository access | live `git/svn blame` | offline diff replay | none |
 | Input | repo + per-revision genCodeDesc v26.03 | commitDiffSet + per-revision genCodeDesc v26.03 | per-revision genCodeDesc **v26.04** only |
 | Blame source | VCS subprocess | diff patch reconstruction | embedded `blame` object in DETAIL |
-| DETAIL completeness required | no (AI lines only) | no (AI lines only) | **yes** (all surviving lines) |
+| DETAIL completeness required | no (AI lines only) | no (AI lines only) | expected for all surviving lines; omitted surviving lines fall back to Manual with WARNING |
 | VCS support | git and svn | git and svn | git-origin and svn-origin blame |
 | Metric semantics | identical | identical | identical |
 
@@ -67,14 +70,15 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 
 - `UI-PROTOCOL`: the result must be a valid protocol-shaped output with `protocolName`,
   `protocolVersion`, `SUMMARY`, and `REPOSITORY` fields.
-- `UI-GOLDEN`: the result must match the approved golden output for the scenario.
+- `UI-GOLDEN`: when no omission warning is emitted, the result must match the approved golden output for the scenario.
 - `UI-BLAME-MANDATORY`: every DETAIL entry must carry a `blame` object with
   `revisionId`, `originalFilePath`, `originalLine`, and `timestamp`.
   A missing or partial `blame` object is a protocol violation and must not produce a partial result.
-- `UI-EXHAUSTIVE-DETAIL`: every surviving line in the file must be listed in DETAIL.
-  An omitted line is treated as `genRatio=0` only when `protocolVersion` is confirmed as `"26.04"`.
-- `UI-PARITY`: for the same repository scenario, Algorithm C must produce the same
-  `SUMMARY` counts as Algorithm A and Algorithm B.
+- `UI-EXHAUSTIVE-DETAIL`: every surviving line in the file should be listed in DETAIL.
+  If a surviving line is omitted and `protocolVersion` is confirmed as `"26.04"`,
+  Algorithm C imputes `genRatio=0 / genMethod=Manual` for that line and emits a WARNING.
+- `UI-PARITY`: for the same repository scenario, and when no omission warning is emitted,
+  Algorithm C must produce the same `SUMMARY` counts as Algorithm A and Algorithm B.
 - `UI-VCS-AGNOSTIC-CONSUMPTION`: Algorithm C never calls any VCS tool at runtime.
   VCS origin (git or svn) is carried by `REPOSITORY.vcsType` and `blame.revisionId` format only.
 - `UI-ALG-C-BOUNDARY`: Any AlgC evidence attached to a `HISTORY-COMPLICATED` or
@@ -491,3 +495,9 @@ repositories at production scale.
 - GIVEN an input file with `protocolVersion` other than `"26.04"`
 - WHEN Algorithm C attempts to process it
 - THEN the analyzer raises a protocol version error and does not produce a partial result
+
+**AC-04** — *Omitted surviving lines fall back to Manual with warning*
+
+- GIVEN a `protocolVersion="26.04"` input where a surviving line is omitted from DETAIL
+- WHEN Algorithm C processes the file
+- THEN it imputes `genRatio=0 / genMethod=Manual` for that line, emits a WARNING, and the result is not eligible for exact parity or golden-result assertions
