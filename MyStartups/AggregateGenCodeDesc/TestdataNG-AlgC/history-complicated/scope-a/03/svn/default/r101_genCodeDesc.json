@@ -1,0 +1,64 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/score.py",
+      "codeLines": [
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/score.py",
+            "originalLine": 2
+          }
+        },
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/score.py",
+            "originalLine": 3
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "r101",
+            "originalFilePath": "src/score.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-18T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 80,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "r101",
+            "originalFilePath": "src/score.py",
+            "originalLine": 3,
+            "timestamp": "2026-03-18T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-us03-demo",
+    "repoBranch": "trunk",
+    "revisionId": "r101",
+    "revisionTimestamp": "2026-03-18T09:00:00Z"
+  }
+}

@@ -9,6 +9,7 @@ Current scope in this folder:
 - `USNG-ALGC-HISTORY-SIMPLE-SCOPE-A-01`
 - `USNG-ALGC-HISTORY-SIMPLE-SCOPE-A-08`
 - `USNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-02`
+- `USNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-03`
 - Git-origin fixtures
 - SVN-origin fixtures
 
@@ -21,6 +22,7 @@ During the initial TDD phase, red results are expected until the corresponding A
 python3 -m pytest -q TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_01_tdd.py -v
 python3 -m pytest -q TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_08_tdd.py -v
 python3 -m pytest -q TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_02_tdd.py -v
+python3 -m pytest -q TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_03_tdd.py -v
 ```
 
 ## Run One TC Only
@@ -29,6 +31,7 @@ python3 -m pytest -q TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_his
 python3 -m pytest -q "TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_01_tdd.py::TestUsngAlgcHistorySimpleScopeA01Tdd::test_cli_matches_git_expected_result" -v
 python3 -m pytest -q "TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_08_tdd.py::TestUsngAlgcHistorySimpleScopeA08Tdd::test_git_and_svn_share_same_observable_summary_contract" -v
 python3 -m pytest -q "TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_02_tdd.py::TestUsngAlgcHistoryComplicatedScopeA02Tdd::test_cli_matches_git_expected_result_when_human_rewrite_resets_ai_attribution" -v
+python3 -m pytest -q "TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_03_tdd.py::TestUsngAlgcHistoryComplicatedScopeA03Tdd::test_cli_matches_git_expected_result_when_ai_rewrite_replaces_human_ownership" -v
 ```
 
 ## Expected TDD Lifecycle
@@ -38,6 +41,7 @@ python3 -m pytest -q "TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_hi
 3. Then the SVN fixture should pass.
 4. After `USNG-ALGC-HISTORY-SIMPLE-SCOPE-A-08` lands: the cross-VCS contract and no-VCS-runtime checks should pass.
 5. After `USNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-02` lands: human-overwrite fixtures should show that one surviving line resets from AI ownership to Manual.
+6. After `USNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-03` lands: AI-rewrite fixtures should show that later AI ownership replaces earlier human ownership on the surviving lines.
 
 ## Fixture Location
 
@@ -47,6 +51,8 @@ python3 -m pytest -q "TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_hi
 - `A-08` SVN fixture: `TestdataNG-AlgC/history-simple/scope-a/08/svn/default`
 - `A-02` Git fixture: `TestdataNG-AlgC/history-complicated/scope-a/02/git/default`
 - `A-02` SVN fixture: `TestdataNG-AlgC/history-complicated/scope-a/02/svn/default`
+- `A-03` Git fixture: `TestdataNG-AlgC/history-complicated/scope-a/03/git/default`
+- `A-03` SVN fixture: `TestdataNG-AlgC/history-complicated/scope-a/03/svn/default`
 
 ## What The Covered TDD Files Prove
 
@@ -54,3 +60,4 @@ python3 -m pytest -q "TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_hi
 - `A-08` proves Git-origin and SVN-origin produce the same observable `SUMMARY` contract for the same logical scenario.
 - `A-08` also proves the current AlgC slice does not require `git` or `svn` binaries at runtime for these fixtures.
 - `A-02` proves a later human rewrite removes prior AI attribution from the surviving line while preserving earlier AI ownership on the unchanged surviving lines.
+- `A-03` proves a later AI rewrite replaces earlier human ownership on the surviving lines while unchanged surviving lines keep their earlier human attribution.

@@ -1,0 +1,60 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "HumanOnlyRevision",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/score.py",
+      "codeLines": [
+        {
+          "changeType": "add",
+          "lineLocation": 1,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us03-git-r1",
+            "originalFilePath": "src/score.py",
+            "originalLine": 1,
+            "timestamp": "2026-03-05T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us03-git-r1",
+            "originalFilePath": "src/score.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-05T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us03-git-r1",
+            "originalFilePath": "src/score.py",
+            "originalLine": 3,
+            "timestamp": "2026-03-05T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us03-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us03-git-r1",
+    "revisionTimestamp": "2026-03-05T09:00:00Z"
+  }
+}
