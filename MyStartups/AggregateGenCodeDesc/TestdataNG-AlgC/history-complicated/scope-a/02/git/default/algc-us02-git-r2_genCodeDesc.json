@@ -1,0 +1,44 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/normalize.py",
+      "codeLines": [
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "algc-us02-git-r1",
+            "originalFilePath": "src/normalize.py",
+            "originalLine": 2
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us02-git-r2",
+            "originalFilePath": "src/normalize.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-20T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us02-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us02-git-r2",
+    "revisionTimestamp": "2026-03-20T09:00:00Z"
+  }
+}
