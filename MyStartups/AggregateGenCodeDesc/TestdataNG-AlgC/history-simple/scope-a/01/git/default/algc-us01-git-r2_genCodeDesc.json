@@ -1,0 +1,68 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/app.py",
+      "codeLines": [
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "algc-us01-git-r1",
+            "originalFilePath": "src/app.py",
+            "originalLine": 2
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "algc-us01-git-r2",
+            "originalFilePath": "src/app.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 4,
+          "genRatio": 50,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us01-git-r2",
+            "originalFilePath": "src/app.py",
+            "originalLine": 4,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 5,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us01-git-r2",
+            "originalFilePath": "src/app.py",
+            "originalLine": 5,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us01-git-r2",
+    "revisionTimestamp": "2026-03-10T10:00:00Z"
+  }
+}

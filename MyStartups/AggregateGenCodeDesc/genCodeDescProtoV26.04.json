@@ -6,7 +6,8 @@
         "partialGeneratedCodeLines": "Subset of added code lines whose genRatio is greater than 0 and less than 100."
     },
     "_blameSemantics": {
-        "blame": "VCS blame attribution recorded at write time by the codeAgent.",
+        "blame": "VCS blame attribution recorded at write time by the codeAgent. It must come directly from real git blame or svn blame output, not from synthetic, inferred, replay-reconstructed, or manually edited data.",
+        "blame.sourceContract": "AlgC assumes embedded blame is authoritative VCS blame captured at write time from git blame or svn blame.",
         "blame.revisionId": "[mandatory] The VCS commit SHA (git) or revision number (svn) that last introduced the current form of this line.",
         "blame.originalFilePath": "[mandatory] The file path inside the repository where this line originated (may differ from fileName due to renames or moves).",
         "blame.originalLine": "[mandatory] The line number inside originalFilePath at the originating revision.",

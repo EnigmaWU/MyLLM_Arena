@@ -29,6 +29,7 @@ from pathlib import Path
 
 __version__ = "0.1.0"
 PROTOCOL_VERSION = "26.03"
+ALGORITHM_C_PROTOCOL_VERSION = "26.04"
 
 COMMAND_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RUNTIME_SECONDS = 3600
@@ -548,10 +549,11 @@ def build_result_document(
     revision_id: str,
     logger: RuntimeLogger,
     repo_url_override: str | None = None,
+    protocol_version: str | None = None,
 ) -> dict:
     result = {
         "protocolName": "generatedTextDesc",
-        "protocolVersion": PROTOCOL_VERSION,
+        "protocolVersion": PROTOCOL_VERSION if protocol_version is None else protocol_version,
         "SUMMARY": summary,
         "REPOSITORY": {
             "vcsType": args.vcsType,
@@ -1494,7 +1496,7 @@ def validate_inputs(args: argparse.Namespace) -> None:
         raise InputValidationError("--scope must be one of: A, B, C, D")
     if args.workingDir:
         validate_directory(args.workingDir, "--workingDir")
-    elif args.vcsType == "git" and args.algorithm != "B" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
+    elif args.vcsType == "git" and args.algorithm == "A" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
         raise InputValidationError(
             "--workingDir is required for git when --repoURL is a logical repository URL rather than a local absolute path"
         )
@@ -1548,6 +1550,15 @@ def parse_day_end(value: str) -> datetime:
 
 def parse_git_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def parse_protocol_timestamp(value: object, context: str) -> datetime:
+    if not isinstance(value, str) or not value:
+        raise ProtocolValidationError(f"{context} must be a non-empty ISO-8601 UTC timestamp")
+    try:
+        return parse_git_timestamp(value)
+    except ValueError as exc:
+        raise ProtocolValidationError(f"{context} must be a valid ISO-8601 UTC timestamp") from exc
 
 
 def format_svn_date_bound(value: datetime) -> str:
@@ -2009,6 +2020,182 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
     return 0
 
 
+def load_algorithm_c_query(args: argparse.Namespace) -> dict | None:
+    if not args.genCodeDescSetDir:
+        return None
+
+    query_path = Path(args.genCodeDescSetDir) / "query.json"
+    if not query_path.exists():
+        return None
+
+    try:
+        query_document = load_json_document(query_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ProtocolValidationError(f"Failed to read Algorithm C query from {query_path}: {exc}") from exc
+
+    if not isinstance(query_document, dict):
+        raise ProtocolValidationError(f"Algorithm C query at {query_path} must be a JSON object")
+
+    return query_document
+
+
+def load_algorithm_c_protocols(base_dir: Path) -> list[tuple[dict, datetime, str]]:
+    protocols: list[tuple[dict, datetime, str]] = []
+    for protocol_path in sorted(base_dir.glob("*_genCodeDesc.json")):
+        try:
+            protocol = load_json_document(protocol_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise ProtocolValidationError(f"Failed to read Algorithm C protocol from {protocol_path}: {exc}") from exc
+
+        if not isinstance(protocol, dict):
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} must be a JSON object")
+        if protocol.get("protocolVersion") != ALGORITHM_C_PROTOCOL_VERSION:
+            raise ProtocolValidationError(
+                f"Algorithm C requires protocolVersion {ALGORITHM_C_PROTOCOL_VERSION}; got {protocol.get('protocolVersion')!r} in {protocol_path.name}"
+            )
+
+        repository = protocol.get("REPOSITORY")
+        if not isinstance(repository, dict):
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY object")
+
+        revision_id = repository.get("revisionId")
+        if not isinstance(revision_id, str) or not revision_id:
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY.revisionId")
+
+        revision_timestamp = parse_protocol_timestamp(
+            repository.get("revisionTimestamp"),
+            f"REPOSITORY.revisionTimestamp in {protocol_path.name}",
+        )
+        protocols.append((protocol, revision_timestamp, revision_id))
+
+    if not protocols:
+        raise ProtocolValidationError(f"Algorithm C requires at least one *_genCodeDesc.json file in {base_dir}")
+
+    protocols.sort(key=lambda item: (item[1], item[2]))
+    return protocols
+
+
+def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
+    if args.outputFormat != "json":
+        raise UnsupportedConfigurationError("Only JSON output is implemented in the current Algorithm C slice")
+    if args.scope != "A":
+        raise UnsupportedConfigurationError("Current Algorithm C slice only supports Scope A")
+    if not args.genCodeDescSetDir:
+        raise UnsupportedConfigurationError("Current Algorithm C slice requires --genCodeDescSetDir")
+
+    query_document = load_algorithm_c_query(args)
+    protocols = load_algorithm_c_protocols(Path(args.genCodeDescSetDir))
+    end_bound = parse_day_end(args.endTime)
+    start_bound = parse_day_start(args.startTime)
+
+    requested_end_revision_id = None if query_document is None else query_document.get("endRevisionId")
+    if requested_end_revision_id is not None and (not isinstance(requested_end_revision_id, str) or not requested_end_revision_id):
+        raise ProtocolValidationError("Algorithm C query.json endRevisionId must be a non-empty string when provided")
+
+    if requested_end_revision_id is not None:
+        end_protocol = next((item for item in protocols if item[2] == requested_end_revision_id), None)
+        if end_protocol is None:
+            raise ProtocolValidationError(f"Algorithm C query.json endRevisionId {requested_end_revision_id!r} was not found in --genCodeDescSetDir")
+    else:
+        eligible_by_time = [item for item in protocols if item[1] <= end_bound]
+        if not eligible_by_time:
+            raise ProtocolValidationError("Algorithm C found no genCodeDesc protocol at or before endTime")
+        end_protocol = eligible_by_time[-1]
+
+    end_revision_timestamp = end_protocol[1]
+    end_revision_id = end_protocol[2]
+    surviving_lines: dict[tuple[str, str, int], tuple[int, datetime]] = {}
+
+    for protocol, revision_timestamp, _revision_id in protocols:
+        if revision_timestamp > end_revision_timestamp:
+            continue
+        detail_entries = protocol.get("DETAIL", [])
+        if not isinstance(detail_entries, list):
+            raise ProtocolValidationError("Protocol DETAIL must be a list")
+
+        for file_entry in detail_entries:
+            if not isinstance(file_entry, dict):
+                raise ProtocolValidationError("Each Protocol DETAIL entry must be an object")
+            file_name = file_entry.get("fileName")
+            if not isinstance(file_name, str) or not file_name:
+                raise ProtocolValidationError("Protocol DETAIL entry missing fileName")
+
+            code_lines = file_entry.get("codeLines", [])
+            if code_lines is None:
+                continue
+            if not isinstance(code_lines, list):
+                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-list codeLines")
+
+            for code_line in code_lines:
+                if not isinstance(code_line, dict):
+                    raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} contains a non-object codeLines item")
+                change_type = code_line.get("changeType")
+                blame = code_line.get("blame")
+                if not isinstance(blame, dict):
+                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame object")
+
+                origin_revision_id = blame.get("revisionId")
+                origin_file_path = blame.get("originalFilePath")
+                if not isinstance(origin_revision_id, str) or not origin_revision_id:
+                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame.revisionId")
+                if not isinstance(origin_file_path, str) or not origin_file_path:
+                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame.originalFilePath")
+
+                if change_type == "delete":
+                    origin_line = require_int(
+                        blame.get("originalLine"),
+                        f"Algorithm C delete entry for {file_name} blame.originalLine",
+                    )
+                    surviving_lines.pop((origin_revision_id, origin_file_path, origin_line), None)
+                    continue
+
+                if change_type != "add":
+                    raise ProtocolValidationError(
+                        f"Algorithm C codeLines entry for {file_name} must declare changeType=add or changeType=delete"
+                    )
+
+                origin_line = require_int(
+                    blame.get("originalLine"),
+                    f"Algorithm C add entry for {file_name} blame.originalLine",
+                )
+                gen_ratio = require_int(
+                    code_line.get("genRatio"),
+                    f"Algorithm C add entry for {file_name} genRatio",
+                )
+                if not 0 <= gen_ratio <= 100:
+                    raise ProtocolValidationError(f"Algorithm C add entry for {file_name} has genRatio outside 0..100")
+                blame_timestamp = parse_protocol_timestamp(
+                    blame.get("timestamp"),
+                    f"Algorithm C add entry for {file_name} blame.timestamp",
+                )
+                surviving_lines[(origin_revision_id, origin_file_path, origin_line)] = (gen_ratio, blame_timestamp)
+
+    total_code_lines = 0
+    full_generated_code_lines = 0
+    partial_generated_code_lines = 0
+    for gen_ratio, blame_timestamp in surviving_lines.values():
+        if not (start_bound <= blame_timestamp <= end_bound):
+            continue
+        total_code_lines += 1
+        if gen_ratio == 100:
+            full_generated_code_lines += 1
+        elif gen_ratio > 0:
+            partial_generated_code_lines += 1
+
+    summary = {
+        "totalCodeLines": total_code_lines,
+        "fullGeneratedCodeLines": full_generated_code_lines,
+        "partialGeneratedCodeLines": partial_generated_code_lines,
+    }
+    return build_result_document(
+        args,
+        summary,
+        end_revision_id,
+        logger,
+        protocol_version=ALGORITHM_C_PROTOCOL_VERSION,
+    )
+
+
 def resolve_algorithm_b_metric(args: argparse.Namespace) -> str:
     explicit_metric = args.metric
     inferred_metric = None
@@ -2073,8 +2260,10 @@ def build_result(args: argparse.Namespace) -> dict:
         raise UnsupportedConfigurationError(
             "Current Algorithm B routing only supports metrics: live_changed_source_ratio, period_added_ai_ratio"
         )
+    if args.algorithm == "C":
+        return build_result_algorithm_c(args, logger)
     if args.algorithm != "A":
-        raise UnsupportedConfigurationError("Only Algorithm A is implemented in the current Git/SVN Algorithm A slice")
+        raise UnsupportedConfigurationError("Only Algorithm A, B, and the current Algorithm C slice are implemented")
     if args.scope not in ("A", "B", "C", "D"):
         raise UnsupportedConfigurationError("Only Scope A, B, C, and D are implemented in the current Git/SVN Algorithm A slice")
     if args.outputFormat != "json":

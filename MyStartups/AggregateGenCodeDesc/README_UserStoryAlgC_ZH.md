@@ -13,7 +13,8 @@ Algorithm C 是一种离线、无需访问仓库的归因算法。
 以及 `blame.timestamp`，下游分析器可以直接从文件中完成 `startTime~endTime` 过滤和 `genRatio` 读取，
 无需访问任何 VCS。
 
-嵌入的 blame 信息在写入时由 `git blame` 或 `svn blame` 生成。
+嵌入的 blame 信息必须在写入时直接来自真实的 `git blame` 或 `svn blame` 输出。
+任何合成、推断、重放重建或人工改写的 blame 数据都不属于 AlgC 契约。
 两种来源均被明确支持。`REPOSITORY.vcsType` 字段（`git` 或 `svn`）以及
 `blame.revisionId` 格式（Git SHA 与 SVN 修订号如 `r12345`）
 使消费方无需访问仓库即可区分来源 VCS。
@@ -66,6 +67,7 @@ USNG-ALGC-HISTORY-<C>-SCOPE-<D>-<NN>: 标题
 - `UI-PROTOCOL`：结果必须是包含 `protocolName`、`protocolVersion`、`SUMMARY` 和 `REPOSITORY` 字段的合法协议形态输出。
 - `UI-GOLDEN`：结果必须与该场景已批准的 golden 输出一致。
 - `UI-BLAME-MANDATORY`：每条 DETAIL 条目必须携带包含 `revisionId`、`originalFilePath`、`originalLine` 和 `timestamp` 的 `blame` 对象。缺失或不完整的 `blame` 对象是协议违规，不得产生部分结果。
+- `UI-BLAME-REAL-VCS`：嵌入的 `blame` 必须来自写入时真实执行的 `git blame` 或 `svn blame` 输出。合成、推断、重放重建或人工修改的 blame 数据不属于 AlgC 契约。
 - `UI-EXHAUSTIVE-DETAIL`：文件中每条存活行都必须列在 DETAIL 中。仅当 `protocolVersion` 确认为 `"26.04"` 时，缺失行才被视为 `genRatio=0`。
 - `UI-PARITY`：对于相同的仓库场景，Algorithm C 必须与 Algorithm A 和 Algorithm B 产生相同的 `SUMMARY` 计数。
 - `UI-VCS-AGNOSTIC-CONSUMPTION`：Algorithm C 在运行时不调用任何 VCS 工具。VCS 来源（git 或 svn）仅通过 `REPOSITORY.vcsType` 和 `blame.revisionId` 格式传递。

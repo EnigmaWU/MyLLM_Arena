@@ -149,8 +149,10 @@ flowchart TD
 ### 是什么
 
 Algorithm C 是一种计划中的离线算法，运行时**不需要仓库访问，也不需要 diff 工件**。
-codeAgent 只记录每次提交中**新增**或**删除**的行，并将 `git blame` / `svn blame`
+codeAgent 只记录每次提交中**新增**或**删除**的行，并将真实的 `git blame` / `svn blame`
 信息嵌入每条新增行条目，写入 `genCodeDescProtoV26.04.json` 文件。
+这些嵌入的 blame 必须直接来自写入时捕获的 VCS blame 输出，
+不能来自后续推断、重放重建或人工编辑。
 由于每条新增行都携带 `blame.revisionId`、`blame.originalFilePath`、
 `blame.originalLine` 和 `blame.timestamp`，
 下游消费方可将所有 `endTime` 之前的文件按顺序累积，得到完整的存活行集合，
@@ -196,6 +198,7 @@ flowchart TD
 | 需要 `endTime` 之前的**全部** genCodeDesc 文件 | AlgC 必须处理从初始提交到 endRevision 的所有文件以累积存活行集合。链中缺失任一文件将导致结果错误。 |
 | `REPOSITORY.revisionTimestamp` 为必填项 | AlgC 使用此字段排序并确定处理哪些文件。缺少此字段，AlgC 无法确定处理顺序。 |
 | delete 条目必须精确匹配 blame 来源 | `blame.revisionId + originalFilePath + originalLine` 必须与之前的 add 条目完全一致。不匹配将静默地在累积集合中留下幽灵行。 |
+| 嵌入 blame 必须是真实 VCS blame | AlgC 假设嵌入的 blame 直接来自写入时真实执行的 `git blame` 或 `svn blame` 输出。合成、推断或人工编辑的 blame 会破坏 AlgC 契约。 |
 | blame 准确性依赖 codeAgent | 消费时的正确性完全信任 codeAgent 写入时的 blame 调用结果。分析过程中无法独立进行 VCS 验证。 |
 | add 条目的 lineRange 约束 | lineRange 条目仅在该范围内所有行共享同一 blame 来源时才合法。blame 来源不同的行必须各自使用独立条目。 |
 | 无法检测过期 blame | 如果 codeAgent 生成 genCodeDesc 文件后仓库发生了 force-push 或 amend，嵌入的 blame 将静默过期。 |

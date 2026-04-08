@@ -155,7 +155,9 @@ flowchart TD
 Algorithm C is a planned offline algorithm that requires **no repository access and
 no diff artifacts at runtime**.
 The codeAgent records only the lines **added** or **deleted** in each commit, with
-`git blame` or `svn blame` info per added line, into a `genCodeDescProtoV26.04.json` file.
+real `git blame` or `svn blame` info per added line, into a `genCodeDescProtoV26.04.json` file.
+That embedded blame must come directly from the VCS blame output captured at write time,
+not from later inference, replay reconstruction, or manual editing.
 Because each add entry carries `blame.revisionId`, `blame.originalFilePath`,
 `blame.originalLine`, and `blame.timestamp`, a downstream consumer can accumulate
 the full surviving-line set across all files up to `endTime`, apply the
@@ -201,6 +203,7 @@ flowchart TD
 | Requires **all** genCodeDesc files up to `endTime` | AlgC must process every commit's file from the beginning up to endRevision to accumulate the surviving-line set. A missing file in the chain corrupts the result. |
 | `REPOSITORY.revisionTimestamp` is mandatory | AlgC uses this field to sort and select which files to process. Without it, AlgC cannot determine processing order. |
 | Delete entries must reference the exact blame origin | `blame.revisionId + originalFilePath + originalLine` must precisely match the earlier add entry. A mismatch silently leaves a ghost line in the accumulated set. |
+| Embedded blame must be real VCS blame | AlgC assumes the embedded blame came directly from real `git blame` or `svn blame` output captured at write time. Synthetic, inferred, or manually edited blame breaks the AlgC contract. |
 | Blame accuracy depends on codeAgent | Correctness at consume time is entirely trusted from the codeAgent's write-time blame call. No independent VCS verification is possible during analysis. |
 | lineRange constraint for add entries | A lineRange entry is only valid when all lines share the same blame origin. Lines with different blame origins must each have a separate entry. |
 | No catch for stale blame | If a force-push or amend happens after the file was written, the embedded blame is silently stale. |

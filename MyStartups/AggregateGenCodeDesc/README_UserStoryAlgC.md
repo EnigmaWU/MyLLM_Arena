@@ -15,7 +15,10 @@ the codeAgent. Because every surviving line carries `blame.revisionId`,
 analyzer can apply the `startTime~endTime` filter and read `genRatio` directly from
 the file without touching the VCS.
 
-The embedded blame was produced at write time from either `git blame` or `svn blame`.
+The embedded blame must be produced at write time directly from real `git blame`
+or `svn blame` output.
+Synthetic, inferred, replay-reconstructed, or hand-edited blame data is outside
+the AlgC contract.
 Both origins are explicitly supported. The `REPOSITORY.vcsType` field (`git` or `svn`)
 and the `blame.revisionId` format (Git SHA vs SVN revision number such as `r12345`)
 allow consumers to distinguish origin VCS without repository access.
@@ -74,6 +77,9 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `UI-BLAME-MANDATORY`: every DETAIL entry must carry a `blame` object with
   `revisionId`, `originalFilePath`, `originalLine`, and `timestamp`.
   A missing or partial `blame` object is a protocol violation and must not produce a partial result.
+- `UI-BLAME-REAL-VCS`: embedded `blame` must come from real `git blame` or `svn blame`
+  output captured at write time. Synthetic, inferred, replay-reconstructed, or manually
+  edited blame data is out of contract for AlgC.
 - `UI-EXHAUSTIVE-DETAIL`: every surviving line in the file should be listed in DETAIL.
   If a surviving line is omitted and `protocolVersion` is confirmed as `"26.04"`,
   Algorithm C imputes `genRatio=0 / genMethod=Manual` for that line and emits a WARNING.
