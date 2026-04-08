@@ -1,0 +1,68 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/app.py",
+      "codeLines": [
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/app.py",
+            "originalLine": 2
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "r101",
+            "originalFilePath": "src/app.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 4,
+          "genRatio": 50,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "r101",
+            "originalFilePath": "src/app.py",
+            "originalLine": 4,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 5,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "r101",
+            "originalFilePath": "src/app.py",
+            "originalLine": 5,
+            "timestamp": "2026-03-10T10:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-demo",
+    "repoBranch": "trunk",
+    "revisionId": "r101",
+    "revisionTimestamp": "2026-03-10T10:00:00Z"
+  }
+}

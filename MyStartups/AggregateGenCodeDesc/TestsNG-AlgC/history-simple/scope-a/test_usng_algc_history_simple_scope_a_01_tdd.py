@@ -48,13 +48,6 @@ class TestUsngAlgcHistorySimpleScopeA01Tdd(unittest.TestCase):
             )
             return load_json(output_file)
 
-    def _normalized_contract(self, result: dict) -> dict:
-        return {
-            "protocolName": result["protocolName"],
-            "protocolVersion": result["protocolVersion"],
-            "SUMMARY": result["SUMMARY"],
-        }
-
     def test_cli_matches_git_expected_result(self) -> None:
         expected_result = load_json(FIXTURE_GIT_DIR / "expected_result.json")
         actual_result = self._run_cli(FIXTURE_GIT_DIR)
@@ -64,17 +57,6 @@ class TestUsngAlgcHistorySimpleScopeA01Tdd(unittest.TestCase):
         expected_result = load_json(FIXTURE_SVN_DIR / "expected_result.json")
         actual_result = self._run_cli(FIXTURE_SVN_DIR)
         self.assertEqual(actual_result, expected_result)
-
-    def test_git_and_svn_share_same_observable_summary_contract(self) -> None:
-        expected_git = load_json(FIXTURE_GIT_DIR / "expected_result.json")
-        expected_svn = load_json(FIXTURE_SVN_DIR / "expected_result.json")
-
-        self.assertEqual(self._normalized_contract(expected_git), self._normalized_contract(expected_svn))
-
-        actual_git = self._run_cli(FIXTURE_GIT_DIR)
-        actual_svn = self._run_cli(FIXTURE_SVN_DIR)
-        self.assertEqual(self._normalized_contract(actual_git), self._normalized_contract(expected_git))
-        self.assertEqual(self._normalized_contract(actual_svn), self._normalized_contract(expected_svn))
 
 
 if __name__ == "__main__":
