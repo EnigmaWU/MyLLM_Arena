@@ -1,0 +1,40 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "HumanOnlyRevision",
+  "SUMMARY": {
+    "totalCodeLines": 2,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/temp_rules.py",
+      "codeLines": [
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 3
+          }
+        },
+        {
+          "changeType": "delete",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 4
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-us04-demo",
+    "repoBranch": "trunk",
+    "revisionId": "r101",
+    "revisionTimestamp": "2026-03-21T09:00:00Z"
+  }
+}

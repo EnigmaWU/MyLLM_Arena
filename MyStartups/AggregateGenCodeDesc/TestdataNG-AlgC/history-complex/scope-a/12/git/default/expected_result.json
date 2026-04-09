@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "SUMMARY": {
+    "totalCodeLines": 200,
+    "fullGeneratedCodeLines": 80,
+    "partialGeneratedCodeLines": 60
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us12-git-scale",
+    "repoBranch": "main",
+    "revisionId": "algc-us12-git-r12000"
+  }
+}

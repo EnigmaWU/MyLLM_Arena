@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "SUMMARY": {
+    "totalCodeLines": 2,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 0
+  },
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-us07-demo",
+    "repoBranch": "trunk",
+    "revisionId": "r104"
+  }
+}

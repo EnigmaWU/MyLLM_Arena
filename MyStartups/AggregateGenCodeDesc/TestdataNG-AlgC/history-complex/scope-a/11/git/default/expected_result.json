@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "SUMMARY": {
+    "totalCodeLines": 7,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 2
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us11-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us11-git-r1200"
+  }
+}

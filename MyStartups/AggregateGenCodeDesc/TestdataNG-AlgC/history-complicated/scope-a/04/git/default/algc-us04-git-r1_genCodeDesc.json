@@ -1,0 +1,72 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 4,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/temp_rules.py",
+      "codeLines": [
+        {
+          "changeType": "add",
+          "lineLocation": 1,
+          "genRatio": 100,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us04-git-r1",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 1,
+            "timestamp": "2026-03-06T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us04-git-r1",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-06T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 100,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us04-git-r1",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 3,
+            "timestamp": "2026-03-06T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 4,
+          "genRatio": 100,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us04-git-r1",
+            "originalFilePath": "src/temp_rules.py",
+            "originalLine": 4,
+            "timestamp": "2026-03-06T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us04-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us04-git-r1",
+    "revisionTimestamp": "2026-03-06T09:00:00Z"
+  }
+}

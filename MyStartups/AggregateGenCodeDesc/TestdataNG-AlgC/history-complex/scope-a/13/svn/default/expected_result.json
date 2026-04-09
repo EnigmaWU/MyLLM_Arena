@@ -1,0 +1,15 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "SUMMARY": {
+    "totalCodeLines": 200,
+    "fullGeneratedCodeLines": 80,
+    "partialGeneratedCodeLines": 60
+  },
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-us13-svn-scale",
+    "repoBranch": "trunk",
+    "revisionId": "r12000"
+  }
+}

@@ -103,7 +103,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: reproduce the same live-changed metric as Algorithm A without requiring repository access
 - `Story`: As a repository analyst, I want to calculate the weighted AI ratio for live source-code lines using only `genCodeDescProtoV26.04` files, so that I can reproduce the Algorithm A result without a live repository.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. No implementation exists yet. Protocol shape is defined in `genCodeDescProtoV26.04.json`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-SIMPLE-SCOPE-A-01`.
+- `Status`: Covered by `TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_01_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-SIMPLE-SCOPE-A-01`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-SIMPLE-SCOPE-A-01-GIT`, `TestdataNG-ALGC-HISTORY-SIMPLE-SCOPE-A-01-SVN`
 
 **AC-01** — *Core offline measurement contract*
@@ -146,7 +146,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: Algorithm C must be VCS-agnostic at consumption time; origin VCS is metadata only
 - `Story`: As a repository analyst, I want Algorithm C to produce the same result semantics for Git-origin and SVN-origin blame data, so that VCS type does not affect the attribution contract.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-SIMPLE-SCOPE-A-08`.
+- `Status`: Covered by `TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_08_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-SIMPLE-SCOPE-A-08`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-SIMPLE-SCOPE-A-08-GIT`, `TestdataNG-ALGC-HISTORY-SIMPLE-SCOPE-A-08-SVN`
 
 **AC-01** — *Same scenario, same result across VCS origins*
@@ -173,7 +173,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: prevent old AI ownership from staying attached to overwritten code
 - `Story`: As a repository analyst, I want a human rewrite of a previously AI-generated line to reset attribution to Manual via the embedded `blame.timestamp`, so that old AI ownership does not persist in the Algorithm C result.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-02`.
+- `Status`: Covered by `TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_02_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-02`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-02`
 
 **AC-01** — *Human rewrite clears prior AI attribution via blame*
@@ -204,7 +204,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: ensure the live snapshot at `endTime` reflects the latest AI contribution
 - `Story`: As a repository analyst, I want a later AI rewrite of a human line to become the effective attribution source via the embedded `blame`, so that Algorithm C reflects the latest AI contribution without repository access.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-03`.
+- `Status`: Covered by `TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_03_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-03`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-03`
 
 **AC-01** — *Later AI revision becomes effective attribution via blame*
@@ -235,7 +235,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: deleted lines are simply absent from exhaustive DETAIL; no repository access is needed to confirm deletion
 - `Story`: As a repository analyst, I want deleted lines to be invisible to Algorithm C by their absence from exhaustive DETAIL, so that the result reflects only the surviving live snapshot.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-04`.
+- `Status`: Covered by `TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_04_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-04`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-04`
 
 **AC-01** — *Deleted lines are absent from exhaustive DETAIL and therefore excluded*
@@ -266,7 +266,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: rename transparency is required for correct line attribution and must not require a VCS subprocess in Algorithm C
 - `Story`: As a repository analyst, I want renamed or moved files to be attributed correctly via `blame.originalFilePath`, so that Algorithm C handles rename history without repository access.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-05`.
+- `Status`: Covered by `TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_05_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-05`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-05`
 
 **AC-01** — *originalFilePath differs from fileName for renamed files*
@@ -303,7 +303,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: merge commits must not reset or flatten per-line provenance in the Algorithm C result
 - `Story`: As a repository analyst, I want merged branches to preserve per-line effective attribution via embedded `blame`, so that Algorithm C does not flatten ownership to merge commits or branch labels.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-07`.
+- `Status`: Covered by `TestsNG-AlgC/history-complicated/scope-a/test_usng_algc_history_complicated_scope_a_07_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-A-07`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLICATED-SCOPE-A-07`
 
 **AC-01** — *Merge does not override embedded blame*
@@ -330,7 +330,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: production repositories have large file sets; correctness must hold at scale
 - `Story`: As a repository analyst, I want Algorithm C to remain correct across a large file set so that result semantics are preserved at production scale.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-09`.
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_09_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-09`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLEX-SCOPE-A-09`
 
 **AC-01** — *Large file set produces one correct result*
@@ -355,7 +355,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: deep history must not distort per-line attribution; embedded blame covers all depths equally
 - `Story`: As a repository analyst, I want deep commit history to be transparent to Algorithm C via embedded blame, so that lines from old revisions and recent revisions are attributed equally correctly.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-10`.
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_10_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-10`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLEX-SCOPE-A-10`
 
 **AC-01** — *Old-origin lines attributed correctly*
@@ -380,7 +380,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - `WHY`: branch-heavy repositories must not distort attribution when Algorithm C is used
 - `Story`: As a repository analyst, I want branch-heavy history to be transparent to Algorithm C via embedded blame, so that integrating many feature branches does not distort the final result.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-11`.
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_11_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-11`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLEX-SCOPE-A-11`
 
 **AC-01** — *Per-line independence across many merged branches*
@@ -405,7 +405,7 @@ repositories at production scale.
 - `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 commits and ≥100 branches without correctness or performance degradation
 - `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale Git repositories with ≥10 000 commits and ≥100 branches, so that it is production-ready for real-world Git histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin` | `tier=Heavy`
-- `Status`: Planned. No implementation. Corresponds to AlgA gate `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`.
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py`. Corresponds to AlgA gate `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-12-GIT`
 
 **AC-GIT-01** — *Scale floor: ≥10 000 commits, ≥100 branches*
@@ -442,7 +442,7 @@ repositories at production scale.
 - `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 SVN revisions and ≥100 branch copies without correctness or performance degradation
 - `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale SVN repositories with ≥10 000 revisions and ≥100 branch copies, so that it is production-ready for real-world SVN histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=svn-origin` | `tier=Heavy`
-- `Status`: Planned. No implementation. Corresponds to AlgA gate `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`.
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py`. Corresponds to AlgA gate `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-13-SVN`
 
 **AC-SVN-01** — *Scale floor: ≥10 000 revisions, ≥100 branch copies*
@@ -481,7 +481,7 @@ repositories at production scale.
 - `WHY`: guarantee that the three algorithms are semantically equivalent; detect any divergence introduced by the offline blame-embedding approach
 - `Story`: As a quality engineer, I want a parity gate that asserts Algorithm C produces the same `SUMMARY` as Algorithm A and Algorithm B for every shared story scenario, so that the three algorithms remain semantically equivalent.
 - `Support`: `scope=A baseline` | `alg=A and B and C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Planned. Depends on ALGC-01 through ALGC-05 and ALGC-07 through ALGC-11 being green.
+- `Status`: Covered by `TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_06_tdd.py`. Depends on ALGC-01 through ALGC-05 and ALGC-07 through ALGC-11 being green.
 - `Anchors`: `TestsNG-ALGC-PARITY-GATE`
 
 **AC-01** — *Algorithm C matches Algorithm A for all shared simple-history scenarios*

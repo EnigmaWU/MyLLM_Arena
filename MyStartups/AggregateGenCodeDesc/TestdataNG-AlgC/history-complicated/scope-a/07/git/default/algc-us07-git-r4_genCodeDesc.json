@@ -1,0 +1,72 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "MergeAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/merge_story.py",
+      "codeLines": [
+        {
+          "changeType": "add",
+          "lineLocation": 1,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us07-git-r1",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 1,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "algc-us07-git-r2",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 2,
+            "timestamp": "2026-03-10T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us07-git-r3",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 3,
+            "timestamp": "2026-03-12T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 4,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us07-git-r1",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 4,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-us07-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us07-git-r4",
+    "revisionTimestamp": "2026-03-20T09:00:00Z"
+  }
+}

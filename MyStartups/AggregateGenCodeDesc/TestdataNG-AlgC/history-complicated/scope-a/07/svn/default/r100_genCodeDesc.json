@@ -1,0 +1,72 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "BaselineAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/merge_story.py",
+      "codeLines": [
+        {
+          "changeType": "add",
+          "lineLocation": 1,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 1,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 2,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 3,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 4,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "r100",
+            "originalFilePath": "src/merge_story.py",
+            "originalLine": 4,
+            "timestamp": "2026-02-20T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///example/svn/algc-us07-demo",
+    "repoBranch": "trunk",
+    "revisionId": "r100",
+    "revisionTimestamp": "2026-02-20T09:00:00Z"
+  }
+}
