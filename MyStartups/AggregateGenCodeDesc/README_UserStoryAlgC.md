@@ -363,10 +363,10 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 ### USNG-ALGC-HISTORY-COMPLEX-SCOPE-A-10: Deep History Must Preserve Latest Effective Attribution
 
 - `WHO`: repository analyst
-- `WHEN`: surviving lines originate from revisions spread across a long commit history (thousands of commits deep)
-- `WHAT`: Algorithm C respects each line's `blame.timestamp` regardless of how old or recent the origin revision is
-- `WHY`: deep history must not distort per-line attribution; embedded blame covers all depths equally
-- `Story`: As a repository analyst, I want deep commit history to be transparent to Algorithm C via embedded blame, so that lines from old revisions and recent revisions are attributed equally correctly.
+- `WHEN`: surviving lines originate from revisions spread across a long commit history (`10K+` commits deep) and some lines have been rewritten multiple times before the final surviving attribution is established
+- `WHAT`: Algorithm C respects each line's latest effective `blame.timestamp` and `blame.revisionId` regardless of how many intermediate rewrites or how much history depth exists between origin and `endRevision`
+- `WHY`: deep history must not distort per-line attribution; embedded blame must stay correct even after multi-hop rewrites and long-lived convergence
+- `Story`: As a repository analyst, I want deep commit history and repeated rewrites to be transparent to Algorithm C via embedded blame, so that lines from old revisions and recent revisions are attributed correctly even after many intermediate transitions.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
 - `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_10_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-10`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLEX-SCOPE-A-10`
@@ -383,15 +383,21 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - WHEN Algorithm C filters by time window
 - THEN the line is included with its `genRatio` regardless of how many commits exist between the origin and `endRevision`
 
+**AC-03** — *Intermediate rewrites do not survive once later attribution wins*
+
+- GIVEN a line that was rewritten multiple times across deep history before the final surviving version was established
+- WHEN Algorithm C aggregates the final live snapshot
+- THEN only the latest effective surviving attribution counts; intermediate rewritten states do not leak into the result
+
 ---
 
 ### USNG-ALGC-HISTORY-COMPLEX-SCOPE-A-11: Many Merged Branches Must Preserve Per-Line Attribution
 
 - `WHO`: repository analyst
-- `WHEN`: many branches are merged into the target branch inside one requested window and the final genCodeDesc covers all surviving lines with their individual blame origins
-- `WHAT`: Algorithm C preserves per-line attribution regardless of how many merged branches contributed surviving lines
-- `WHY`: branch-heavy repositories must not distort attribution when Algorithm C is used
-- `Story`: As a repository analyst, I want branch-heavy history to be transparent to Algorithm C via embedded blame, so that integrating many feature branches does not distort the final result.
+- `WHEN`: many branches are merged into the target branch inside one requested window, some lines are later stabilized after merge, and the final genCodeDesc covers all surviving lines with their individual blame origins
+- `WHAT`: Algorithm C preserves per-line attribution regardless of how many merged branches contributed surviving lines or how many post-merge stabilizations occurred
+- `WHY`: branch-heavy repositories must not distort attribution when Algorithm C is used; branch fan-in and later cleanups must still preserve the correct effective origin for each surviving line
+- `Story`: As a repository analyst, I want branch-heavy history and later post-merge stabilizations to be transparent to Algorithm C via embedded blame, so that integrating many feature branches does not distort the final result.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Fast`
 - `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_11_tdd.py`. Parity target: `USNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-11`.
 - `Anchors`: `TestdataNG-ALGC-HISTORY-COMPLEX-SCOPE-A-11`
@@ -401,6 +407,12 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 - GIVEN surviving lines originate from many different merged branches each with its own `blame.revisionId` and `blame.timestamp`
 - WHEN Algorithm C processes the exhaustive DETAIL
 - THEN it attributes each line independently and does not flatten ownership to merge order or branch label
+
+**AC-02** — *Post-merge stabilization does not flatten branch-origin attribution*
+
+- GIVEN some merged lines are later stabilized while others keep their original merged-branch attribution
+- WHEN Algorithm C processes the final surviving set
+- THEN each surviving line still resolves to its own effective origin rather than collapsing to one merge or stabilization phase
 
 ---
 
@@ -415,9 +427,9 @@ live repository histories named in the story text.
 
 - `WHO`: repository analyst
 - `WHEN`: validating production-readiness of Algorithm C against a `genCodeDescProtoV26.04` file generated from a large branch-heavy Git repository
-- `WHAT`: keep Algorithm C correct and performant when processing exhaustive DETAIL derived from a production-scale Git repository
-- `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 commits and ≥100 branches without correctness or performance degradation
-- `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale Git repositories with ≥10 000 commits and ≥100 branches, so that it is production-ready for real-world Git histories.
+- `WHAT`: keep Algorithm C correct and performant when processing exhaustive DETAIL derived from a production-scale Git repository with branch fan-in, repeated per-file rewrites, and post-integration stabilization
+- `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 commits and ≥100 branches without correctness or performance degradation even when the final snapshot is the result of multi-phase convergence rather than one flat import
+- `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale Git repositories with ≥10 000 commits, ≥100 branches, and multi-phase convergence, so that it is production-ready for real-world Git histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin` | `tier=Heavy`
 - `Status`: Synthetic scale-shaped coverage exists in `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py`. Direct proof against a rebuilt ≥10 000 commit / ≥100 branch Git history remains pending. Corresponds to AlgA gate `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-12-GIT`
@@ -434,13 +446,19 @@ live repository histories named in the story text.
 - WHEN Algorithm C resolves attribution
 - THEN it is based on each line's embedded `blame.revisionId` and `blame.timestamp`, not merge shape or branch naming
 
-**AC-GIT-03** — *Correctness and scalability both verified*
+**AC-GIT-03** — *Repeated rewrite and stabilization patterns stay correct at scale*
+
+- GIVEN many files include delete-and-readd transitions, repeated rewrites, and later stabilization lines before the final release snapshot
+- WHEN Algorithm C aggregates the surviving lines at scale
+- THEN it preserves the latest effective attribution per line while still producing the approved repository-level SUMMARY
+
+**AC-GIT-04** — *Correctness and scalability both verified*
 
 - GIVEN the heavy Git production-scale scenario completes successfully
 - WHEN the acceptance outcome is evaluated
 - THEN it verifies both correctness of the final aggregate result and that processing time scales acceptably relative to total DETAIL line count
 
-**AC-GIT-04** — *Parity with Algorithm A Git production gate*
+**AC-GIT-05** — *Parity with Algorithm A Git production gate*
 
 - GIVEN the same scenario used for `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`
 - WHEN Algorithm C is executed against the equivalent `genCodeDescProtoV26.04` file
@@ -452,9 +470,9 @@ live repository histories named in the story text.
 
 - `WHO`: repository analyst
 - `WHEN`: validating production-readiness of Algorithm C against a `genCodeDescProtoV26.04` file generated from a large SVN repository under branch and merge pressure
-- `WHAT`: keep Algorithm C correct and performant when processing exhaustive DETAIL derived from a production-scale SVN repository
-- `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 SVN revisions and ≥100 branch copies without correctness or performance degradation
-- `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale SVN repositories with ≥10 000 revisions and ≥100 branch copies, so that it is production-ready for real-world SVN histories.
+- `WHAT`: keep Algorithm C correct and performant when processing exhaustive DETAIL derived from a production-scale SVN repository with branch-copy fan-out, reintegration pressure, repeated rewrites, and later stabilization
+- `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 SVN revisions and ≥100 branch copies without correctness or performance degradation even when the final snapshot is produced by multi-phase convergence rather than one flat import
+- `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale SVN repositories with ≥10 000 revisions, ≥100 branch copies, and multi-phase convergence, so that it is production-ready for real-world SVN histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=svn-origin` | `tier=Heavy`
 - `Status`: Synthetic scale-shaped coverage exists in `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py`. Direct proof against a rebuilt ≥10 000 revision / ≥100 branch-copy SVN history remains pending. Corresponds to AlgA gate `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-13-SVN`
@@ -471,13 +489,19 @@ live repository histories named in the story text.
 - WHEN Algorithm C resolves attribution
 - THEN it is based on each line's embedded `blame.revisionId` (SVN revision number) and `blame.timestamp`, not merge timing or branch path alone
 
-**AC-SVN-03** — *Correctness and scalability both verified*
+**AC-SVN-03** — *Repeated rewrite and stabilization patterns stay correct at scale*
+
+- GIVEN many files include delete-and-readd transitions, repeated rewrites, and later stabilization lines before the final release snapshot
+- WHEN Algorithm C aggregates the surviving lines at scale
+- THEN it preserves the latest effective attribution per line while still producing the approved repository-level SUMMARY
+
+**AC-SVN-04** — *Correctness and scalability both verified*
 
 - GIVEN the heavy SVN production-scale scenario completes successfully
 - WHEN the acceptance outcome is evaluated
 - THEN it verifies both correctness of the final aggregate result and that processing time scales acceptably relative to total DETAIL line count
 
-**AC-SVN-04** — *Parity with Algorithm A SVN production gate*
+**AC-SVN-05** — *Parity with Algorithm A SVN production gate*
 
 - GIVEN the same scenario used for `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`
 - WHEN Algorithm C is executed against the equivalent `genCodeDescProtoV26.04` file

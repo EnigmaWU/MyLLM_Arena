@@ -10,23 +10,32 @@ from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, load_json
 FIXTURE_GIT_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "history-complex" / "scope-a" / "09" / "git" / "default"
 FIXTURE_SVN_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "history-complex" / "scope-a" / "09" / "svn" / "default"
 FILE_COUNT = 60
+FILES_PER_BUCKET = 20
 
 
 class TestUsngAlgcHistoryComplexScopeA09Tdd(unittest.TestCase):
     maxDiff = None
 
-    def _build_protocol(self, query: dict) -> dict:
-        detail = []
+    def _file_name(self, file_index: int) -> str:
+        if file_index < FILE_COUNT // 3:
+            return f"src/bulk/core/module_{file_index:03d}.py"
+        if file_index < (2 * FILE_COUNT) // 3:
+            return f"src/bulk/services/module_{file_index:03d}.py"
+        return f"src/bulk/utils/module_{file_index:03d}.py"
+
+    def _build_protocols(self, query: dict) -> list[dict]:
+        baseline_detail = []
+        end_detail = []
         for file_index in range(FILE_COUNT):
-            file_name = f"src/bulk/module_{file_index:03d}.py"
-            if file_index < 20:
+            file_name = self._file_name(file_index)
+            if file_index < FILES_PER_BUCKET:
                 ratio = 100
-            elif file_index < 40:
+            elif file_index < FILES_PER_BUCKET * 2:
                 ratio = 60
             else:
                 ratio = 0
 
-            detail.append(
+            baseline_detail.append(
                 {
                     "fileName": file_name,
                     "codeLines": [
@@ -45,6 +54,62 @@ class TestUsngAlgcHistoryComplexScopeA09Tdd(unittest.TestCase):
                         {
                             "changeType": "add",
                             "lineLocation": 2,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": "baseline-r0",
+                                "originalFilePath": file_name,
+                                "originalLine": 2,
+                                "timestamp": "2026-02-20T09:00:00Z",
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": 3,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": "baseline-r0",
+                                "originalFilePath": file_name,
+                                "originalLine": 3,
+                                "timestamp": "2026-02-20T09:00:00Z",
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": 4,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": "baseline-r0",
+                                "originalFilePath": file_name,
+                                "originalLine": 4,
+                                "timestamp": "2026-02-20T09:00:00Z",
+                            },
+                        },
+                    ],
+                }
+            )
+
+            end_detail.append(
+                {
+                    "fileName": file_name,
+                    "codeLines": [
+                        {
+                            "changeType": "delete",
+                            "lineLocation": 2,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": "baseline-r0",
+                                "originalFilePath": file_name,
+                                "originalLine": 2,
+                                "timestamp": "2026-02-20T09:00:00Z",
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": 2,
                             "genRatio": ratio,
                             "genMethod": "codeCompletion" if ratio > 0 else "Manual",
                             "blame": {
@@ -55,14 +120,26 @@ class TestUsngAlgcHistoryComplexScopeA09Tdd(unittest.TestCase):
                             },
                         },
                         {
-                            "changeType": "add",
-                            "lineLocation": 3,
+                            "changeType": "delete",
+                            "lineLocation": 4,
                             "genRatio": 0,
                             "genMethod": "Manual",
                             "blame": {
-                                "revisionId": f"feature-r{file_index:03d}",
+                                "revisionId": "baseline-r0",
                                 "originalFilePath": file_name,
-                                "originalLine": 3,
+                                "originalLine": 4,
+                                "timestamp": "2026-02-20T09:00:00Z",
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": 4,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": f"stabilize-r{file_index:03d}",
+                                "originalFilePath": file_name,
+                                "originalLine": 4,
                                 "timestamp": "2026-03-12T09:00:00Z",
                             },
                         },
@@ -70,34 +147,55 @@ class TestUsngAlgcHistoryComplexScopeA09Tdd(unittest.TestCase):
                 }
             )
 
-        return {
-            "protocolName": "generatedTextDesc",
-            "protocolVersion": "26.04",
-            "codeAgent": "ScaleAgent",
-            "SUMMARY": {
-                "totalCodeLines": FILE_COUNT * 2,
-                "fullGeneratedCodeLines": 20,
-                "partialGeneratedCodeLines": 20,
+        return [
+            {
+                "protocolName": "generatedTextDesc",
+                "protocolVersion": "26.04",
+                "codeAgent": "ScaleBaselineAgent",
+                "SUMMARY": {
+                    "totalCodeLines": FILE_COUNT * 4,
+                    "fullGeneratedCodeLines": 0,
+                    "partialGeneratedCodeLines": 0,
+                },
+                "DETAIL": baseline_detail,
+                "REPOSITORY": {
+                    "vcsType": query["vcsType"],
+                    "repoURL": query["repoURL"],
+                    "repoBranch": query["repoBranch"],
+                    "revisionId": "algc-us09-baseline-r0",
+                    "revisionTimestamp": "2026-02-20T09:00:00Z",
+                },
             },
-            "DETAIL": detail,
-            "REPOSITORY": {
-                "vcsType": query["vcsType"],
-                "repoURL": query["repoURL"],
-                "repoBranch": query["repoBranch"],
-                "revisionId": query["endRevisionId"],
-                "revisionTimestamp": "2026-03-25T09:00:00Z",
+            {
+                "protocolName": "generatedTextDesc",
+                "protocolVersion": "26.04",
+                "codeAgent": "ScaleAgent",
+                "SUMMARY": {
+                    "totalCodeLines": FILE_COUNT * 2,
+                    "fullGeneratedCodeLines": 20,
+                    "partialGeneratedCodeLines": 20,
+                },
+                "DETAIL": end_detail,
+                "REPOSITORY": {
+                    "vcsType": query["vcsType"],
+                    "repoURL": query["repoURL"],
+                    "repoBranch": query["repoBranch"],
+                    "revisionId": query["endRevisionId"],
+                    "revisionTimestamp": "2026-03-25T09:00:00Z",
+                },
             },
-        }
+        ]
 
     def _run_cli(self, fixture_dir: Path) -> dict:
         query = load_json(fixture_dir / "query.json")
-        protocol = self._build_protocol(query)
+        protocols = self._build_protocols(query)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             output_file = temp_path / "out.json"
-            protocol_path = temp_path / f"{query['endRevisionId']}_genCodeDesc.json"
-            protocol_path.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
+            for protocol in protocols:
+                protocol_path = temp_path / f"{protocol['REPOSITORY']['revisionId']}_genCodeDesc.json"
+                protocol_path.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
 
             subprocess.run(
                 [

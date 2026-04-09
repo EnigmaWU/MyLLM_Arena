@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, load_json
@@ -10,80 +11,276 @@ from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, load_json
 FIXTURE_GIT_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "history-complex" / "scope-a" / "11" / "git" / "default"
 FIXTURE_SVN_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "history-complex" / "scope-a" / "11" / "svn" / "default"
 
+BASELINE_REVISION_NUMBER = 2000
+FINAL_REVISION_NUMBER = 12000
+TOTAL_SYNTHETIC_COMMITS = FINAL_REVISION_NUMBER - BASELINE_REVISION_NUMBER + 1
+BASELINE_TIMESTAMP = "2026-03-02T09:00:00Z"
+IN_WINDOW_BASE_TIMESTAMP = datetime(2026, 3, 3, 0, 0, tzinfo=timezone.utc)
+FINAL_TARGETS = [
+    ("src/merged_branches/core_paths.py", 2, "feature-a", 100),
+    ("src/merged_branches/core_paths.py", 3, "feature-b", 60),
+    ("src/merged_branches/core_paths.py", 4, "stabilize", 0),
+    ("src/merged_branches/service_paths.py", 1, "feature-c", 100),
+    ("src/merged_branches/service_paths.py", 2, "feature-d", 60),
+    ("src/merged_branches/service_paths.py", 3, "feature-e", 0),
+]
+
 
 class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
     maxDiff = None
 
-    def _build_protocol(self, query: dict) -> dict:
-        file_name = "src/merged_branches.py"
-        revisions = {
-            "git": [
-                "algc-us11-git-main-r1000",
-                "algc-us11-git-feature-a-r1010",
-                "algc-us11-git-feature-b-r1020",
-                "algc-us11-git-feature-c-r1030",
-                "algc-us11-git-feature-d-r1040",
-                "algc-us11-git-feature-e-r1050",
-                "algc-us11-git-feature-f-r1060",
-            ],
-            "svn": ["r1000", "r1010", "r1020", "r1030", "r1040", "r1050", "r1060"],
-        }
-        branch_revisions = revisions[query["vcsType"]]
-        ratios = [0, 100, 60, 0, 100, 60, 0]
-        times = [
-            "2026-03-02T09:00:00Z",
-            "2026-03-05T09:00:00Z",
-            "2026-03-07T09:00:00Z",
-            "2026-03-09T09:00:00Z",
-            "2026-03-12T09:00:00Z",
-            "2026-03-16T09:00:00Z",
-            "2026-03-20T09:00:00Z",
-        ]
-        code_lines = []
-        for index, (revision_id, ratio, timestamp) in enumerate(zip(branch_revisions, ratios, times), start=1):
-            code_lines.append(
-                {
-                    "changeType": "add",
-                    "lineLocation": index,
-                    "genRatio": ratio,
-                    "genMethod": "codeCompletion" if ratio > 0 else "Manual",
-                    "blame": {
-                        "revisionId": revision_id,
-                        "originalFilePath": file_name,
-                        "originalLine": index,
-                        "timestamp": timestamp,
-                    },
-                }
-            )
+    def _format_revision_id(self, vcs_type: str, revision_number: int, family: str) -> str:
+        if vcs_type == "git":
+            return f"algc-us11-git-{family}-r{revision_number:05d}"
+        return f"r{revision_number:05d}"
 
-        return {
+    def _revision_timestamp(self, revision_number: int) -> str:
+        if revision_number == BASELINE_REVISION_NUMBER:
+            return BASELINE_TIMESTAMP
+        timestamp = IN_WINDOW_BASE_TIMESTAMP + timedelta(minutes=revision_number - BASELINE_REVISION_NUMBER - 1)
+        return timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _intermediate_ratio(self, revision_number: int, family: str) -> int:
+        if family in {"feature-a", "feature-c"}:
+            cycle = [100, 80, 60]
+        elif family in {"feature-b", "feature-d"}:
+            cycle = [20, 40, 60, 80]
+        else:
+            cycle = [0]
+        return cycle[revision_number % len(cycle)]
+
+    def _assert_deep_commit_chain(self, protocols: list[dict], query: dict) -> None:
+        revision_ids = [protocol["REPOSITORY"]["revisionId"] for protocol in protocols]
+        self.assertEqual(len(protocols), TOTAL_SYNTHETIC_COMMITS)
+        self.assertEqual(len(revision_ids), TOTAL_SYNTHETIC_COMMITS)
+        self.assertEqual(len(set(revision_ids)), TOTAL_SYNTHETIC_COMMITS)
+        self.assertEqual(revision_ids[0], self._format_revision_id(query["vcsType"], BASELINE_REVISION_NUMBER, "main"))
+        self.assertEqual(revision_ids[-1], query["endRevisionId"])
+
+    def _build_rewrite_protocol(
+        self,
+        query: dict,
+        revision_number: int,
+        line_state: dict[tuple[str, int], dict[str, object]],
+    ) -> dict:
+        final_phase_start = FINAL_REVISION_NUMBER - len(FINAL_TARGETS) + 1
+        if revision_number >= final_phase_start:
+            file_name, line_number, family, new_ratio = FINAL_TARGETS[revision_number - final_phase_start]
+        else:
+            file_name, line_number, family, _final_ratio = FINAL_TARGETS[(revision_number - BASELINE_REVISION_NUMBER - 1) % len(FINAL_TARGETS)]
+            new_ratio = self._intermediate_ratio(revision_number, family)
+
+        revision_id = self._format_revision_id(query["vcsType"], revision_number, family)
+        revision_timestamp = self._revision_timestamp(revision_number)
+        previous_state = line_state[(file_name, line_number)]
+        protocol = {
             "protocolName": "generatedTextDesc",
             "protocolVersion": "26.04",
-            "codeAgent": "MergeFanInAgent",
+            "codeAgent": "MergeFanInRewriteAgent" if revision_number < final_phase_start else "MergeFanInFinalAgent",
             "SUMMARY": {
-                "totalCodeLines": 7,
-                "fullGeneratedCodeLines": 2,
-                "partialGeneratedCodeLines": 2,
+                "totalCodeLines": 1,
+                "fullGeneratedCodeLines": 1 if new_ratio == 100 else 0,
+                "partialGeneratedCodeLines": 1 if 0 < new_ratio < 100 else 0,
             },
-            "DETAIL": [{"fileName": file_name, "codeLines": code_lines}],
+            "DETAIL": [
+                {
+                    "fileName": file_name,
+                    "codeLines": [
+                        {
+                            "changeType": "delete",
+                            "lineLocation": line_number,
+                            "genRatio": previous_state["genRatio"],
+                            "genMethod": previous_state["genMethod"],
+                            "blame": {
+                                "revisionId": previous_state["revisionId"],
+                                "originalFilePath": file_name,
+                                "originalLine": line_number,
+                                "timestamp": previous_state["timestamp"],
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": line_number,
+                            "genRatio": new_ratio,
+                            "genMethod": "Manual" if new_ratio == 0 else "codeCompletion",
+                            "blame": {
+                                "revisionId": revision_id,
+                                "originalFilePath": file_name,
+                                "originalLine": line_number,
+                                "timestamp": revision_timestamp,
+                            },
+                        },
+                    ],
+                }
+            ],
             "REPOSITORY": {
                 "vcsType": query["vcsType"],
                 "repoURL": query["repoURL"],
                 "repoBranch": query["repoBranch"],
-                "revisionId": query["endRevisionId"],
-                "revisionTimestamp": "2026-03-25T09:00:00Z",
+                "revisionId": revision_id,
+                "revisionTimestamp": revision_timestamp,
             },
         }
 
+        line_state[(file_name, line_number)] = {
+            "revisionId": revision_id,
+            "timestamp": revision_timestamp,
+            "genRatio": new_ratio,
+            "genMethod": "Manual" if new_ratio == 0 else "codeCompletion",
+        }
+        return protocol
+
+    def _build_protocols(self, query: dict) -> list[dict]:
+        file_a = "src/merged_branches/core_paths.py"
+        file_b = "src/merged_branches/service_paths.py"
+        baseline_revision_id = self._format_revision_id(query["vcsType"], BASELINE_REVISION_NUMBER, "main")
+        line_state: dict[tuple[str, int], dict[str, object]] = {
+            (file_a, 1): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_a, 2): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_a, 3): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_a, 4): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_b, 1): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_b, 2): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+            (file_b, 3): {"revisionId": baseline_revision_id, "timestamp": BASELINE_TIMESTAMP, "genRatio": 0, "genMethod": "Manual"},
+        }
+
+        baseline_detail = [
+            {
+                "fileName": file_a,
+                "codeLines": [
+                    {
+                        "changeType": "add",
+                        "lineLocation": 1,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_a,
+                            "originalLine": 1,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                    {
+                        "changeType": "add",
+                        "lineLocation": 2,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_a,
+                            "originalLine": 2,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                    {
+                        "changeType": "add",
+                        "lineLocation": 3,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_a,
+                            "originalLine": 3,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                    {
+                        "changeType": "add",
+                        "lineLocation": 4,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_a,
+                            "originalLine": 4,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                ],
+            },
+            {
+                "fileName": file_b,
+                "codeLines": [
+                    {
+                        "changeType": "add",
+                        "lineLocation": 1,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_b,
+                            "originalLine": 1,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                    {
+                        "changeType": "add",
+                        "lineLocation": 2,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_b,
+                            "originalLine": 2,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                    {
+                        "changeType": "add",
+                        "lineLocation": 3,
+                        "genRatio": 0,
+                        "genMethod": "Manual",
+                        "blame": {
+                            "revisionId": baseline_revision_id,
+                            "originalFilePath": file_b,
+                            "originalLine": 3,
+                            "timestamp": BASELINE_TIMESTAMP,
+                        },
+                    },
+                ],
+            },
+        ]
+
+        protocols = [
+            {
+                "protocolName": "generatedTextDesc",
+                "protocolVersion": "26.04",
+                "codeAgent": "MergeFanInBaselineAgent",
+                "SUMMARY": {
+                    "totalCodeLines": 7,
+                    "fullGeneratedCodeLines": 0,
+                    "partialGeneratedCodeLines": 0,
+                },
+                "DETAIL": baseline_detail,
+                "REPOSITORY": {
+                    "vcsType": query["vcsType"],
+                    "repoURL": query["repoURL"],
+                    "repoBranch": query["repoBranch"],
+                    "revisionId": baseline_revision_id,
+                    "revisionTimestamp": BASELINE_TIMESTAMP,
+                },
+            },
+        ]
+
+        for revision_number in range(BASELINE_REVISION_NUMBER + 1, FINAL_REVISION_NUMBER + 1):
+            protocols.append(self._build_rewrite_protocol(query, revision_number, line_state))
+
+        protocols[-1]["REPOSITORY"]["revisionId"] = query["endRevisionId"]
+        return protocols
+
     def _run_cli(self, fixture_dir: Path) -> dict:
         query = load_json(fixture_dir / "query.json")
-        protocol = self._build_protocol(query)
+        protocols = self._build_protocols(query)
+        self._assert_deep_commit_chain(protocols, query)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             output_file = temp_path / "out.json"
-            protocol_path = temp_path / f"{query['endRevisionId']}_genCodeDesc.json"
-            protocol_path.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
+            for protocol in protocols:
+                protocol_path = temp_path / f"{protocol['REPOSITORY']['revisionId']}_genCodeDesc.json"
+                protocol_path.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
+
+            self.assertEqual(len(list(temp_path.glob("*_genCodeDesc.json"))), TOTAL_SYNTHETIC_COMMITS)
 
             subprocess.run(
                 [
@@ -118,6 +315,16 @@ class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
         expected_result = load_json(FIXTURE_SVN_DIR / "expected_result.json")
         actual_result = self._run_cli(FIXTURE_SVN_DIR)
         self.assertEqual(actual_result, expected_result)
+
+    def test_generated_git_history_contains_10001_distinct_commits(self) -> None:
+        query = load_json(FIXTURE_GIT_DIR / "query.json")
+        protocols = self._build_protocols(query)
+        self._assert_deep_commit_chain(protocols, query)
+
+    def test_generated_svn_history_contains_10001_distinct_commits(self) -> None:
+        query = load_json(FIXTURE_SVN_DIR / "query.json")
+        protocols = self._build_protocols(query)
+        self._assert_deep_commit_chain(protocols, query)
 
 
 if __name__ == "__main__":
