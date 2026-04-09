@@ -47,8 +47,85 @@ mindmap
 | Repository access at runtime | **required** | not required | **not required** |
 | genCodeDesc version | v26.03 | v26.03 | **v26.04** |
 | DETAIL completeness | AI lines only | AI lines only | **incremental: adds + deletes per commit** |
+| Needs per-commit diff patch at runtime | no | **yes, one patch per replayed revision in offline mode** | no |
+| Information security | live repo and VCS credentials may be exposed at runtime | runtime can stay repo-isolated, but exported patch artifacts still carry source diffs | smallest runtime exposure; only v26.04 files are needed, but embedded blame metadata is still sensitive |
+| Account coupling | strongest: runtime access is tied to repository account / checkout ACL | weaker at runtime after artifact export; coupling moves to the export pipeline | weakest at runtime after file delivery; coupling moves to the write-time codeAgent pipeline |
+| Storage capacity | lowest extra artifact storage | highest: stores per-revision diff patches plus v26.03 metadata | medium: stores per-revision v26.04 incremental add/delete records with embedded blame |
+| Redundancy | lowest duplication; lineage stays in VCS | highest duplication; history is duplicated into patch stream plus genCodeDesc metadata | medium redundancy; blame lineage is duplicated into genCodeDesc but diff artifacts are avoided |
 | Production status | production quality | narrow replay paths active | planned |
 | Correctness authority | VCS blame (authoritative) | rebuilt partial blame (risk) | codeAgent at write time (trusted) |
+
+### Operational Trade-Offs
+
+- Information security: Algorithm A keeps the strongest dependency on live repository access, credentials, and checkout hygiene. Algorithm B and C reduce runtime exposure, but both shift trust to exported artifacts that must still be handled as sensitive source-derived data.
+- Account coupling: Algorithm A is directly bound to the repository account and local checkout at analysis time. Algorithm B and C decouple the runtime from repository accounts, but only because an earlier export pipeline already had that access.
+- Storage capacity: Algorithm A minimizes extra storage. Algorithm B is the heaviest because offline replay needs a replay-complete patch stream in addition to per-revision metadata. Algorithm C removes patch storage, but still accumulates one v26.04 file per revision.
+- Redundancy: Algorithm B duplicates the most historical information because both patch content and genCodeDesc metadata encode parts of the same lineage. Algorithm C still duplicates blame lineage into metadata, but avoids carrying a second diff stream.
+
+### Holistic Strengths And Weaknesses
+
+| Dimension | **Algorithm A** | **Algorithm B** | **Algorithm C** |
+|---|---|---|---|
+| Coupling | Highest coupling to the live repository, VCS CLI, account permissions, and local checkout | Decoupled from the live repo at runtime, but tightly coupled to the patch export pipeline, naming contract, and replay ordering | Most decoupled from the live repo at runtime, but tightly coupled to write-time protocol quality and embedded-blame completeness |
+| Implementation complexity | Medium: relies on mature blame behavior, so the surrounding system is comparatively direct | Highest: effectively rebuilds a partial blame engine and must handle patch ordering, rename behavior, merges, and SVN edge cases | Medium-high: runtime is simpler, but protocol design, write-time constraints, and end-to-end consistency are demanding |
+| Storage footprint | Smallest, because only per-revision metadata is added | Largest, because it needs both the per-revision patch stream and per-revision metadata | Medium, because it stores per-revision incremental v26.04 files but no extra patch stream |
+| Maintainability | Better: most failures converge on VCS blame behavior or query wiring | Weakest: replay logic, patch contracts, and edge cases make testing and debugging expensive | Medium: the consumer is easier to maintain, but protocol evolution must keep writer and consumer contracts aligned |
+| Scalability | Medium: correctness is easier to preserve, but blame cost rises on very large repositories or files | Depends on patch volume and replay window length; long-history replay can become CPU and IO heavy | Strongest long-term potential: runtime is mostly sequential file parsing plus state accumulation, which fits offline batch and air-gapped deployments well |
+| Fault tolerance | Medium: missing genCodeDesc can often degrade to unattributed lines, but repository unavailability blocks execution | Weak: any missing patch, wrong ordering, or naming drift can fail fast or silently misattribute | Weak-to-medium: runtime has fewer external dependencies, but once embedded blame or the incremental chain is corrupted, the consumer cannot independently repair it |
+| Correctness explainability | Strongest: attribution can be traced back directly to VCS blame | Weaker: explanation depends on trusting the replay engine's reconstructed line-state history | Medium: attribution can be explained through embedded blame, but the consumer cannot independently re-validate against VCS at analysis time |
+
+### Radar View Of Trade-Offs
+
+Interpretation: scores range from `1` to `5`, and **higher is better**.
+
+- Coupling: lower coupling receives a higher score.
+- Implementation complexity: lower complexity receives a higher score.
+- Storage footprint: lower extra storage receives a higher score.
+- Maintainability, scalability, and fault tolerance: stronger capability receives a higher score.
+- This chart is a normalized qualitative view for fast architectural comparison, not a benchmark.
+
+```mermaid
+radar-beta
+    title A / B / C Trade-Off Comparison (Higher Is Better)
+    axis coupling["Low Coupling"], complexity["Low Complexity"], storage["Low Storage Footprint"]
+    axis maintainability["High Maintainability"], scalability["High Scalability"], faultTolerance["High Fault Tolerance"]
+    curve a["Algorithm A"]{1, 3, 5, 4, 3, 3}
+    curve b["Algorithm B"]{3, 1, 1, 1, 2, 1}
+    curve c["Algorithm C"]{5, 2, 3, 3, 5, 2}
+    max 5
+    min 0
+    graticule polygon
+```
+
+Axis mapping:
+
+- `coupling` = Low Coupling
+- `complexity` = Low Complexity
+- `storage` = Low Storage Footprint
+- `maintainability` = High Maintainability
+- `scalability` = High Scalability
+- `faultTolerance` = High Fault Tolerance
+- `a` = Algorithm A
+- `b` = Algorithm B
+- `c` = Algorithm C
+
+In practical terms:
+
+- If the priority is authoritative correctness, explainability, and conservative production readiness, Algorithm A remains the safest baseline.
+- If the priority is repository-free runtime and the team can absorb the highest implementation and maintenance cost, Algorithm B can be justified; its offline benefit comes with the largest systems burden.
+- If the priority is offline execution, low runtime coupling, and long-term scalability, Algorithm C has the strongest architectural upside; however, it shifts correctness pressure upstream into protocol governance and write-time data quality gates.
+
+### The Irreplaceable Advantage Of Each Algorithm
+
+- Algorithm A's irreplaceable advantage: it is the only one of the three that can rely directly on live VCS blame as the authoritative fact source at analysis time. Because of that, when the team cares most about being able to trace results back to raw Git / SVN evidence, resolve disputes with direct repository proof, and minimize logical attribution risk, A has no true equivalent substitute.
+- Algorithm B's irreplaceable advantage: it is the best fit for consuming an explicit historical patch stream. Because of that, when the team wants not only end-snapshot attribution but also deterministic replay, history-window experiments, process reconstruction, and repository-free re-execution from the same patch artifacts, B provides something distinct; A cannot do fully offline historical replay, and C does not preserve patch-level process detail.
+- Algorithm C's irreplaceable advantage: it is the only one of the three that simultaneously achieves zero repository access and zero diff replay at runtime. Because of that, in air-gapped environments, edge deployments, large-scale offline batch processing, or minimal-runtime-permission architectures, C has a deployment advantage that the others cannot match; A needs the repository, B needs the patch stream, while C only needs the v26.04 file set.
+
+Put differently:
+
+- A is irreplaceable for **authority and accountability**.
+- B is irreplaceable for **patch-driven historical replay**.
+- C is irreplaceable for **minimal-runtime-dependency offline scalability**.
 
 ---
 
@@ -108,6 +185,8 @@ to reconstruct line ownership incrementally.
 Instead of asking the VCS "who last changed this line?", it simulates the history
 by applying diffs in order and tracking which commit introduced each surviving line.
 No live repository access is needed at runtime.
+In the current offline contract, that means every replayed commit/revision up to the
+target `endTime` must have its corresponding diff patch available.
 
 ### Data Flow
 
@@ -140,7 +219,7 @@ flowchart TD
 | Pitfall | Detail |
 |---|---|
 | Correctness risk is higher | Algorithm B effectively rebuilds a partial blame engine. Any gap in the replay logic produces wrong attributions silently. |
-| commitDiffSet artifacts must be prepared | One unified-diff patch file per replayed revision must exist before the run. Missing patches cause the contract to fail fast. |
+| commitDiffSet artifacts must be prepared | Yes for the current offline AlgB contract: one unified-diff patch file per replayed revision must exist before the run. Missing patches cause the contract to fail fast. |
 | Merge-aware lineage replay is complex | Choosing a defensible first-parent vs merged-parent accounting policy for merge commits is non-trivial. Production readiness for merge-heavy histories requires explicit TDD before any claim is safe. |
 | SVN parity is limited | SVN path-copy and mergeinfo semantics introduce replay edge cases that are not yet fully covered. |
 | Scalability not yet independently validated | Do not reuse Algorithm A production-readiness evidence as Algorithm B evidence. A dedicated scalability gate is required. |
