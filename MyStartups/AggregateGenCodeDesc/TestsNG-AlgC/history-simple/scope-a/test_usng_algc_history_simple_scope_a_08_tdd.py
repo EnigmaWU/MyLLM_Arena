@@ -24,12 +24,6 @@ class TestUsngAlgcHistorySimpleScopeA08Tdd(unittest.TestCase):
                 [
                     sys.executable,
                     str(UTILITY_PATH),
-                    "--vcsType",
-                    query["vcsType"],
-                    "--repoURL",
-                    query["repoURL"],
-                    "--repoBranch",
-                    query["repoBranch"],
                     "--startTime",
                     query["startTime"],
                     "--endTime",

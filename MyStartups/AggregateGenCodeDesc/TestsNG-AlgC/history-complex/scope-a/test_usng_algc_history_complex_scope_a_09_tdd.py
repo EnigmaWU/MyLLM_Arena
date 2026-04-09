@@ -103,12 +103,6 @@ class TestUsngAlgcHistoryComplexScopeA09Tdd(unittest.TestCase):
                 [
                     "python3",
                     str(UTILITY_PATH),
-                    "--vcsType",
-                    query["vcsType"],
-                    "--repoURL",
-                    query["repoURL"],
-                    "--repoBranch",
-                    query["repoBranch"],
                     "--startTime",
                     query["startTime"],
                     "--endTime",

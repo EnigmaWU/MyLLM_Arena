@@ -8,6 +8,10 @@ Algorithm C is an offline, repository-free attribution algorithm.
 It achieves the same metric result as Algorithm A and Algorithm B using only
 `genCodeDescProtoV26.04.json` files — no live repository access, no blame subprocess,
 no diff replay.
+In the current CLI slice, Algorithm C can also derive `REPOSITORY.vcsType`,
+`REPOSITORY.repoURL`, and `REPOSITORY.repoBranch` from `query.json` and the selected
+end-revision protocol, so callers do not need to pass `--repoURL`, `--repoBranch`, or
+`--vcsType` when running AlgC with `--genCodeDescSetDir`.
 
 The key enabler is the `blame` object embedded per line in `DETAIL` at write time by
 the codeAgent. Because every surviving line carries `blame.revisionId`,
@@ -28,19 +32,24 @@ allow consumers to distinguish origin VCS without repository access.
 All AlgC stories require `protocolVersion: "26.04"` and expect **exhaustive DETAIL**:
 every surviving line in the file should appear in `codeLines` (or `docLines`), including
 human-written lines as `genRatio=0 / genMethod=Manual`.
-If a surviving line is omitted from DETAIL, Algorithm C imputes that line as
-`genRatio=0 / genMethod=Manual` and emits a WARNING.
-Exact parity and golden-result guarantees apply only when no such omission warning occurs.
+Current implementation note: omitted surviving lines are not yet imputed by the runtime.
+The current slice therefore requires exhaustive DETAIL for correctness; warning-based
+Manual fallback remains a target behavior, not a completed one.
+Exact parity and golden-result guarantees currently apply only to scenarios whose
+fixtures already provide exhaustive surviving-line coverage.
 A `genCodeDescProtoV26.03.json` input is not sufficient for AlgC.
+When `--genCodeDescSetDir` is provided for AlgC, CLI repo identity flags are optional;
+repository identity is derived from `query.json` and validated against the selected
+`genCodeDescProtoV26.04` protocol set.
 
 ## Relationship To Algorithm A and Algorithm B
 
 | Property | Algorithm A | Algorithm B | Algorithm C |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Repository access | live `git/svn blame` | offline diff replay | none |
 | Input | repo + per-revision genCodeDesc v26.03 | commitDiffSet + per-revision genCodeDesc v26.03 | per-revision genCodeDesc **v26.04** only |
 | Blame source | VCS subprocess | diff patch reconstruction | embedded `blame` object in DETAIL |
-| DETAIL completeness required | no (AI lines only) | no (AI lines only) | expected for all surviving lines; omitted surviving lines fall back to Manual with WARNING |
+| DETAIL completeness required | no (AI lines only) | no (AI lines only) | exhaustive surviving-line DETAIL required for correctness in the current slice; omitted-line fallback is still planned |
 | VCS support | git and svn | git and svn | git-origin and svn-origin blame |
 | Metric semantics | identical | identical | identical |
 
@@ -53,7 +62,7 @@ A `genCodeDescProtoV26.03.json` input is not sufficient for AlgC.
 
 ## Story ID Convention
 
-```
+```text
 USNG-ALGC-HISTORY-<C>-SCOPE-<D>-<NN>: Title
 ```
 
@@ -73,7 +82,7 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 
 - `UI-PROTOCOL`: the result must be a valid protocol-shaped output with `protocolName`,
   `protocolVersion`, `SUMMARY`, and `REPOSITORY` fields.
-- `UI-GOLDEN`: when no omission warning is emitted, the result must match the approved golden output for the scenario.
+- `UI-GOLDEN`: for scenarios whose fixtures provide exhaustive surviving-line DETAIL, the result must match the approved golden output for the scenario.
 - `UI-BLAME-MANDATORY`: every DETAIL entry must carry a `blame` object with
   `revisionId`, `originalFilePath`, `originalLine`, and `timestamp`.
   A missing or partial `blame` object is a protocol violation and must not produce a partial result.
@@ -81,12 +90,16 @@ The following invariants apply to every AlgC story unless overridden explicitly.
   output captured at write time. Synthetic, inferred, replay-reconstructed, or manually
   edited blame data is out of contract for AlgC.
 - `UI-EXHAUSTIVE-DETAIL`: every surviving line in the file should be listed in DETAIL.
-  If a surviving line is omitted and `protocolVersion` is confirmed as `"26.04"`,
-  Algorithm C imputes `genRatio=0 / genMethod=Manual` for that line and emits a WARNING.
-- `UI-PARITY`: for the same repository scenario, and when no omission warning is emitted,
-  Algorithm C must produce the same `SUMMARY` counts as Algorithm A and Algorithm B.
+  In the current slice, omitted surviving lines are unsupported and can invalidate correctness.
+  Warning-based `Manual` imputation remains planned work.
+- `UI-PARITY`: the target contract is parity with Algorithm A and Algorithm B.
+  Current evidence directly covers scenario goldens plus Git-origin vs SVN-origin equivalence for AlgC fixtures;
+  direct execution parity against Algorithm A and Algorithm B remains incomplete.
 - `UI-VCS-AGNOSTIC-CONSUMPTION`: Algorithm C never calls any VCS tool at runtime.
   VCS origin (git or svn) is carried by `REPOSITORY.vcsType` and `blame.revisionId` format only.
+- `UI-CLI-DECOUPLED`: when running Algorithm C with `--genCodeDescSetDir`, callers do not
+  need `--repoURL`, `--repoBranch`, or `--vcsType`; AlgC derives repository identity from
+  `query.json` and the selected end-revision protocol.
 - `UI-ALG-C-BOUNDARY`: Any AlgC evidence attached to a `HISTORY-COMPLICATED` or
   `HISTORY-COMPLEX` story covers the approved scenario of that story only. It is not
   blanket support across all complicated or complex history shapes.
@@ -393,9 +406,10 @@ The following invariants apply to every AlgC story unless overridden explicitly.
 
 ## Heavy Production Gates
 
-These stories are production-scale correctness gates. They verify that result semantics
-are preserved under realistic heavy workloads using genCodeDesc files generated from
-repositories at production scale.
+These stories are production-scale correctness gates.
+Current evidence in this repository uses synthetic scale-shaped `genCodeDescProtoV26.04`
+fixtures that enforce the intended scale floors in TDD, but does not yet rebuild the full
+live repository histories named in the story text.
 
 ### USNG-ALGC-HISTORY-COMPLEX-SCOPE-A-12: Git Production-Scale genCodeDesc Must Stay Correct Under Branch-Heavy History
 
@@ -405,7 +419,7 @@ repositories at production scale.
 - `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 commits and ≥100 branches without correctness or performance degradation
 - `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale Git repositories with ≥10 000 commits and ≥100 branches, so that it is production-ready for real-world Git histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin` | `tier=Heavy`
-- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py`. Corresponds to AlgA gate `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`.
+- `Status`: Synthetic scale-shaped coverage exists in `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py`. Direct proof against a rebuilt ≥10 000 commit / ≥100 branch Git history remains pending. Corresponds to AlgA gate `USNG-REPO-GIT-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-12`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-12-GIT`
 
 **AC-GIT-01** — *Scale floor: ≥10 000 commits, ≥100 branches*
@@ -442,7 +456,7 @@ repositories at production scale.
 - `WHY`: prove that Algorithm C handles files derived from repositories with ≥10 000 SVN revisions and ≥100 branch copies without correctness or performance degradation
 - `Story`: As a repository analyst, I want Algorithm C to remain correct and performant when processing genCodeDesc files derived from production-scale SVN repositories with ≥10 000 revisions and ≥100 branch copies, so that it is production-ready for real-world SVN histories.
 - `Support`: `scope=A baseline` | `alg=C` | `vcs=svn-origin` | `tier=Heavy`
-- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py`. Corresponds to AlgA gate `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`.
+- `Status`: Synthetic scale-shaped coverage exists in `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py`. Direct proof against a rebuilt ≥10 000 revision / ≥100 branch-copy SVN history remains pending. Corresponds to AlgA gate `USNG-REPO-SVN-LOCAL-GENCODEDESC-SHARED-HISTORY-COMPLEX-SCOPE-A-13`.
 - `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-13-SVN`
 
 **AC-SVN-01** — *Scale floor: ≥10 000 revisions, ≥100 branch copies*
@@ -481,7 +495,7 @@ repositories at production scale.
 - `WHY`: guarantee that the three algorithms are semantically equivalent; detect any divergence introduced by the offline blame-embedding approach
 - `Story`: As a quality engineer, I want a parity gate that asserts Algorithm C produces the same `SUMMARY` as Algorithm A and Algorithm B for every shared story scenario, so that the three algorithms remain semantically equivalent.
 - `Support`: `scope=A baseline` | `alg=A and B and C` | `vcs=git-origin and svn-origin` | `tier=Fast`
-- `Status`: Covered by `TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_06_tdd.py`. Depends on ALGC-01 through ALGC-05 and ALGC-07 through ALGC-11 being green.
+- `Status`: Partially covered by `TestsNG-AlgC/history-simple/scope-a/test_usng_algc_history_simple_scope_a_06_tdd.py`. The current gate verifies covered AlgC scenario goldens, Git/SVN summary equivalence, and `protocolVersion="26.04"` hard-error behavior. Direct execution parity against Algorithm A and Algorithm B remains pending. Depends on ALGC-01 through ALGC-05 and ALGC-07 through ALGC-11 being green.
 - `Anchors`: `TestsNG-ALGC-PARITY-GATE`
 
 **AC-01** — *Algorithm C matches Algorithm A for all shared simple-history scenarios*
@@ -507,3 +521,5 @@ repositories at production scale.
 - GIVEN a `protocolVersion="26.04"` input where a surviving line is omitted from DETAIL
 - WHEN Algorithm C processes the file
 - THEN it imputes `genRatio=0 / genMethod=Manual` for that line, emits a WARNING, and the result is not eligible for exact parity or golden-result assertions
+
+Current implementation note: this acceptance criterion is not yet covered by executable TDD and is not yet implemented in the current Algorithm C runtime.

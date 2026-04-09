@@ -550,17 +550,21 @@ def build_result_document(
     logger: RuntimeLogger,
     repo_url_override: str | None = None,
     protocol_version: str | None = None,
+    repository_override: dict[str, str] | None = None,
 ) -> dict:
+    repository = {
+        "vcsType": args.vcsType,
+        "repoURL": args.repoURL if repo_url_override is None else repo_url_override,
+        "repoBranch": args.repoBranch,
+        "revisionId": revision_id,
+    }
+    if repository_override is not None:
+        repository.update(repository_override)
     result = {
         "protocolName": "generatedTextDesc",
         "protocolVersion": PROTOCOL_VERSION if protocol_version is None else protocol_version,
         "SUMMARY": summary,
-        "REPOSITORY": {
-            "vcsType": args.vcsType,
-            "repoURL": args.repoURL if repo_url_override is None else repo_url_override,
-            "repoBranch": args.repoBranch,
-            "revisionId": revision_id,
-        },
+        "REPOSITORY": repository,
     }
     warnings = logger.warnings()
     if warnings:
@@ -1479,13 +1483,19 @@ def validate_inputs(args: argparse.Namespace) -> None:
         if args.repoBranch and ".." in args.repoBranch:
             raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
     else:
-        if not args.repoURL:
-            raise InputValidationError("--repoURL is required when --commitDiffSetDir is not provided")
-        validate_url(args.repoURL, "--repoURL")
-        if not args.repoBranch or not args.repoBranch.strip():
-            raise InputValidationError("--repoBranch is required when --commitDiffSetDir is not provided")
-        if ".." in args.repoBranch:
-            raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
+        if args.algorithm == "C" and args.genCodeDescSetDir:
+            if args.repoURL:
+                validate_url(args.repoURL, "--repoURL")
+            if args.repoBranch and ".." in args.repoBranch:
+                raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
+        else:
+            if not args.repoURL:
+                raise InputValidationError("--repoURL is required when --commitDiffSetDir is not provided")
+            validate_url(args.repoURL, "--repoURL")
+            if not args.repoBranch or not args.repoBranch.strip():
+                raise InputValidationError("--repoBranch is required when --commitDiffSetDir is not provided")
+            if ".." in args.repoBranch:
+                raise InputValidationError("--repoBranch must not contain path traversal sequences (..)")
     validate_iso_date(args.startTime, "--startTime")
     validate_iso_date(args.endTime, "--endTime")
     if parse_day_start(args.startTime) > parse_day_end(args.endTime):
@@ -2058,6 +2068,16 @@ def load_algorithm_c_protocols(base_dir: Path) -> list[tuple[dict, datetime, str
         if not isinstance(repository, dict):
             raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY object")
 
+        protocol_vcs_type = repository.get("vcsType")
+        protocol_repo_url = repository.get("repoURL")
+        protocol_repo_branch = repository.get("repoBranch")
+        if not isinstance(protocol_vcs_type, str) or protocol_vcs_type not in {"git", "svn"}:
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing valid REPOSITORY.vcsType")
+        if not isinstance(protocol_repo_url, str) or not protocol_repo_url:
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY.repoURL")
+        if not isinstance(protocol_repo_branch, str) or not protocol_repo_branch:
+            raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY.repoBranch")
+
         revision_id = repository.get("revisionId")
         if not isinstance(revision_id, str) or not revision_id:
             raise ProtocolValidationError(f"Algorithm C protocol at {protocol_path} missing REPOSITORY.revisionId")
@@ -2073,6 +2093,41 @@ def load_algorithm_c_protocols(base_dir: Path) -> list[tuple[dict, datetime, str
 
     protocols.sort(key=lambda item: (item[1], item[2]))
     return protocols
+
+
+def resolve_algorithm_c_repository_identity(
+    query_document: dict | None,
+    end_protocol: dict,
+) -> dict[str, str]:
+    repository = end_protocol.get("REPOSITORY")
+    if not isinstance(repository, dict):
+        raise ProtocolValidationError("Algorithm C end protocol missing REPOSITORY object")
+
+    identity = {
+        "vcsType": repository.get("vcsType"),
+        "repoURL": repository.get("repoURL"),
+        "repoBranch": repository.get("repoBranch"),
+    }
+    for field_name, field_value in identity.items():
+        if not isinstance(field_value, str) or not field_value:
+            raise ProtocolValidationError(f"Algorithm C end protocol missing REPOSITORY.{field_name}")
+
+    if query_document is None:
+        return identity
+
+    for field_name in ("vcsType", "repoURL", "repoBranch"):
+        query_value = query_document.get(field_name)
+        if query_value is None:
+            continue
+        if not isinstance(query_value, str) or not query_value:
+            raise ProtocolValidationError(f"Algorithm C query.json {field_name} must be a non-empty string when provided")
+        if query_value != identity[field_name]:
+            raise ProtocolValidationError(
+                f"Algorithm C query.json {field_name} {query_value!r} does not match end protocol REPOSITORY.{field_name} {identity[field_name]!r}"
+            )
+        identity[field_name] = query_value
+
+    return identity
 
 
 def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
@@ -2101,6 +2156,18 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         if not eligible_by_time:
             raise ProtocolValidationError("Algorithm C found no genCodeDesc protocol at or before endTime")
         end_protocol = eligible_by_time[-1]
+
+    repository_identity = resolve_algorithm_c_repository_identity(query_document, end_protocol[0])
+    filtered_protocols = []
+    for protocol, revision_timestamp, revision_id in protocols:
+        repository = protocol.get("REPOSITORY", {})
+        if (
+            repository.get("vcsType") == repository_identity["vcsType"]
+            and repository.get("repoURL") == repository_identity["repoURL"]
+            and repository.get("repoBranch") == repository_identity["repoBranch"]
+        ):
+            filtered_protocols.append((protocol, revision_timestamp, revision_id))
+    protocols = filtered_protocols
 
     end_revision_timestamp = end_protocol[1]
     end_revision_id = end_protocol[2]
@@ -2193,6 +2260,7 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         end_revision_id,
         logger,
         protocol_version=ALGORITHM_C_PROTOCOL_VERSION,
+        repository_override=repository_identity,
     )
 
 

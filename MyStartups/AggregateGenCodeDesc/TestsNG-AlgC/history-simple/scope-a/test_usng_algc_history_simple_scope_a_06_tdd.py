@@ -24,6 +24,40 @@ def _load_module(relative_path: str, module_name: str):
 class TestUsngAlgcHistorySimpleScopeA06Tdd(unittest.TestCase):
     maxDiff = None
 
+    def _run_cli_with_protocol(self, query: dict, protocol: dict) -> tuple[subprocess.CompletedProcess[str], dict | None]:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            output_file = temp_path / "out.json"
+            protocol_file = temp_path / f"{protocol['REPOSITORY']['revisionId']}_genCodeDesc.json"
+            protocol_file.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(UTILITY_PATH),
+                    "--startTime",
+                    query["startTime"],
+                    "--endTime",
+                    query["endTime"],
+                    "--algorithm",
+                    "C",
+                    "--scope",
+                    query["scope"],
+                    "--outputFile",
+                    str(output_file),
+                    "--genCodeDescSetDir",
+                    str(temp_path),
+                ],
+                cwd=PROJECT_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            parsed_output = None
+            if result.returncode == 0 and output_file.exists():
+                parsed_output = load_json(output_file)
+            return result, parsed_output
+
     def test_algorithm_c_summary_matches_story_golden_summary_for_all_covered_fast_scenarios(self) -> None:
         a01 = _load_module("history-simple/scope-a/test_usng_algc_history_simple_scope_a_01_tdd.py", "algc_a01")
         a08 = _load_module("history-simple/scope-a/test_usng_algc_history_simple_scope_a_08_tdd.py", "algc_a08")
@@ -100,41 +134,81 @@ class TestUsngAlgcHistorySimpleScopeA06Tdd(unittest.TestCase):
             },
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            output_file = temp_path / "out.json"
-            (temp_path / "algc-bad-version-r1_genCodeDesc.json").write_text(json.dumps(bad_protocol, indent=2) + "\n", encoding="utf-8")
+        result, _output = self._run_cli_with_protocol(query, bad_protocol)
 
-            result = subprocess.run(
-                [
-                    "python3",
-                    str(UTILITY_PATH),
-                    "--vcsType",
-                    query["vcsType"],
-                    "--repoURL",
-                    query["repoURL"],
-                    "--repoBranch",
-                    query["repoBranch"],
-                    "--startTime",
-                    query["startTime"],
-                    "--endTime",
-                    query["endTime"],
-                    "--algorithm",
-                    "C",
-                    "--scope",
-                    query["scope"],
-                    "--outputFile",
-                    str(output_file),
-                    "--genCodeDescSetDir",
-                    str(temp_path),
-                ],
-                cwd=PROJECT_ROOT,
-                text=True,
-                capture_output=True,
-            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Algorithm C requires protocolVersion 26.04", result.stderr)
 
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("Algorithm C requires protocolVersion 26.04", result.stderr)
+    def test_omitted_surviving_line_falls_back_to_manual_with_warning(self) -> None:
+        a01 = _load_module("history-simple/scope-a/test_usng_algc_history_simple_scope_a_01_tdd.py", "algc_a01_omission")
+        query = load_json(a01.FIXTURE_GIT_DIR / "query.json")
+        query = dict(query)
+        query["startTime"] = "2026-03-01"
+        query["endTime"] = "2026-03-31"
+
+        protocol = {
+            "protocolName": "generatedTextDesc",
+            "protocolVersion": "26.04",
+            "codeAgent": "OmissionAgent",
+            "SUMMARY": {
+                "totalCodeLines": 3,
+                "fullGeneratedCodeLines": 1,
+                "partialGeneratedCodeLines": 0,
+            },
+            "DETAIL": [
+                {
+                    "fileName": "src/omission_case.py",
+                    "codeLines": [
+                        {
+                            "changeType": "add",
+                            "lineLocation": 1,
+                            "genRatio": 100,
+                            "genMethod": "codeCompletion",
+                            "blame": {
+                                "revisionId": "algc-omit-r1",
+                                "originalFilePath": "src/omission_case.py",
+                                "originalLine": 1,
+                                "timestamp": "2026-03-10T09:00:00Z",
+                            },
+                        },
+                        {
+                            "changeType": "add",
+                            "lineLocation": 3,
+                            "genRatio": 0,
+                            "genMethod": "Manual",
+                            "blame": {
+                                "revisionId": "algc-omit-r1",
+                                "originalFilePath": "src/omission_case.py",
+                                "originalLine": 3,
+                                "timestamp": "2026-03-10T09:00:00Z",
+                            },
+                        },
+                    ],
+                }
+            ],
+            "REPOSITORY": {
+                "vcsType": query["vcsType"],
+                "repoURL": query["repoURL"],
+                "repoBranch": query["repoBranch"],
+                "revisionId": "algc-omit-r1",
+                "revisionTimestamp": "2026-03-10T09:00:00Z",
+            },
+        }
+
+        result, actual_result = self._run_cli_with_protocol(query, protocol)
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+        self.assertIsNotNone(actual_result)
+        self.assertEqual(
+            actual_result["SUMMARY"],
+            {
+                "totalCodeLines": 3,
+                "fullGeneratedCodeLines": 1,
+                "partialGeneratedCodeLines": 0,
+            },
+        )
+        self.assertIn("WARNINGS", actual_result)
+        self.assertTrue(any("omitted" in warning.lower() for warning in actual_result["WARNINGS"]))
 
 
 if __name__ == "__main__":
