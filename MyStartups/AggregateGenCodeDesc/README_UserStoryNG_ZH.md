@@ -1118,7 +1118,7 @@ USNG 使用 4D 故事索引作为主命名规则。
 
 - `GIVEN`: CLI 以 `--logLevel info` 运行
 - `WHEN`: 分析结束
-- `THEN`: stderr 输出一条 `[INFO]` 汇总行，其中包含 `totalCodeLines=`、`fullGeneratedCodeLines=`、`partialGeneratedCodeLines=` 与 `elapsed=`
+- `THEN`: stderr 输出一条 `[INFO]` 汇总行，其中包含 `totalCodeLines=`、`fullGeneratedCodeLines=`、`partialGeneratedCodeLines=`、`elapsed=` 与 `costSeconds=`
 
 **`AC-OPS-04`**
 

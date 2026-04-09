@@ -1229,7 +1229,7 @@ These stories address algorithm parity, runtime safety, and operator-visible nar
 
 - GIVEN the CLI runs with `--logLevel info`
 - WHEN analysis finishes
-- THEN stderr emits an `[INFO]` summary line containing `totalCodeLines=`, `fullGeneratedCodeLines=`, `partialGeneratedCodeLines=`, and `elapsed=`
+- THEN stderr emits an `[INFO]` summary line containing `totalCodeLines=`, `fullGeneratedCodeLines=`, `partialGeneratedCodeLines=`, `elapsed=`, and `costSeconds=`
 
 **AC-OPS-04** — *Quiet mode suppresses transition and live-line lines*
 

@@ -1,4 +1,5 @@
 import shutil
+import re
 import tempfile
 import unittest
 from copy import deepcopy
@@ -284,6 +285,13 @@ class TestUs11DeepHistoryPreservesAttributionSvnTdd(unittest.TestCase):
                     "Loaded genCodeDesc for revision",
                     "LiveLine src/deep_history.py:1 aggregate",
                 ],
+            )
+            self.assertRegex(
+                result.stderr,
+                re.compile(
+                    r"Finished analysis with totalCodeLines=4 fullGeneratedCodeLines=1 partialGeneratedCodeLines=1 "
+                    r"elapsed=\d+\.\d+s costSeconds=\d+\.\d+s"
+                ),
             )
 
 

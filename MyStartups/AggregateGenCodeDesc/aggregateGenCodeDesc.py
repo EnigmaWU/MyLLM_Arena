@@ -2138,6 +2138,7 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
     if not args.genCodeDescSetDir:
         raise UnsupportedConfigurationError("Current Algorithm C slice requires --genCodeDescSetDir")
 
+    analysis_start = time_mod.monotonic()
     query_document = load_algorithm_c_query(args)
     protocols = load_algorithm_c_protocols(Path(args.genCodeDescSetDir))
     end_bound = parse_day_end(args.endTime)
@@ -2171,6 +2172,10 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
 
     end_revision_timestamp = end_protocol[1]
     end_revision_id = end_protocol[2]
+    logger.info(
+        f"Starting analysis for repo={repository_identity['repoURL']} "
+        f"branch={repository_identity['repoBranch']} window={args.startTime}..{args.endTime} endRevision={end_revision_id}"
+    )
     surviving_lines: dict[tuple[str, str, int], tuple[int, datetime]] = {}
 
     for protocol, revision_timestamp, _revision_id in protocols:
@@ -2254,6 +2259,13 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         "fullGeneratedCodeLines": full_generated_code_lines,
         "partialGeneratedCodeLines": partial_generated_code_lines,
     }
+    elapsed = time_mod.monotonic() - analysis_start
+    logger.info(
+        "Finished analysis with "
+        f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
+        f"partialGeneratedCodeLines={partial_generated_code_lines} "
+        f"elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s"
+    )
     return build_result_document(
         args,
         summary,
@@ -2456,7 +2468,7 @@ def build_result(args: argparse.Namespace) -> dict:
         "Finished analysis with "
         f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
         f"partialGeneratedCodeLines={partial_generated_code_lines} "
-        f"elapsed={elapsed:.2f}s"
+        f"elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s"
     )
 
     if args.scope == "C":

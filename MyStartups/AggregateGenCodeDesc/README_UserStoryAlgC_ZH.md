@@ -451,6 +451,37 @@ USNG-ALGC-HISTORY-<C>-SCOPE-<D>-<NN>: 标题
 
 ---
 
+### USNG-ALGC-HISTORY-COMPLEX-SCOPE-A-14: `10K+` 历史的性能门禁必须暴露并约束 `costSeconds`
+
+- `WHO`：仓库分析员与操作员
+- `WHEN`：验证 Algorithm C 在深历史与生产规模 `10K+` 夹具上既可观测又足够快
+- `WHAT`：在最终 info 级汇总日志中输出 `costSeconds`，并让 `10K+` synthetic 夹具保持在有界运行时预算内
+- `WHY`：只有正确性还不足以证明生产可用；操作员需要明确的运行成本信号，而重型场景需要可执行的性能回归门禁
+- `Story`: As a repository analyst and operator, I want Algorithm C to report `costSeconds` and stay within a bounded runtime on the approved `10K+` deep-history fixtures, so that production-scale readiness is observable and regressions are caught by TDD.
+- `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Heavy`
+- `Status`：已由 `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_10_tdd.py`、`TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_11_tdd.py`、`TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py` 与 `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py` 覆盖。
+- `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-14-PERF`
+
+**AC-01** — *info 级汇总暴露运行成本*
+
+- GIVEN Algorithm C 以 `--logLevel info` 运行
+- WHEN 深历史或生产规模夹具完成
+- THEN 最终 stderr 汇总行同时包含 `elapsed=` 与 `costSeconds=`
+
+**AC-02** — *深历史夹具保持在有界运行时内*
+
+- GIVEN A-10 与 A-11 的 `10,001` 修订深历史夹具
+- WHEN Algorithm C 完成这些场景
+- THEN 输出的 `costSeconds` 低于批准的重型夹具预算
+
+**AC-03** — *生产规模夹具保持在有界运行时内*
+
+- GIVEN A-12 与 A-13 的 `10,001` 修订生产规模夹具
+- WHEN Algorithm C 完成这些场景
+- THEN 输出的 `costSeconds` 低于批准的重型夹具预算
+
+---
+
 ## 跨算法对等门禁
 
 ### USNG-ALGC-HISTORY-SIMPLE-SCOPE-A-06: Algorithm C 对 Algorithm A 与 Algorithm B 的对等门禁

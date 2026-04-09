@@ -510,7 +510,7 @@ For the current repository state, this section should be read as the intended of
 - `--logLevel <quiet|info|debug>`
   - default: `quiet`
   - `quiet` suppresses all runtime log output to stderr
-  - `info` emits a three-phase narrative to stderr: (1) initial `Starting analysis` banner with repo, branch, window, and end revision, (2) per-line `LiveLine` classification and `TransitionHint` lines showing which live lines transferred state between revisions (e.g. AI→human or human→AI), (3) `Finished analysis` summary with totals and elapsed time
+  - `info` emits a three-phase narrative to stderr: (1) initial `Starting analysis` banner with repo, branch, window, and end revision, (2) per-line `LiveLine` classification and `TransitionHint` lines showing which live lines transferred state between revisions (e.g. AI→human or human→AI), (3) `Finished analysis` summary with totals, `elapsed`, and `costSeconds`
   - `debug` adds metadata loading (`Loaded genCodeDesc`), file scanning (`Scanning file`), out-of-window skip, and cached-protocol reuse messages on top of all info-level output
 
 Recommended default behavior:

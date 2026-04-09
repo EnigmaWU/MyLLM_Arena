@@ -87,7 +87,7 @@ cd /path/to/AggregateGenCodeDesc
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--logLevel` | `quiet` | `quiet`、`info` 或 `debug`。`info` 输出三阶段叙事：(1) `Starting analysis` 横幅，包含 repo/branch/window/endRevision；(2) 逐行 `LiveLine` 分类（例如 `LiveLine src/calc.py:3 classification=100%-ai`）和 `TransitionHint` 行，展示修订间的状态迁移（例如 `100%-ai->human/unattributed`）；(3) `Finished analysis` 总结，包含汇总数和耗时。`debug` 在此基础上增加元数据加载、文件扫描、窗口外跳过和缓存协议复用消息。输出至 stderr。 |
+| `--logLevel` | `quiet` | `quiet`、`info` 或 `debug`。`info` 输出三阶段叙事：(1) `Starting analysis` 横幅，包含 repo/branch/window/endRevision；(2) 逐行 `LiveLine` 分类（例如 `LiveLine src/calc.py:3 classification=100%-ai`）和 `TransitionHint` 行，展示修订间的状态迁移（例如 `100%-ai->human/unattributed`）；(3) `Finished analysis` 总结，包含汇总数、`elapsed` 与 `costSeconds`。`debug` 在此基础上增加元数据加载、文件扫描、窗口外跳过和缓存协议复用消息。输出至 stderr。 |
 | `--timeout` | `30` | 单条命令超时秒数（每个 `git blame`、`git show` 等）。 |
 | `--maxRuntime` | `3600` | 整体分析超时秒数。 |
 | `--warnOnMissingProtocol` | 关 | 当某修订的元数据文件缺失时以降级模式继续运行；在输出中写入 `WARNINGS` 条目。 |

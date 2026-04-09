@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ FINAL_REVISION_NUMBER = 12000
 TOTAL_SYNTHETIC_COMMITS = FINAL_REVISION_NUMBER - BASELINE_REVISION_NUMBER + 1
 TARGET_LINE_COUNT = FEATURE_BRANCH_COUNT * 2
 REWRITES_PER_TARGET_LINE = (TOTAL_SYNTHETIC_COMMITS - 1) // TARGET_LINE_COUNT
+MAX_COST_SECONDS = 30.0
 FULL_AI_BRANCH_COUNT = 40
 PARTIAL_AI_BRANCH_COUNT = 30
 PARTIAL_AI_RATIO = 60
@@ -28,6 +30,11 @@ IN_WINDOW_BASE_TIMESTAMP = datetime(2026, 3, 1, 0, 0, tzinfo=timezone.utc)
 @pytest.mark.long_running
 class TestUsngAlgcHistoryComplexScopeA13SvnTdd(unittest.TestCase):
     maxDiff = None
+
+    def _parse_cost_seconds(self, stderr_text: str) -> float:
+        match = re.search(r"costSeconds=(\d+\.\d+)s", stderr_text)
+        self.assertIsNotNone(match)
+        return float(match.group(1))
 
     def _format_revision_id(self, revision_number: int) -> str:
         return f"r{revision_number:05d}"
@@ -243,12 +250,8 @@ class TestUsngAlgcHistoryComplexScopeA13SvnTdd(unittest.TestCase):
 
         return protocols
 
-    def test_cli_matches_expected_result_for_svn_production_scale_fixture(self) -> None:
-        self.assertGreaterEqual(FEATURE_BRANCH_COUNT, 100)
-        self.assertGreaterEqual(TOTAL_SYNTHETIC_COMMITS, 10000)
-
+    def _run_cli(self, log_level: str = "quiet") -> tuple[dict, str]:
         query = load_json(FIXTURE_DIR / "query.json")
-        expected_result = load_json(FIXTURE_DIR / "expected_result.json")
         protocols = self._build_protocols(query)
         self._assert_deep_commit_chain(protocols, query)
 
@@ -260,7 +263,7 @@ class TestUsngAlgcHistoryComplexScopeA13SvnTdd(unittest.TestCase):
 
             self.assertEqual(len(list(temp_path.glob("*_genCodeDesc.json"))), TOTAL_SYNTHETIC_COMMITS)
 
-            subprocess.run(
+            result = subprocess.run(
                 [
                     "python3",
                     str(UTILITY_PATH),
@@ -272,6 +275,8 @@ class TestUsngAlgcHistoryComplexScopeA13SvnTdd(unittest.TestCase):
                     "C",
                     "--scope",
                     query["scope"],
+                    "--logLevel",
+                    log_level,
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",
@@ -283,12 +288,24 @@ class TestUsngAlgcHistoryComplexScopeA13SvnTdd(unittest.TestCase):
                 check=True,
             )
 
-            self.assertEqual(load_json(output_file), expected_result)
+            return load_json(output_file), result.stderr
+
+    def test_cli_matches_expected_result_for_svn_production_scale_fixture(self) -> None:
+        self.assertGreaterEqual(FEATURE_BRANCH_COUNT, 100)
+        self.assertGreaterEqual(TOTAL_SYNTHETIC_COMMITS, 10000)
+        actual_result, _stderr = self._run_cli()
+        expected_result = load_json(FIXTURE_DIR / "expected_result.json")
+        self.assertEqual(actual_result, expected_result)
 
     def test_generated_history_contains_10001_distinct_commits(self) -> None:
         query = load_json(FIXTURE_DIR / "query.json")
         protocols = self._build_protocols(query)
         self._assert_deep_commit_chain(protocols, query)
+
+    def test_info_log_reports_cost_seconds_within_budget_for_svn_production_scale_fixture(self) -> None:
+        _actual_result, stderr_text = self._run_cli(log_level="info")
+        self.assertIn("Finished analysis with totalCodeLines=200 fullGeneratedCodeLines=80 partialGeneratedCodeLines=60", stderr_text)
+        self.assertLess(self._parse_cost_seconds(stderr_text), MAX_COST_SECONDS)
 
 
 if __name__ == "__main__":

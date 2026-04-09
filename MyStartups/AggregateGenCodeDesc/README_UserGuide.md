@@ -88,7 +88,7 @@ cd /path/to/AggregateGenCodeDesc
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--logLevel` | `quiet` | `quiet`, `info`, or `debug`. `info` emits a three-phase narrative: (1) `Starting analysis` banner with repo/branch/window/endRevision, (2) per-line `LiveLine` classification (e.g. `LiveLine src/calc.py:3 classification=100%-ai`) and `TransitionHint` lines showing state transfers between revisions (e.g. `100%-ai->human/unattributed`), (3) `Finished analysis` summary with totals and elapsed time. `debug` adds metadata loading, file scanning, out-of-window skips, and cached-protocol reuse messages. Output goes to stderr. |
+| `--logLevel` | `quiet` | `quiet`, `info`, or `debug`. `info` emits a three-phase narrative: (1) `Starting analysis` banner with repo/branch/window/endRevision, (2) per-line `LiveLine` classification (e.g. `LiveLine src/calc.py:3 classification=100%-ai`) and `TransitionHint` lines showing state transfers between revisions (e.g. `100%-ai->human/unattributed`), (3) `Finished analysis` summary with totals, `elapsed`, and `costSeconds`. `debug` adds metadata loading, file scanning, out-of-window skips, and cached-protocol reuse messages. Output goes to stderr. |
 | `--timeout` | `30` | Per-command timeout in seconds (each `git blame`, `git show`, etc.). |
 | `--maxRuntime` | `3600` | Overall analysis timeout in seconds. |
 | `--warnOnMissingProtocol` | off | Continue in degraded mode when a revision's metadata file is missing; emit a `WARNINGS` entry in the output. |

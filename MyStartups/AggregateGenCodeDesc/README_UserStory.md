@@ -941,7 +941,7 @@ US-29 promoted `TransitionHint` to info level so operators can answer "which lin
 
 **GIVEN** a valid analysis request with `--logLevel info`
 **WHEN** the analysis finishes
-**THEN** stderr contains an `[INFO]` line matching `Finished analysis with totalCodeLines=...` that includes `totalCodeLines=`, `fullGeneratedCodeLines=`, `partialGeneratedCodeLines=`, and `elapsed=`
+**THEN** stderr contains an `[INFO]` line matching `Finished analysis with totalCodeLines=...` that includes `totalCodeLines=`, `fullGeneratedCodeLines=`, `partialGeneratedCodeLines=`, `elapsed=`, and `costSeconds=`
 
 ##### AC-29.4: TransitionHint is suppressed at quiet level
 

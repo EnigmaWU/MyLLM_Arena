@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ FIXTURE_SVN_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "his
 BASELINE_REVISION_NUMBER = 2000
 FINAL_REVISION_NUMBER = 12000
 TOTAL_SYNTHETIC_COMMITS = FINAL_REVISION_NUMBER - BASELINE_REVISION_NUMBER + 1
+MAX_COST_SECONDS = 30.0
 BASELINE_TIMESTAMP = "2026-03-02T09:00:00Z"
 IN_WINDOW_BASE_TIMESTAMP = datetime(2026, 3, 3, 0, 0, tzinfo=timezone.utc)
 FINAL_TARGETS = [
@@ -28,6 +30,11 @@ FINAL_TARGETS = [
 
 class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
     maxDiff = None
+
+    def _parse_cost_seconds(self, stderr_text: str) -> float:
+        match = re.search(r"costSeconds=(\d+\.\d+)s", stderr_text)
+        self.assertIsNotNone(match)
+        return float(match.group(1))
 
     def _format_revision_id(self, vcs_type: str, revision_number: int, family: str) -> str:
         if vcs_type == "git":
@@ -268,7 +275,7 @@ class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
         protocols[-1]["REPOSITORY"]["revisionId"] = query["endRevisionId"]
         return protocols
 
-    def _run_cli(self, fixture_dir: Path) -> dict:
+    def _run_cli(self, fixture_dir: Path, log_level: str = "quiet") -> tuple[dict, str]:
         query = load_json(fixture_dir / "query.json")
         protocols = self._build_protocols(query)
         self._assert_deep_commit_chain(protocols, query)
@@ -282,7 +289,7 @@ class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
 
             self.assertEqual(len(list(temp_path.glob("*_genCodeDesc.json"))), TOTAL_SYNTHETIC_COMMITS)
 
-            subprocess.run(
+            result = subprocess.run(
                 [
                     "python3",
                     str(UTILITY_PATH),
@@ -294,6 +301,8 @@ class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
                     "C",
                     "--scope",
                     query["scope"],
+                    "--logLevel",
+                    log_level,
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",
@@ -304,17 +313,27 @@ class TestUsngAlgcHistoryComplexScopeA11Tdd(unittest.TestCase):
                 capture_output=True,
                 check=True,
             )
-            return load_json(output_file)
+            return load_json(output_file), result.stderr
 
     def test_cli_matches_git_expected_result_for_many_merged_branches(self) -> None:
         expected_result = load_json(FIXTURE_GIT_DIR / "expected_result.json")
-        actual_result = self._run_cli(FIXTURE_GIT_DIR)
+        actual_result, _stderr = self._run_cli(FIXTURE_GIT_DIR)
         self.assertEqual(actual_result, expected_result)
 
     def test_cli_matches_svn_expected_result_for_many_merged_branches(self) -> None:
         expected_result = load_json(FIXTURE_SVN_DIR / "expected_result.json")
-        actual_result = self._run_cli(FIXTURE_SVN_DIR)
+        actual_result, _stderr = self._run_cli(FIXTURE_SVN_DIR)
         self.assertEqual(actual_result, expected_result)
+
+    def test_info_log_reports_cost_seconds_within_budget_for_git_branch_fan_in(self) -> None:
+        _actual_result, stderr_text = self._run_cli(FIXTURE_GIT_DIR, log_level="info")
+        self.assertIn("Finished analysis with totalCodeLines=7 fullGeneratedCodeLines=2 partialGeneratedCodeLines=2", stderr_text)
+        self.assertLess(self._parse_cost_seconds(stderr_text), MAX_COST_SECONDS)
+
+    def test_info_log_reports_cost_seconds_within_budget_for_svn_branch_fan_in(self) -> None:
+        _actual_result, stderr_text = self._run_cli(FIXTURE_SVN_DIR, log_level="info")
+        self.assertIn("Finished analysis with totalCodeLines=7 fullGeneratedCodeLines=2 partialGeneratedCodeLines=2", stderr_text)
+        self.assertLess(self._parse_cost_seconds(stderr_text), MAX_COST_SECONDS)
 
     def test_generated_git_history_contains_10001_distinct_commits(self) -> None:
         query = load_json(FIXTURE_GIT_DIR / "query.json")

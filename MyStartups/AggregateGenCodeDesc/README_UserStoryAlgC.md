@@ -509,6 +509,37 @@ live repository histories named in the story text.
 
 ---
 
+### USNG-ALGC-HISTORY-COMPLEX-SCOPE-A-14: Performance Gate Must Expose And Bound costSeconds On 10K+ Histories
+
+- `WHO`: repository analyst and operator
+- `WHEN`: validating that Algorithm C remains operationally observable and acceptably fast on the deep-history and production-scale `10K+` fixtures
+- `WHAT`: emit `costSeconds` in the final info-level summary log and keep the `10K+` synthetic fixtures within a bounded runtime budget
+- `WHY`: correctness-only coverage is insufficient for production-readiness; operators need an explicit runtime cost signal and the heavy scenarios need an executable performance guardrail
+- `Story`: As a repository analyst and operator, I want Algorithm C to report `costSeconds` and stay within a bounded runtime on the approved `10K+` deep-history fixtures, so that production-scale readiness is observable and regressions are caught by TDD.
+- `Support`: `scope=A baseline` | `alg=C` | `vcs=git-origin and svn-origin` | `tier=Heavy`
+- `Status`: Covered by `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_10_tdd.py`, `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_11_tdd.py`, `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_12_git_tdd.py`, and `TestsNG-AlgC/history-complex/scope-a/test_usng_algc_history_complex_scope_a_13_svn_tdd.py`.
+- `Anchors`: `TestsNG-ALGC-HISTORY-COMPLEX-SCOPE-A-14-PERF`
+
+**AC-01** — *Info-level summary exposes runtime cost*
+
+- GIVEN Algorithm C runs with `--logLevel info`
+- WHEN a deep-history or production-scale fixture finishes
+- THEN the final stderr summary line contains both `elapsed=` and `costSeconds=`
+
+**AC-02** — *Deep-history fixtures remain within bounded runtime*
+
+- GIVEN the `10,001`-revision deep-history fixtures for A-10 and A-11
+- WHEN Algorithm C completes those scenarios
+- THEN the emitted `costSeconds` stays below the approved heavy-fixture budget
+
+**AC-03** — *Production-scale fixtures remain within bounded runtime*
+
+- GIVEN the `10,001`-revision production-scale fixtures for A-12 and A-13
+- WHEN Algorithm C completes those scenarios
+- THEN the emitted `costSeconds` stays below the approved heavy-fixture budget
+
+---
+
 ## Cross-Algorithm Parity Gate
 
 ### USNG-ALGC-HISTORY-SIMPLE-SCOPE-A-06: Algorithm C Parity Gate Against Algorithm A And Algorithm B

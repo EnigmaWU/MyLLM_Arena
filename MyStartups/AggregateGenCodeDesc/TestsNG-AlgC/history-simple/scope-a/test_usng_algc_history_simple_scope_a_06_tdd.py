@@ -21,6 +21,12 @@ def _load_module(relative_path: str, module_name: str):
     return module
 
 
+def _unwrap_cli_result(value):
+    if isinstance(value, tuple):
+        return value[0]
+    return value
+
+
 class TestUsngAlgcHistorySimpleScopeA06Tdd(unittest.TestCase):
     maxDiff = None
 
@@ -85,8 +91,8 @@ class TestUsngAlgcHistorySimpleScopeA06Tdd(unittest.TestCase):
 
         for runner_class, git_fixture_dir, svn_fixture_dir in scenarios:
             runner = runner_class(methodName="runTest")
-            git_actual = runner._run_cli(git_fixture_dir)
-            svn_actual = runner._run_cli(svn_fixture_dir)
+            git_actual = _unwrap_cli_result(runner._run_cli(git_fixture_dir))
+            svn_actual = _unwrap_cli_result(runner._run_cli(svn_fixture_dir))
             git_expected = load_json(git_fixture_dir / "expected_result.json")
             svn_expected = load_json(svn_fixture_dir / "expected_result.json")
 
