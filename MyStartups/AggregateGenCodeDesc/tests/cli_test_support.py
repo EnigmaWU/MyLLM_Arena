@@ -171,6 +171,29 @@ def load_json(path: Path) -> dict:
     return load_json_document(path.read_text(encoding="utf-8"))
 
 
+def build_query_args_cli_args(
+    query: dict,
+    include_identity: bool = False,
+    include_replay_selection: bool = False,
+) -> list[str]:
+    cli_args: list[str] = []
+    if include_identity:
+        if query.get("vcsType"):
+            cli_args.extend(["--vcsType", query["vcsType"]])
+        if query.get("repoURL"):
+            cli_args.extend(["--repoURL", query["repoURL"]])
+        if query.get("repoBranch"):
+            cli_args.extend(["--repoBranch", query["repoBranch"]])
+    if query.get("metric"):
+        cli_args.extend(["--metric", query["metric"]])
+    if include_replay_selection and query.get("endRevisionId"):
+        cli_args.extend(["--endRevisionId", query["endRevisionId"]])
+    included_revision_ids = query.get("includedRevisionIds") if include_replay_selection else None
+    if included_revision_ids:
+        cli_args.extend(["--includedRevisionIds", *included_revision_ids])
+    return cli_args
+
+
 def write_revision_protocol(
     protocol_dir: Path,
     protocol: dict,
@@ -215,6 +238,7 @@ def run_cli(
             str(protocol_dir),
             *( ["--workingDir", str(working_dir_override)] if working_dir_override else [] ),
             *( ["--scope", query["scope"]] if "scope" in query else [] ),
+            *build_query_args_cli_args(query),
             *(extra_args or []),
         ],
         cwd=PROJECT_ROOT,

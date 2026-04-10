@@ -101,7 +101,7 @@ class TestUS19PeriodAddedSvnSubset(unittest.TestCase):
             encoding="utf-8",
         )
 
-        # query.json with explicit includedRevisionIds
+        # query.json remains fixture data only; runtime arguments are passed explicitly.
         query_json = {
             "includedRevisionIds": ["2", "3"],
             "endRevisionId": "3",
@@ -130,6 +130,8 @@ class TestUS19PeriodAddedSvnSubset(unittest.TestCase):
                     "--algorithm", "B",
                     "--metric", "period_added_ai_ratio",
                     "--scope", "A",
+                    "--endRevisionId", "3",
+                    "--includedRevisionIds", "2", "3",
                     "--outputFile", str(output_file),
                     "--genCodeDescSetDir", str(protocol_dir),
                     "--commitDiffSetDir", str(commit_diff_dir),
@@ -169,6 +171,8 @@ class TestUS19PeriodAddedSvnSubset(unittest.TestCase):
                     "--algorithm", "B",
                     "--metric", "period_added_ai_ratio",
                     "--scope", "A",
+                    "--endRevisionId", "3",
+                    "--includedRevisionIds", "2", "3",
                     "--outputFile", str(output_file),
                     "--genCodeDescSetDir", str(protocol_dir),
                     "--commitDiffSetDir", str(commit_diff_dir),

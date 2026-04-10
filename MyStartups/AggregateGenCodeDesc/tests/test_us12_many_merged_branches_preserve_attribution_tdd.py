@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 import subprocess
 
-from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, load_json, run_cli, write_revision_protocol, UTILITY_PATH
+from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, build_query_args_cli_args, load_json, run_cli, write_revision_protocol
 from tests.log_assertions import assert_live_line_log, assert_log_contains_all, assert_log_contains_none
 
 
@@ -38,6 +38,7 @@ class TestUs12ManyMergedBranchesPreserveAttributionTdd(unittest.TestCase):
                     "B",
                     "--scope",
                     query["scope"],
+                    *build_query_args_cli_args(query, include_replay_selection=True),
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",

@@ -30,6 +30,7 @@ from pathlib import Path
 __version__ = "0.1.0"
 PROTOCOL_VERSION = "26.03"
 ALGORITHM_C_PROTOCOL_VERSION = "26.04"
+QUERY_ARGS_FILE_NAME = "queryArgs.json"
 
 COMMAND_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RUNTIME_SECONDS = 3600
@@ -572,14 +573,92 @@ def build_result_document(
     return result
 
 
+def resolve_query_args_path(args: argparse.Namespace) -> Path | None:
+    if args.queryArgsFile:
+        return Path(args.queryArgsFile)
+    if not args.genCodeDescSetDir:
+        return None
+
+    default_path = Path(args.genCodeDescSetDir) / QUERY_ARGS_FILE_NAME
+    if default_path.exists():
+        return default_path
+    return None
+
+
+def load_query_args_document(args: argparse.Namespace) -> dict | None:
+    query_args_path = resolve_query_args_path(args)
+    if query_args_path is None:
+        return None
+    if not query_args_path.exists() or not query_args_path.is_file():
+        raise InputValidationError(f"query args file does not exist or is not a file: {query_args_path}")
+
+    try:
+        query_args_document = load_json_document(query_args_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ProtocolValidationError(f"Failed to read query args from {query_args_path}: {exc}") from exc
+
+    if not isinstance(query_args_document, dict):
+        raise ProtocolValidationError(f"Query args at {query_args_path} must be a JSON object")
+
+    return query_args_document
+
+
+def _read_query_args_string(query_args_document: dict, field_name: str) -> str | None:
+    value = query_args_document.get(field_name)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise ProtocolValidationError(f"query args {field_name} must be a non-empty string when provided")
+    return value
+
+
+def _read_query_args_revision_list(query_args_document: dict, field_name: str) -> list[str] | None:
+    value = query_args_document.get(field_name)
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise ProtocolValidationError(f"query args {field_name} must be a non-empty list of revision-id strings")
+    return value
+
+
+def apply_query_args(args: argparse.Namespace) -> argparse.Namespace:
+    query_args_document = load_query_args_document(args)
+    if query_args_document is not None:
+        for field_name in (
+            "repoURL",
+            "repoBranch",
+            "startTime",
+            "endTime",
+            "vcsType",
+            "algorithm",
+            "metric",
+            "scope",
+            "endRevisionId",
+        ):
+            current_value = getattr(args, field_name)
+            if current_value not in (None, ""):
+                continue
+            query_value = _read_query_args_string(query_args_document, field_name)
+            if query_value is not None:
+                setattr(args, field_name, query_value)
+
+        if args.includedRevisionIds is None:
+            included_revision_ids = _read_query_args_revision_list(query_args_document, "includedRevisionIds")
+            if included_revision_ids is not None:
+                args.includedRevisionIds = included_revision_ids
+
+    if not args.vcsType:
+        args.vcsType = "git"
+    if not args.algorithm:
+        args.algorithm = "A"
+    if not args.scope:
+        args.scope = "A"
+    return args
+
+
 def resolve_algorithm_b_offline_revision_ids(args: argparse.Namespace) -> list[str]:
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        included_revision_ids = query_document.get("includedRevisionIds")
-        if included_revision_ids is not None:
-            if not isinstance(included_revision_ids, list) or not all(isinstance(value, str) and value for value in included_revision_ids):
-                raise ProtocolValidationError("query.json includedRevisionIds must be a non-empty list of revision-id strings")
-            return included_revision_ids
+    if args.includedRevisionIds is not None:
+        return args.includedRevisionIds
 
     return list_commit_diff_revision_ids(Path(args.commitDiffSetDir))
 
@@ -813,26 +892,16 @@ def resolve_local_git_repository_dir(args: argparse.Namespace) -> Path:
 
 
 def resolve_algorithm_b_git_end_revision_id(args: argparse.Namespace, repo_dir: Path) -> str:
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        end_revision_id = query_document.get("endRevisionId")
-        if end_revision_id is not None:
-            if not isinstance(end_revision_id, str) or not end_revision_id:
-                raise ProtocolValidationError("query.json endRevisionId must be a non-empty string when provided")
-            return end_revision_id
+    if args.endRevisionId:
+        return args.endRevisionId
 
     return resolve_end_revision(repo_dir, args.repoBranch, args.endTime)
 
 
 def resolve_algorithm_b_git_revision_ids(args: argparse.Namespace, repo_dir: Path) -> tuple[list[str], str]:
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        included_revision_ids = query_document.get("includedRevisionIds")
-        if included_revision_ids is not None:
-            if not isinstance(included_revision_ids, list) or not all(isinstance(value, str) and value for value in included_revision_ids):
-                raise ProtocolValidationError("query.json includedRevisionIds must be a non-empty list of revision-id strings")
-            end_revision_id = resolve_algorithm_b_git_end_revision_id(args, repo_dir)
-            return included_revision_ids, end_revision_id
+    if args.includedRevisionIds is not None:
+        end_revision_id = resolve_algorithm_b_git_end_revision_id(args, repo_dir)
+        return args.includedRevisionIds, end_revision_id
 
     end_revision_id = resolve_algorithm_b_git_end_revision_id(args, repo_dir)
     revision_output = run_git(
@@ -1474,6 +1543,10 @@ def validate_iso_date(value: str, label: str) -> None:
 
 
 def validate_inputs(args: argparse.Namespace) -> None:
+    if not args.startTime:
+        raise InputValidationError("--startTime is required")
+    if not args.endTime:
+        raise InputValidationError("--endTime is required")
     if args.commitDiffSetDir:
         validate_directory(args.commitDiffSetDir, "--commitDiffSetDir")
         if args.algorithm != "B":
@@ -1512,6 +1585,10 @@ def validate_inputs(args: argparse.Namespace) -> None:
         )
     if args.genCodeDescSetDir:
         validate_directory(args.genCodeDescSetDir, "--genCodeDescSetDir")
+    if args.queryArgsFile:
+        query_args_path = Path(args.queryArgsFile)
+        if not query_args_path.exists() or not query_args_path.is_file():
+            raise InputValidationError(f"--queryArgsFile does not exist or is not a file: {args.queryArgsFile}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -1521,18 +1598,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__} (protocol {PROTOCOL_VERSION})")
     parser.add_argument("--repoURL", default="")
     parser.add_argument("--repoBranch", default="")
-    parser.add_argument("--startTime", required=True)
-    parser.add_argument("--endTime", required=True)
-    parser.add_argument("--vcsType", default="git")
-    parser.add_argument("--algorithm", default="A")
+    parser.add_argument("--startTime", default="")
+    parser.add_argument("--endTime", default="")
+    parser.add_argument("--vcsType", default="")
+    parser.add_argument("--algorithm", default="")
     parser.add_argument("--metric")
-    parser.add_argument("--scope", default="A")
+    parser.add_argument("--scope", default="")
     parser.add_argument("--outputFile")
     parser.add_argument("--outputFormat", default="json")
     parser.add_argument("--metadataSource", default="genCodeDesc")
     parser.add_argument("--genCodeDescSetDir")
     parser.add_argument("--commitDiffSetDir")
+    parser.add_argument("--queryArgsFile")
     parser.add_argument("--workingDir")
+    parser.add_argument("--endRevisionId")
+    parser.add_argument("--includedRevisionIds", nargs="+")
     parser.add_argument("--failOnMissingProtocol", action="store_true")
     parser.add_argument("--warnOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
@@ -2030,25 +2110,6 @@ def line_ratio(protocol_index: dict[str, IndexedFileDetail], origin_file: str, o
     return 0
 
 
-def load_algorithm_c_query(args: argparse.Namespace) -> dict | None:
-    if not args.genCodeDescSetDir:
-        return None
-
-    query_path = Path(args.genCodeDescSetDir) / "query.json"
-    if not query_path.exists():
-        return None
-
-    try:
-        query_document = load_json_document(query_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        raise ProtocolValidationError(f"Failed to read Algorithm C query from {query_path}: {exc}") from exc
-
-    if not isinstance(query_document, dict):
-        raise ProtocolValidationError(f"Algorithm C query at {query_path} must be a JSON object")
-
-    return query_document
-
-
 def load_algorithm_c_protocols(base_dir: Path) -> list[tuple[dict, datetime, str]]:
     protocols: list[tuple[dict, datetime, str]] = []
     for protocol_path in sorted(base_dir.glob("*_genCodeDesc.json")):
@@ -2096,7 +2157,7 @@ def load_algorithm_c_protocols(base_dir: Path) -> list[tuple[dict, datetime, str
 
 
 def resolve_algorithm_c_repository_identity(
-    query_document: dict | None,
+    args: argparse.Namespace,
     end_protocol: dict,
 ) -> dict[str, str]:
     repository = end_protocol.get("REPOSITORY")
@@ -2112,18 +2173,13 @@ def resolve_algorithm_c_repository_identity(
         if not isinstance(field_value, str) or not field_value:
             raise ProtocolValidationError(f"Algorithm C end protocol missing REPOSITORY.{field_name}")
 
-    if query_document is None:
-        return identity
-
     for field_name in ("vcsType", "repoURL", "repoBranch"):
-        query_value = query_document.get(field_name)
-        if query_value is None:
+        query_value = getattr(args, field_name)
+        if not query_value:
             continue
-        if not isinstance(query_value, str) or not query_value:
-            raise ProtocolValidationError(f"Algorithm C query.json {field_name} must be a non-empty string when provided")
         if query_value != identity[field_name]:
             raise ProtocolValidationError(
-                f"Algorithm C query.json {field_name} {query_value!r} does not match end protocol REPOSITORY.{field_name} {identity[field_name]!r}"
+                f"Algorithm C {field_name} {query_value!r} does not match end protocol REPOSITORY.{field_name} {identity[field_name]!r}"
             )
         identity[field_name] = query_value
 
@@ -2139,26 +2195,23 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         raise UnsupportedConfigurationError("Current Algorithm C slice requires --genCodeDescSetDir")
 
     analysis_start = time_mod.monotonic()
-    query_document = load_algorithm_c_query(args)
     protocols = load_algorithm_c_protocols(Path(args.genCodeDescSetDir))
     end_bound = parse_day_end(args.endTime)
     start_bound = parse_day_start(args.startTime)
 
-    requested_end_revision_id = None if query_document is None else query_document.get("endRevisionId")
-    if requested_end_revision_id is not None and (not isinstance(requested_end_revision_id, str) or not requested_end_revision_id):
-        raise ProtocolValidationError("Algorithm C query.json endRevisionId must be a non-empty string when provided")
+    requested_end_revision_id = args.endRevisionId
 
     if requested_end_revision_id is not None:
         end_protocol = next((item for item in protocols if item[2] == requested_end_revision_id), None)
         if end_protocol is None:
-            raise ProtocolValidationError(f"Algorithm C query.json endRevisionId {requested_end_revision_id!r} was not found in --genCodeDescSetDir")
+            raise ProtocolValidationError(f"Algorithm C endRevisionId {requested_end_revision_id!r} was not found in --genCodeDescSetDir")
     else:
         eligible_by_time = [item for item in protocols if item[1] <= end_bound]
         if not eligible_by_time:
             raise ProtocolValidationError("Algorithm C found no genCodeDesc protocol at or before endTime")
         end_protocol = eligible_by_time[-1]
 
-    repository_identity = resolve_algorithm_c_repository_identity(query_document, end_protocol[0])
+    repository_identity = resolve_algorithm_c_repository_identity(args, end_protocol[0])
     filtered_protocols = []
     for protocol, revision_timestamp, revision_id in protocols:
         repository = protocol.get("REPOSITORY", {})
@@ -2277,51 +2330,12 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
 
 
 def resolve_algorithm_b_metric(args: argparse.Namespace) -> str:
-    explicit_metric = args.metric
-    inferred_metric = None
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        query_metric = query_document.get("metric")
-        if isinstance(query_metric, str) and query_metric:
-            inferred_metric = query_metric
-
-    if explicit_metric and inferred_metric and explicit_metric != inferred_metric:
-        raise InputValidationError(
-            f"--metric {explicit_metric} does not match query.json metric {inferred_metric} in --genCodeDescSetDir"
-        )
-
-    resolved_metric = explicit_metric or inferred_metric or "live_changed_source_ratio"
-
-    return resolved_metric
-
-
-def load_algorithm_b_query(args: argparse.Namespace) -> dict | None:
-    if not args.genCodeDescSetDir:
-        return None
-
-    query_path = Path(args.genCodeDescSetDir) / "query.json"
-    if not query_path.exists():
-        return None
-
-    try:
-        query_document = load_json_document(query_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        raise ProtocolValidationError(f"Failed to read Algorithm B query from {query_path}: {exc}") from exc
-
-    if not isinstance(query_document, dict):
-        raise ProtocolValidationError(f"Algorithm B query at {query_path} must be a JSON object")
-
-    return query_document
+    return args.metric or "live_changed_source_ratio"
 
 
 def resolve_algorithm_b_end_revision_id(args: argparse.Namespace, revision_ids: list[str]) -> str:
-    query_document = load_algorithm_b_query(args)
-    if query_document is not None:
-        end_revision_id = query_document.get("endRevisionId")
-        if end_revision_id is not None:
-            if not isinstance(end_revision_id, str) or not end_revision_id:
-                raise ProtocolValidationError("query.json endRevisionId must be a non-empty string when provided")
-            return end_revision_id
+    if args.endRevisionId:
+        return args.endRevisionId
     return revision_ids[-1]
 
 
@@ -2504,7 +2518,7 @@ EXIT_TIMEOUT = 4
 def main() -> None:
     args = None
     try:
-        args = parse_args()
+        args = apply_query_args(parse_args())
         validate_inputs(args)
 
         def _timeout_handler(signum: int, frame: object) -> None:

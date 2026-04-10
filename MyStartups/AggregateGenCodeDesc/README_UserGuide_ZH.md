@@ -36,6 +36,8 @@ cd /path/to/AggregateGenCodeDesc
 | **B**（回放，本地 Git） | Git | ✅ 已支持 | ✅ 已支持 | ✅ 已支持 | ✅ 已支持 |
 | **B**（回放，离线夹具） | Git | ✅ 已支持 | ✅ 已支持 | ✅ 已支持 | ✅ 已支持 |
 | **B**（回放，离线夹具） | SVN | ✅ 已支持 | — | — | — |
+| **C**（嵌入 blame，v26.04） | Git 来源 blame | ✅ 当前切片 | — | — | — |
+| **C**（嵌入 blame，v26.04） | SVN 来源 blame | ✅ 当前切片 | — | — | — |
 
 **Algorithm A** 是推荐的生产路径，它直接操作活跃仓库的 checkout。
 
@@ -44,20 +46,67 @@ cd /path/to/AggregateGenCodeDesc
 - **本地 Git 回放**：直接从本地 Git checkout 读取 diff
 - **离线夹具回放**：从 `--commitDiffSetDir` 中读取预导出的 patch 文件（Git 和 SVN 来源的夹具在 Scope A 下均可工作）
 
-## 前置条件
+**Algorithm C** 消费 `genCodeDescProtoV26.04` 文件中的嵌入 blame。在当前 CLI 切片中，它支持 Scope A，要求 `--genCodeDescSetDir`，运行时不调用 Git / SVN，并且可以从显式 CLI 参数或可选 `queryArgs.json` 与选中的 end-revision 协议中推导仓库身份。
+
+## 全局前置条件
 
 - Python 3.10+
 - Git 运行需要本地已安装 Git
 - SVN 运行需要本地已安装 SVN
 
+## 各算法依赖与前置条件
+
+### Algorithm A
+
+- 依赖：活跃仓库访问能力 + 逐修订版 `genCodeDesc` v26.03 元数据。
+- 运行前提：
+  - 本地 Git checkout 或可访问的 SVN 仓库
+  - Git 运行需安装 Git，SVN 运行需安装 SVN
+  - `--repoURL`、`--repoBranch`、`--startTime`、`--endTime`
+  - 含匹配元数据的 `--genCodeDescSetDir`
+- 适合选择 A 的情况：
+  - 最重视生产正确性与可解释性
+  - 需要把结果直接追溯到原始 VCS 证据
+  - 可以接受运行时访问仓库
+
+### Algorithm B
+
+- 依赖：可回放的 commit diff 流 + 逐修订版 `genCodeDesc` v26.03 元数据。
+- 运行前提：
+  - 本地 Git 回放时：需要本地 Git checkout 与 Git
+  - 离线回放时：需要 `--commitDiffSetDir` 与 `--genCodeDescSetDir`
+  - 每个被回放的修订都必须同时具备 patch 工件与对应元数据
+  - `--startTime` 与 `--endTime`
+  - 本地 Git 回放仍需要仓库位置（`--repoURL` 或 `--workingDir`），并且在当前 CLI 中通常仍需要 `--repoBranch`
+  - 离线回放在原理上并不依赖活跃仓库访问；`--repoURL` 在当前更多用于元数据身份校验与输出身份，`--repoBranch` 更多保留为查询 / 输出上下文
+- 适合选择 B 的情况：
+  - 运行时必须脱离仓库，但手头已有 patch 工件
+  - 希望基于同一套 diff 流做确定性历史重放、过程回溯或窗口实验
+  - 团队能够接受最高的 replay 逻辑复杂度
+
+### Algorithm C
+
+- 依赖：带嵌入 blame 的逐修订版 `genCodeDescProtoV26.04` 文件，以及有效的 `REPOSITORY.revisionTimestamp`。
+- 运行前提：
+  - `--algorithm C`
+  - `--genCodeDescSetDir` 中至少有一个 `*_genCodeDesc.json`
+  - 每个 AlgC 协议文件都必须声明 `protocolVersion: "26.04"`
+  - 当前 CLI 切片仅支持 Scope A
+  - 当前切片要保证正确性，要求 surviving lines 的 DETAIL 穷尽完整
+  - `--genCodeDescSetDir` 下可选放置 `queryArgs.json`，或通过 `--queryArgsFile` 指定，用于提供 `endRevisionId` 和/或仓库身份
+- 适合选择 C 的情况：
+  - 运行时既不能访问仓库，也不希望回放 diff
+  - 部署环境是气隔、边缘节点或离线批处理流水线
+  - 可以严格治理写入时协议质量，并信任嵌入 blame 的生产链路
+
 ## 参数说明
 
-### 每次运行都必需
+### 基础必需参数
 
 | 参数 | 说明 |
 |------|------|
-| `--repoURL` | 仓库身份。对 Git，可以是本地路径（`/path/to/repo`）或逻辑 URL（`https://...`）。对 SVN，是服务器或 `file:///` URL。 |
-| `--repoBranch` | 分支名称（例如 `main`、`trunk`）。 |
+| `--repoURL` | 仓库身份。对 Algorithm A 为必需。对 Algorithm B 本地 Git 回放，如果不使用 `--workingDir`，则也需要它。对 Algorithm B 离线回放，它更推荐用于元数据身份校验与输出身份，真正的回放输入仍是 `--commitDiffSetDir` + `--genCodeDescSetDir`。Algorithm C 可从显式 CLI 参数或 `queryArgs.json` 与选中的 v26.04 end protocol 推导仓库身份。 |
+| `--repoBranch` | 分支名称（例如 `main`、`trunk`）。对 Algorithm A 为必需。对 Algorithm B 本地 Git 回放，它通常用于解析 end revision。对 Algorithm B 离线回放，它更适合作为查询 / 输出上下文，而非核心回放依赖。若 Algorithm C 从显式 CLI 参数或 `queryArgs.json` 与 end protocol 推导身份，则该参数可选。 |
 | `--startTime` | ISO-8601 格式的开始日期（例如 `2026-03-01`）。 |
 | `--endTime` | ISO-8601 格式的结束日期（例如 `2026-03-31`）。 |
 
@@ -65,17 +114,31 @@ cd /path/to/AggregateGenCodeDesc
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `--genCodeDescSetDir` | — | 包含 `<revisionId>_genCodeDesc.json` 元数据文件的目录。每个文件内的 `REPOSITORY` 块必须与 CLI 的 `--repoURL` 一致。 |
+| `--genCodeDescSetDir` | — | 元数据目录。对 Algorithm A/B，包含 `<revisionId>_genCodeDesc.json` 文件；对 Algorithm C，包含 `protocolVersion: "26.04"` 的 `*_genCodeDesc.json` 文件，以及可选的 `queryArgs.json`。 |
 | `--outputFile` | stdout | JSON 结果输出路径。 |
 | `--scope` | `A` | 统计哪些文件和行。详见下方 [Scope](#--scope)。 |
-| `--algorithm` | `A` | `A` 为活跃仓库分析，`B` 为回放型分析。 |
-| `--vcsType` | `git` | `git` 或 `svn`。 |
+| `--algorithm` | `A` | `A` 为活跃仓库分析，`B` 为回放型分析，`C` 为嵌入 blame 的离线分析。 |
+| `--vcsType` | `git` | `git` 或 `svn`。对 Algorithm A 为必需。对 Algorithm B 也仍需要，因为元数据解释和 replay 解析仍要知道场景是 Git 还是 SVN。若 Algorithm C 从显式 CLI 参数或 `queryArgs.json` 与选中的 end protocol 推导身份，则该参数可选。 |
 
 ### Algorithm B 专用
 
 | 参数 | 说明 |
 |------|------|
 | `--commitDiffSetDir` | 预导出的 patch 文件目录，用于离线回放。夹具驱动的 Algorithm B 必需。必须与 `--genCodeDescSetDir` 配对使用。 |
+| `--endRevisionId` | Algorithm B/C 可选的显式 end revision。若省略，运行时会按时间解析最新符合条件的修订。 |
+| `--includedRevisionIds` | Algorithm B 可选的显式回放序列。若提供，该列表就是权威的回放集合 / 顺序。 |
+| `--queryArgsFile` | 可选的生产侧 JSON 参数文件路径。若省略，运行时也会查找 `--genCodeDescSetDir` 中的 `queryArgs.json`。 |
+
+Algorithm B 说明：`repoURL` 与 `repoBranch` 在不同模式下的重要性并不相同。它们在本地 Git 回放中更关键；而在离线回放中，真正的硬输入是 patch 流与匹配元数据，`repoURL` 当前主要承担元数据身份校验作用，`repoBranch` 当前主要保留为查询 / 输出上下文。
+
+### Algorithm C 专用
+
+| 参数 | 说明 |
+|------|------|
+| `--genCodeDescSetDir` | 必需。AlgC `genCodeDescProtoV26.04` 文件所在目录。当前切片只从这些文件读取嵌入 blame。 |
+| `--genCodeDescSetDir` 下的 `queryArgs.json` 或 `--queryArgsFile` | 可选但推荐。可提供 `endRevisionId`、`vcsType`、`repoURL`、`repoBranch`。若提供，这些字段必须与选中的 end-revision 协议一致。 |
+| `--repoURL`、`--repoBranch`、`--vcsType` | 当存在 `--genCodeDescSetDir` 时，对 Algorithm C 可选。仓库身份会从显式 CLI 值或 `queryArgs.json` 与 end-revision 协议集合中推导。 |
+| `--scope` | 当前 Algorithm C 切片仅支持 Scope A。 |
 
 ### Git 逻辑 URL 模式
 
@@ -106,13 +169,26 @@ cd /path/to/AggregateGenCodeDesc
 
 Scope 与算法选择正交。Scope 控制 **统计什么**；算法控制 **如何计算行来源归因**。
 
+## 如何选择算法
+
+| 如果你的首要关注点是…… | 选择 | 原因 |
+|---|---|---|
+| 最低逻辑风险、最好审计性 | **Algorithm A** | live blame 仍是最权威的证据路径。 |
+| 基于显式历史 diff 工件做离线回放 | **Algorithm B** | 它是唯一围绕可回放 patch 流构建的路径。 |
+| 运行时既不要仓库也不要 diff replay | **Algorithm C** | 它只消费带嵌入 blame 的 v26.04 文件。 |
+| 当允许运行时访问仓库时，追求全系统最稳妥的生产基线 | **Algorithm A** | 解释风险最低、协议负担最低、当前覆盖范围也最完整。 |
+| 在已有 patch 导出流水线的受控离线系统里追求较好整体效果 | **Algorithm B** | 可复用 patch 工件做回放、实验与确定性复现。 |
+| 在气隔或边缘部署拓扑里追求较好整体效果 | **Algorithm C** | 最小化运行时依赖与权限暴露。 |
+
+推荐默认选择：除非你有明确的系统性理由要避免 live repository access，否则优先使用 **Algorithm A**。只有当 patch-stream replay 本身就是目标能力时才选择 **Algorithm B**。当部署模型足够受益于零仓库、零 diff 的运行时形态，并且团队能承受更严格的 v26.04 协议治理时，再选择 **Algorithm C**。
+
 ### `--commitDiffSetDir` 契约
 
 使用 Algorithm B 的离线夹具时：
 
 - `--commitDiffSetDir` 与 `--genCodeDescSetDir` 配对 —— 它们是同一次回放运行的 diff 侧和元数据侧。
 - 每个回放修订都需要 `<timeSeq>_<revisionId>_commitDiff.patch` 和 `<revisionId>_genCodeDesc.json`。
-- 如果 `query.json` 提供了 `includedRevisionIds`，则该列表定义回放顺序；多余的 patch 文件会被忽略。
+- 如果提供了 `--includedRevisionIds` 或 `queryArgs.json.includedRevisionIds`，则该列表定义回放顺序；多余的 patch 文件会被忽略。
 - 否则，文件名中的 `<timeSeq>` 前缀决定回放顺序。
 - 遗留的 `<revisionId>_commitDiff.patch` 命名对旧夹具仍有效，但新夹具应使用带时间序列的格式。
 - 同一目录中不要混用遗留和时间序列命名。
@@ -211,6 +287,22 @@ python3 aggregateGenCodeDesc.py \
 
 SVN 来源的夹具在 Scope A 下同样可用 —— 只需改为 `--vcsType svn` 并指向 SVN 夹具目录。
 
+### 6. Algorithm C — 嵌入 blame 的离线分析
+
+仅依赖 v26.04 协议文件集合运行。在当前切片中，Scope A 是受支持路径。
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --algorithm C \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-c-out.json \
+  --genCodeDescSetDir /path/to/algc-v26.04-set
+```
+
+如果 `/path/to/algc-v26.04-set/queryArgs.json` 存在，或传入了 `--queryArgsFile`，Algorithm C 可以从该文件以及选中的 end protocol 推导 `endRevisionId`、`repoURL`、`repoBranch` 与 `vcsType`。
+
 ## 输出形态
 
 ### Scope A、B 或 D
@@ -252,6 +344,28 @@ SVN 来源的夹具在 Scope A 下同样可用 —— 只需改为 `--vcsType sv
   }
 }
 ```
+
+### Algorithm C 输出形态（当前切片）
+
+```json
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 1
+  },
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/demo.git",
+    "repoBranch": "main",
+    "revisionId": "abc123"
+  }
+}
+```
+
+对 Algorithm C 而言，`REPOSITORY` 身份来自被选中的 v26.04 end-revision 协议；若提供了显式 CLI 值或 `queryArgs.json`，则会对身份字段做一致性校验。
 
 ### 可选的 `WARNINGS` 字段
 

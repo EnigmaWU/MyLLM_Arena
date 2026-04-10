@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from aggregateGenCodeDesc import PROTOCOL_VERSION
-from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, load_json, run_cli, write_revision_protocol
+from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, build_query_args_cli_args, load_json, run_cli, write_revision_protocol
 
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "testdata" / "us1_live_changed_source_ratio"
@@ -208,6 +208,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     "B",
                     "--scope",
                     query["scope"],
+                    *build_query_args_cli_args(query, include_replay_selection=True),
                     "--outputFile",
                     str(output_file),
                     "--commitDiffSetDir",
@@ -872,9 +873,9 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
 
         # Should not fail for missing metric — defaults to live_changed_source_ratio
         # May fail for other reasons (missing genCodeDesc, etc.) but NOT for missing metric
-        self.assertNotIn("requires either --metric or a query.json metric", result.stderr)
+        self.assertNotIn("requires either --metric or a queryArgs.json metric", result.stderr)
 
-    def test_cli_algorithm_b_offline_uses_query_included_revision_ids_as_authoritative_replay_sequence(self) -> None:
+    def test_cli_algorithm_b_offline_uses_explicit_included_revision_ids_as_authoritative_replay_sequence(self) -> None:
         query = {
             "vcsType": "git",
             "repoURL": "https://example.local/repo/demo",
@@ -895,7 +896,6 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
             protocol_dir.mkdir()
             commit_diff_dir.mkdir()
 
-            (protocol_dir / "query.json").write_text(json.dumps(query), encoding="utf-8")
             (protocol_dir / "r1_genCodeDesc.json").write_text(
                 json.dumps(
                     {
@@ -979,6 +979,7 @@ class TestCliAlgorithmFlagTdd(unittest.TestCase):
                     "B",
                     "--scope",
                     query["scope"],
+                    *build_query_args_cli_args(query, include_replay_selection=True),
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",

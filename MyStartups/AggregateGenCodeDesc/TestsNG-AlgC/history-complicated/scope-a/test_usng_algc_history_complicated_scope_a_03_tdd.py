@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, load_json
+from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, build_query_args_cli_args, load_json
 
 
 FIXTURE_GIT_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgC" / "history-complicated" / "scope-a" / "03" / "git" / "default"
@@ -30,6 +30,7 @@ class TestUsngAlgcHistoryComplicatedScopeA03Tdd(unittest.TestCase):
                     "C",
                     "--scope",
                     query["scope"],
+                    *build_query_args_cli_args(query, include_identity=True, include_replay_selection=True),
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",

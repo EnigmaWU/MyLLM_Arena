@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, load_json, run_cli, write_revision_protocol
+from tests.cli_test_support import GitRepoHarness, PROJECT_ROOT, UTILITY_PATH, build_query_args_cli_args, load_json, run_cli, write_revision_protocol
 from tests.test_us12_many_merged_branches_preserve_attribution_tdd import TestUs12ManyMergedBranchesPreserveAttributionTdd
 
 
@@ -35,6 +35,7 @@ class TestUs8Us12AlgorithmBRegressionTdd(unittest.TestCase):
                     "B",
                     "--scope",
                     query["scope"],
+                    *build_query_args_cli_args(query, include_replay_selection=True),
                     "--outputFile",
                     str(output_file),
                     "--genCodeDescSetDir",
