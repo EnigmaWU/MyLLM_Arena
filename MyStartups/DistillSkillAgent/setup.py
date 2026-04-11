@@ -19,6 +19,7 @@ setup(
     entry_points={
         "console_scripts": [
             "myDistillSkillAgent=distillSkillAgent.cli:main",
+            "saveAsSkill=distillSkillAgent.saveAsSkill:main",
         ],
     },
     classifiers=[
