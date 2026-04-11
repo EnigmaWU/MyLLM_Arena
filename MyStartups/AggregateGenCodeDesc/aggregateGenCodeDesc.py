@@ -34,7 +34,7 @@ QUERY_ARGS_FILE_NAME = "queryArgs.json"
 
 COMMAND_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_RUNTIME_SECONDS = 3600
-MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB hard limit for single-file VCS output
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB hard limit for single-file VCS output
 
 _VALID_URL_SCHEMES = re.compile(r"^(https?://|svn://|svn\+ssh://|file://|/)", re.IGNORECASE)
 
@@ -833,9 +833,9 @@ def is_included_file_path(path_value: str, scope: str = "A") -> bool:
 def list_git_source_paths_for_revision(repo_dir: Path, revision_id: str, scope: str = "A") -> list[str]:
     parent_revision = resolve_parent_revision("git", repo_dir, "", "", revision_id)
     if parent_revision is None:
-        output = run_git(repo_dir, ["show", "--format=", "--name-status", "--find-renames", "--root", revision_id])
+        output = run_git(repo_dir, ["show", "--format=", "--name-status", "--find-renames=25%", "--root", revision_id])
     else:
-        output = run_git(repo_dir, ["diff", "--name-status", "--find-renames", parent_revision, revision_id])
+        output = run_git(repo_dir, ["diff", "--name-status", "--find-renames=25%", parent_revision, revision_id])
 
     source_paths: list[str] = []
     for raw_line in output.splitlines():
@@ -866,12 +866,12 @@ def build_git_source_patch_for_revision(repo_dir: Path, revision_id: str, source
     if parent_revision is None:
         return run_git(
             repo_dir,
-            ["show", "--format=", "--find-renames", "--root", revision_id, "--", *source_paths],
+            ["show", "--format=", "--find-renames=25%", "--root", revision_id, "--", *source_paths],
         )
 
     return run_git(
         repo_dir,
-        ["diff", "--find-renames", parent_revision, revision_id, "--", *source_paths],
+        ["diff", "--find-renames=25%", parent_revision, revision_id, "--", *source_paths],
     )
 
 
@@ -1273,18 +1273,21 @@ def _build_protocol_index_for_scope(protocol: dict, scope: str) -> dict[str, "In
     return build_protocol_index(protocol)
 
 
-def _log_algorithm_b_summary(logger: "RuntimeLogger", label: str, summary: dict, end_revision_id: str, scope: str) -> None:
+def _log_algorithm_b_summary(logger: "RuntimeLogger", label: str, summary: dict, end_revision_id: str, scope: str, elapsed: float | None = None) -> None:
+    elapsed_suffix = f" elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s" if elapsed is not None else ""
     if scope == "C":
         logger.info(
             f"Finished Algorithm B {label} analysis with totalDocLines={summary['totalDocLines']} "
             f"fullGeneratedDocLines={summary['fullGeneratedDocLines']} "
             f"partialGeneratedDocLines={summary['partialGeneratedDocLines']} endRevision={end_revision_id}"
+            f"{elapsed_suffix}"
         )
     else:
         logger.info(
             f"Finished Algorithm B {label} analysis with totalCodeLines={summary['totalCodeLines']} "
             f"fullGeneratedCodeLines={summary['fullGeneratedCodeLines']} "
             f"partialGeneratedCodeLines={summary['partialGeneratedCodeLines']} endRevision={end_revision_id}"
+            f"{elapsed_suffix}"
         )
 
 
@@ -1292,6 +1295,7 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
     if not args.commitDiffSetDir:
         raise UnsupportedConfigurationError("Current Algorithm B offline slice requires --commitDiffSetDir")
 
+    analysis_start = time_mod.monotonic()
     provider = build_gen_code_desc_provider(args, logger)
     diff_provider = build_commit_diff_provider(args, logger)
     revision_ids = resolve_algorithm_b_offline_revision_ids(args)
@@ -1305,6 +1309,11 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B offline slice requires at least one replayable commit diff patch")
 
+    logger.info(
+        f"Starting Algorithm B offline analysis for repo={args.repoURL} "
+        f"branch={args.repoBranch} window={args.startTime}..{args.endTime} "
+        f"patchCount={len(commit_diff_sequence)}"
+    )
     protocol_indexes = {
         revision_diff.revision_id: _build_protocol_index_for_scope(
             provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
@@ -1320,7 +1329,8 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
 
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
-    _log_algorithm_b_summary(logger, "offline", summary, end_revision_id, args.scope)
+    elapsed = time_mod.monotonic() - analysis_start
+    _log_algorithm_b_summary(logger, "offline", summary, end_revision_id, args.scope, elapsed=elapsed)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1328,10 +1338,16 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
     if args.vcsType != "git":
         raise UnsupportedConfigurationError("Current Algorithm B local period-added replay only supports git")
 
+    analysis_start = time_mod.monotonic()
     repo_dir = resolve_local_git_repository_dir(args)
     revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
     commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids, args.scope)
 
+    logger.info(
+        f"Starting Algorithm B local git period-added analysis for repo={args.repoURL} "
+        f"branch={args.repoBranch} window={args.startTime}..{args.endTime} "
+        f"patchCount={len(commit_diff_sequence)}"
+    )
     provider = build_gen_code_desc_provider(args, logger)
     protocol_indexes = {
         revision_diff.revision_id: _build_protocol_index_for_scope(
@@ -1348,7 +1364,8 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
     replay_revision_ids = [revision_diff.revision_id for revision_diff in commit_diff_sequence]
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids, args.scope)
 
-    _log_algorithm_b_summary(logger, "local git period-added", summary, end_revision_id, args.scope)
+    elapsed = time_mod.monotonic() - analysis_start
+    _log_algorithm_b_summary(logger, "local git period-added", summary, end_revision_id, args.scope, elapsed=elapsed)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1356,6 +1373,7 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
     if not args.commitDiffSetDir:
         raise UnsupportedConfigurationError("Current Algorithm B live-snapshot slice requires --commitDiffSetDir")
 
+    analysis_start = time_mod.monotonic()
     provider = build_gen_code_desc_provider(args, logger)
     diff_provider = build_commit_diff_provider(args, logger)
     revision_ids = resolve_algorithm_b_offline_revision_ids(args)
@@ -1369,6 +1387,11 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B live-snapshot slice requires at least one replayable commit diff patch")
 
+    logger.info(
+        f"Starting Algorithm B live-snapshot offline analysis for repo={args.repoURL} "
+        f"branch={args.repoBranch} window={args.startTime}..{args.endTime} "
+        f"patchCount={len(commit_diff_sequence)}"
+    )
     protocol_indexes = {
         revision_diff.revision_id: _build_protocol_index_for_scope(
             provider.get_revision_metadata(args.repoURL, args.repoBranch, revision_diff.revision_id, args.vcsType),
@@ -1384,7 +1407,8 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
 
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, revision_ids, args.scope)
     end_revision_id = resolve_algorithm_b_end_revision_id(args, revision_ids)
-    _log_algorithm_b_summary(logger, "live-snapshot", summary, end_revision_id, args.scope)
+    elapsed = time_mod.monotonic() - analysis_start
+    _log_algorithm_b_summary(logger, "live-snapshot", summary, end_revision_id, args.scope, elapsed=elapsed)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -1392,9 +1416,16 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
     if args.vcsType != "git":
         raise UnsupportedConfigurationError("Current Algorithm B local live-snapshot replay only supports git")
 
+    analysis_start = time_mod.monotonic()
     repo_dir = resolve_local_git_repository_dir(args)
     revision_ids, end_revision_id = resolve_algorithm_b_git_revision_ids(args, repo_dir)
     commit_diff_sequence = load_git_commit_diff_sequence_from_repository(repo_dir, revision_ids, args.scope)
+
+    logger.info(
+        f"Starting Algorithm B local git live-snapshot analysis for repo={args.repoURL} "
+        f"branch={args.repoBranch} window={args.startTime}..{args.endTime} "
+        f"patchCount={len(commit_diff_sequence)}"
+    )
 
     provider = build_gen_code_desc_provider(args, logger)
     protocol_indexes = {
@@ -1421,7 +1452,8 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
         args.scope,
     )
 
-    _log_algorithm_b_summary(logger, "local git live-snapshot", summary, end_revision_id, args.scope)
+    elapsed = time_mod.monotonic() - analysis_start
+    _log_algorithm_b_summary(logger, "local git live-snapshot", summary, end_revision_id, args.scope, elapsed=elapsed)
     return build_result_document(args, summary, end_revision_id, logger)
 
 
@@ -2543,7 +2575,7 @@ def main() -> None:
         print(str(exc), file=sys.stderr)
         raise SystemExit(EXIT_INPUT_ERROR) from exc
     except RepositoryStateError as exc:
-        print(str(exc), file=sys.stderr)
+        print(f"RepositoryStateError: {exc}", file=sys.stderr)
         raise SystemExit(EXIT_REPOSITORY_ERROR) from exc
     except ProtocolValidationError as exc:
         print(str(exc), file=sys.stderr)

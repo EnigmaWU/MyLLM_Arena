@@ -1,0 +1,16 @@
+diff --git a/src/code.py b/src/code.py
+--- a/src/code.py
++++ b/src/code.py
+@@ -1,2 +1,4 @@
+ def generate():
+     return manual_result()
++def ai_helper():
++    return ai_output()
+diff --git a/docs/readme.md b/docs/readme.md
+--- a/docs/readme.md
++++ b/docs/readme.md
+@@ -1,2 +1,4 @@
+ Partial AI overview.
+ Human description.
++AI-generated appendix.
++Human footer.

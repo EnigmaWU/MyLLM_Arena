@@ -1,0 +1,8 @@
+diff --git a/src/model.py b/src/model.py
+new file mode 100644
+--- /dev/null
++++ b/src/model.py
+@@ -0,0 +1,3 @@
++p = 0
++q = ai_predict()
++r = partial_guess()

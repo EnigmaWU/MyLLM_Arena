@@ -1,0 +1,8 @@
+diff --git a/docs/guide.md b/docs/guide.md
+new file mode 100644
+--- /dev/null
++++ b/docs/guide.md
+@@ -0,0 +1,3 @@
++Introduction text.
++AI-generated section.
++Partial AI summary.

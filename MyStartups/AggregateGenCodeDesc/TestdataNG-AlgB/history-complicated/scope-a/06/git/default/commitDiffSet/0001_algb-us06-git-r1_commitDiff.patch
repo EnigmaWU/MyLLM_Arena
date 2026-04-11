@@ -1,0 +1,8 @@
+diff --git a/src/service.py b/src/service.py
+new file mode 100644
+--- /dev/null
++++ b/src/service.py
+@@ -0,0 +1,3 @@
++x = 0
++y = ai_func()
++z = human_func()

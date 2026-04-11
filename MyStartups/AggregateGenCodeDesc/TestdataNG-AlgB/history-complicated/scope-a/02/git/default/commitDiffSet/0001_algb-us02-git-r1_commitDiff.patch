@@ -1,0 +1,8 @@
+diff --git a/src/comp.py b/src/comp.py
+new file mode 100644
+--- /dev/null
++++ b/src/comp.py
+@@ -0,0 +1,3 @@
++x = 0
++y = ai_func()
++z = partial_func()

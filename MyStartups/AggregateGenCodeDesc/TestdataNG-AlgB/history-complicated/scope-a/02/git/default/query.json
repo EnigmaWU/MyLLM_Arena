@@ -1,0 +1,10 @@
+{
+  "vcsType": "git",
+  "repoURL": "https://example.local/repo/algb-demo",
+  "repoBranch": "main",
+  "metric": "live_changed_source_ratio",
+  "scope": "A",
+  "startTime": "2026-03-01T00:00:00Z",
+  "endTime": "2026-03-31T23:59:59Z",
+  "endRevisionId": "algb-us02-git-r2"
+}

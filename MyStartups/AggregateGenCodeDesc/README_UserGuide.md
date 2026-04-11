@@ -34,18 +34,26 @@ cd /path/to/AggregateGenCodeDesc
 |-----------|-----|---------|---------|---------|---------|
 | **A** (live repository) | Git | ✅ production | ✅ production | ✅ production | ✅ production |
 | **A** (live repository) | SVN | ✅ production | ✅ production | ✅ production | ✅ production |
-| **B** (replay, local Git) | Git | ✅ supported | ✅ supported | ✅ supported | ✅ supported |
-| **B** (replay, offline fixtures) | Git | ✅ supported | ✅ supported | ✅ supported | ✅ supported |
-| **B** (replay, offline fixtures) | SVN | ✅ supported | — | — | — |
+| **B** (replay, local Git) | Git | ✅ tested | ✅ tested | ✅ tested | ✅ tested |
+| **B** (replay, local SVN) | SVN | ✅ supported workflow | — | — | — |
+| **B** (replay, commit diff set) | Git | ✅ tested | ✅ tested | ✅ tested | ✅ tested |
+| **B** (replay, commit diff set) | SVN | ✅ tested | — | — | — |
 | **C** (embedded blame, v26.04) | Git-origin blame | ✅ current slice | — | — | — |
 | **C** (embedded blame, v26.04) | SVN-origin blame | ✅ current slice | — | — | — |
+
+Notes for the local SVN AlgB row:
+
+- It is a supported workflow, not a separate direct local-SVN replay engine.
+- First export the `startTime~endTime` revision window from the local SVN repository into a serial commit diff set.
+- Then run Algorithm B through the existing `--commitDiffSetDir` path with `--vcsType svn`.
+- In other words, the local-SVN row and the `B (replay, commit diff set) | SVN` row use the same AlgB runtime path; the difference is where the patch set comes from.
 
 **Algorithm A** is the recommended production path. It works against a live repository checkout.
 
 **Algorithm B** replays commit diffs to reconstruct line states. It is designed for two modes:
 
 - **Local Git replay**: reads diffs directly from a local Git checkout
-- **Offline fixture replay**: reads pre-exported patch files from `--commitDiffSetDir` (works with both Git and SVN-sourced fixtures for Scope A)
+- **Commit diff set replay**: reads pre-exported patch files from `--commitDiffSetDir` (works with both Git-origin and SVN-origin patch sets for Scope A, and is the recommended path for SVN scenarios)
 
 **Algorithm C** consumes embedded blame from `genCodeDescProtoV26.04` files. In the current CLI slice it supports Scope A, requires `--genCodeDescSetDir`, does not call Git or SVN at runtime, and can derive repository identity from explicit CLI arguments or optional `queryArgs.json` plus the selected end-revision protocol.
 
@@ -74,12 +82,14 @@ cd /path/to/AggregateGenCodeDesc
 
 - Depends on: replayable commit diffs plus per-revision `genCodeDesc` v26.03 metadata.
 - Runtime prerequisites:
+  - explicit `--vcsType` is important because it selects the Git or SVN execution path; do not treat it as a passive reference field derived from `--repoURL`
   - for local Git replay: local Git checkout and Git installed
-  - for offline replay: `--commitDiffSetDir` plus `--genCodeDescSetDir`
+  - for commit diff set replay: `--commitDiffSetDir` plus `--genCodeDescSetDir`
   - every replayed revision must have both a patch artifact and matching metadata
   - `--startTime` and `--endTime`
   - local Git replay still needs repository location (`--repoURL` or `--workingDir`), and in the current CLI usually needs `--repoBranch`
-  - offline replay does not fundamentally depend on live repository access; `--repoURL` is mainly used today for metadata identity validation and output identity, while `--repoBranch` is retained as query/output context
+  - commit diff set replay does not fundamentally depend on live repository access; `--repoURL` is mainly used today for metadata identity validation and output identity, while `--repoBranch` is retained as query/output context
+  - for SVN, prefer exporting all revisions in `startTime~endTime` into one serial commit diff set and then running AlgB from that exported patch set
 - Use B when:
   - runtime must be repository-free but patch artifacts are available
   - you want deterministic historical replay or process reconstruction from the same diff stream
@@ -119,18 +129,20 @@ cd /path/to/AggregateGenCodeDesc
 | `--outputFile` | stdout | Path to write the JSON result. |
 | `--scope` | `A` | Which files and lines to count. See [Scope](#--scope) below. |
 | `--algorithm` | `A` | `A` for live-repository analysis, `B` for replay-based analysis, `C` for embedded-blame offline analysis. |
-| `--vcsType` | `git` | `git` or `svn`. Required for Algorithm A. Required for Algorithm B because metadata and replay parsing still need to know whether the scenario is Git-based or SVN-based. Optional for Algorithm C when identity is derived from explicit CLI arguments or `queryArgs.json` and the selected end protocol. |
+| `--vcsType` | `git` | `git` or `svn`. This is an important runtime control field, not just a reference label: it selects whether the analyzer runs Git logic or SVN logic. It is not inferred reliably from `--repoURL`. For Algorithm A and Algorithm B, treat it as explicit input and expect metadata to cross-check it rather than replace it. Optional for Algorithm C when identity is derived from explicit CLI arguments or `queryArgs.json` and the selected end protocol. |
 
 ### Algorithm B specific
 
 | Argument | Description |
 |----------|-------------|
-| `--commitDiffSetDir` | Directory of pre-exported patch files for offline replay. Required for fixture-driven Algorithm B. Must be paired with `--genCodeDescSetDir`. |
+| `--commitDiffSetDir` | Directory of pre-exported patch files for commit diff set replay. Required for commit-diff-set-driven Algorithm B. Must be paired with `--genCodeDescSetDir`. This is the recommended AlgB path for SVN. |
 | `--endRevisionId` | Optional explicit end revision for Algorithm B/C. When omitted, the runtime resolves the latest eligible revision by time. |
-| `--includedRevisionIds` | Optional explicit replay sequence for Algorithm B. When provided, that list becomes the authoritative replay set/order. |
+| `--includedRevisionIds` | Optional explicit revision subset for Algorithm B. Use it only when you intentionally want to replay a selected subset of revisions from the commit diff set. For normal operator-facing runs, prefer replaying the full `NN_`-ordered commit diff set and let the patch filenames describe order. |
 | `--queryArgsFile` | Optional path to a production-facing JSON args file. If omitted, the runtime also looks for `queryArgs.json` inside `--genCodeDescSetDir`. |
 
 Algorithm B note: `repoURL` and `repoBranch` are not equally fundamental in every mode. They matter most in local Git replay. In offline replay, the real hard inputs are the patch stream and matching metadata; `repoURL` is primarily an identity check against metadata, and `repoBranch` is mostly retained for query/result context in the current CLI.
+
+`vcsType` note: for Algorithm A and Algorithm B, prefer passing `--vcsType` explicitly even when `repoURL` or metadata appears to make the VCS obvious. The runtime uses `vcsType` to decide which implementation path to execute, and then uses metadata identity fields to validate consistency.
 
 ### Algorithm C specific
 
@@ -185,15 +197,72 @@ Recommended default: choose **Algorithm A** unless you have a concrete systems r
 
 ### `--commitDiffSetDir` contract
 
-When using Algorithm B with offline fixtures:
+When using Algorithm B with a commit diff set:
 
 - Pair `--commitDiffSetDir` with `--genCodeDescSetDir` — they are the diff side and metadata side of the same replay run.
-- Every replayed revision needs both `<timeSeq>_<revisionId>_commitDiff.patch` and `<revisionId>_genCodeDesc.json`.
-- If `--includedRevisionIds` or `queryArgs.json.includedRevisionIds` is provided, that list defines the replay sequence; extra patch files are ignored.
-- Otherwise, the `<timeSeq>` filename prefix determines replay order.
-- Legacy `<revisionId>_commitDiff.patch` naming is accepted for older fixtures, but new fixtures should use the time-sequenced form.
-- Do not mix legacy and time-sequenced naming in the same directory.
+- Standardize commit diff set patch naming as `NN_<revisionId>_commitDiff.patch` or `NN_<commitId>_commitDiff.patch`, where `NN` is the zero-padded replay sequence.
+- Every replayed revision needs both one time-sequenced patch file and the matching `<revisionId>_genCodeDesc.json` file.
+- Treat the `NN_` filename prefix as the primary and clearest replay-order contract for a commit diff set.
+- Prefer not to use `--includedRevisionIds` or `queryArgs.json.includedRevisionIds` to encode replay order. Keep them only for explicit subset selection when needed.
+- Typical special uses of `includedRevisionIds` are:
+  - intentionally skip one or more patch files from the commit diff set
+  - replay only the defended scenario slice for a test, bug reproduction, or acceptance case
+  - compare a full replay against a selected replay to study the effect of specific revisions
+- If older fixtures still rely on non-prefixed names or list-driven ordering, treat those as legacy compatibility behavior rather than the preferred fixture contract.
 - Patch artifacts may originate from Git or SVN history but must be in unified diff format.
+
+Recommended SVN workflow:
+
+1. Resolve the SVN revisions that fall inside `startTime~endTime`.
+2. Export one unified diff patch per revision.
+3. Name the patch files in chronological order as `NN_<revisionId>_commitDiff.patch`.
+4. Keep the matching `<revisionId>_genCodeDesc.json` files in `--genCodeDescSetDir`.
+5. Run Algorithm B with `--vcsType svn --commitDiffSetDir ... --genCodeDescSetDir ...`.
+
+This is the recommended practical way to use Algorithm B for SVN today. It is simpler and lower-risk than introducing a separate local-SVN replay mode.
+
+### Special use of `--includedRevisionIds`
+
+Treat `--includedRevisionIds` as a deliberate control, not the normal way to describe commit diff set order.
+
+- Normal case: do not pass `--includedRevisionIds`; replay the whole commit diff set in `NN_` filename order.
+- Special case: pass `--includedRevisionIds` only when you intentionally want to replay a subset.
+
+Example: the commit diff set contains:
+
+- `0001_r101_commitDiff.patch`
+- `0002_r102_commitDiff.patch`
+- `0003_r103_commitDiff.patch`
+- `0004_r104_commitDiff.patch`
+
+Default replay behavior:
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --algorithm B \
+  --vcsType git \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --genCodeDescSetDir /path/to/genCodeDescSet \
+  --commitDiffSetDir /path/to/commitDiffSet
+```
+
+This replays `r101 -> r102 -> r103 -> r104` in `NN_` order.
+
+Intentional subset replay:
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --algorithm B \
+  --vcsType git \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --genCodeDescSetDir /path/to/genCodeDescSet \
+  --commitDiffSetDir /path/to/commitDiffSet \
+  --includedRevisionIds r101 r103 r104
+```
+
+This means `r102` is skipped intentionally. Use this only when that omission is part of the purpose of the run.
 
 ## Usage Examples
 
@@ -268,9 +337,11 @@ python3 aggregateGenCodeDesc.py \
 
 Scopes B, C, and D are also supported — just change `--scope`.
 
-### 5. Algorithm B — offline fixture replay
+### 5. Algorithm B — commit diff set replay
 
 Replay from pre-exported patch files. No live repository access needed.
+
+Preferred fixture convention: make the replay order visible in the artifact names themselves, for example `0001_r1_commitDiff.patch`, `0002_r2_commitDiff.patch`, or `0001_<commitId>_commitDiff.patch`.
 
 ```bash
 python3 aggregateGenCodeDesc.py \
@@ -287,6 +358,8 @@ python3 aggregateGenCodeDesc.py \
 ```
 
 SVN-sourced fixtures also work for Scope A — just change `--vcsType svn` and point to SVN fixture directories.
+
+For SVN in particular, the recommended flow is: export the `startTime~endTime` revision window into one serial commit diff set, then run Algorithm B from that set.
 
 ### 6. Algorithm C — embedded blame offline analysis
 

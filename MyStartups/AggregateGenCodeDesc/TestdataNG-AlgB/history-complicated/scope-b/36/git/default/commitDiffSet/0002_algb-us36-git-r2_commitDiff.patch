@@ -1,0 +1,9 @@
+diff --git a/src/comp.py b/src/comp.py
+--- a/src/comp.py
++++ b/src/comp.py
+@@ -1,4 +1,4 @@
+-# AI-generated module header
++# Human-written module header
+ def compute():
+ # AI-generated helper comment
+     return result

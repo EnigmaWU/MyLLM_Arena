@@ -1,0 +1,7 @@
+diff --git a/src/main.py b/src/main.py
+new file mode 100644
+--- /dev/null
++++ b/src/main.py
+@@ -0,0 +1,2 @@
++x = 0
++y = human_func()

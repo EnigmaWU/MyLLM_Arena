@@ -1,0 +1,27 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "DocAgent",
+  "SUMMARY": {
+    "totalDocLines": 3,
+    "fullGeneratedDocLines": 0,
+    "partialGeneratedDocLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "docs/guide.md",
+      "docLines": [
+        {"lineLocation": 1, "genRatio": 0, "genMethod": "Manual"},
+        {"lineLocation": 2, "genRatio": 0, "genMethod": "Manual"},
+        {"lineLocation": 3, "genRatio": 0, "genMethod": "Manual"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algb-demo",
+    "repoBranch": "main",
+    "revisionId": "algb-us37-git-r2",
+    "revisionTimestamp": "2026-03-23T08:00:00Z"
+  }
+}

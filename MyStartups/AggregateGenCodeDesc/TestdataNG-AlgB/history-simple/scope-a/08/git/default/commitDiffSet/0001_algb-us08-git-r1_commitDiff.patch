@@ -1,0 +1,7 @@
+diff --git a/src/calc.py b/src/calc.py
+new file mode 100644
+--- /dev/null
++++ b/src/calc.py
+@@ -0,0 +1,2 @@
++a = human_val()
++b = ai_val()

@@ -1,0 +1,7 @@
+diff --git a/src/utils.py b/src/utils.py
+new file mode 100644
+--- /dev/null
++++ b/src/utils.py
+@@ -0,0 +1,2 @@
++n = ai_gen()
++m = 0

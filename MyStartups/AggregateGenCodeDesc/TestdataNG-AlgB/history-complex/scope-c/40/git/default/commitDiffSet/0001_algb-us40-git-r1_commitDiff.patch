@@ -1,0 +1,8 @@
+diff --git a/docs/part1.md b/docs/part1.md
+new file mode 100644
+--- /dev/null
++++ b/docs/part1.md
+@@ -0,0 +1,3 @@
++Manual overview.
++AI-generated summary.
++Partial AI notes.

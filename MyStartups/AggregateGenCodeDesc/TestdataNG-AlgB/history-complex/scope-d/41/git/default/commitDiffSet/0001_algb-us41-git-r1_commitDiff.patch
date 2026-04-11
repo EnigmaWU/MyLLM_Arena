@@ -1,0 +1,14 @@
+diff --git a/src/code.py b/src/code.py
+new file mode 100644
+--- /dev/null
++++ b/src/code.py
+@@ -0,0 +1,2 @@
++def generate():
++    return manual_result()
+diff --git a/docs/readme.md b/docs/readme.md
+new file mode 100644
+--- /dev/null
++++ b/docs/readme.md
+@@ -0,0 +1,2 @@
++Partial AI overview.
++Human description.
