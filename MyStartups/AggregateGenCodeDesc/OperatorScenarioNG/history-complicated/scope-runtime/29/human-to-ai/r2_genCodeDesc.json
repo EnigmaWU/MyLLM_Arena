@@ -1,0 +1,25 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/score.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "vibeCoding"},
+        {"lineLocation": 3, "genRatio": 80, "genMethod": "vibeCoding"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/ops29",
+    "repoBranch": "main",
+    "revisionId": "ops29-human-to-ai-r2"
+  }
+}

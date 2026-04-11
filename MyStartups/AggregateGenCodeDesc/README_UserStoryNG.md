@@ -1210,7 +1210,7 @@ These stories address algorithm parity, runtime safety, and operator-visible nar
 - `WHY`: help the operator understand which lines changed ownership and what the final aggregate result means without switching to `--logLevel debug`
 - `Story`: As a CLI operator running with `--logLevel info`, I want to see a three-phase narrative on stderr showing initial load state, per-line state transitions, and final summary, so that I can understand the full attribution story without switching to `--logLevel debug`.
 - `Support`: `scope=stderr behavior` | `alg=primarily A` | `vcs=shared` | `tier=Fast target`
-- `Status`: documented story record in USNG. Current executable test coverage is still an open gap.
+- `Status`: production. Executable test coverage in `TestsNG/history-complicated/scope-runtime/test_usng_history_complicated_scope_runtime_29_tdd.py` covers AC-OPS-01 through AC-OPS-07 (8 tests, all passing). Operator scenario fixtures in `OperatorScenarioNG/history-complicated/scope-runtime/29/ai-to-human/` and `OperatorScenarioNG/history-complicated/scope-runtime/29/human-to-ai/`.
 - `Anchors`: `OperatorScenarioNG-...-29-AI-TO-HUMAN-SHAPE`, `OperatorScenarioNG-...-29-HUMAN-TO-AI-SHAPE`, `TestsNG-REPO-SHARED-GENCODEDESC-SHARED-HISTORY-COMPLICATED-SCOPE-RUNTIME-29`
 
 **AC-OPS-01** — *Start-state header on stderr*

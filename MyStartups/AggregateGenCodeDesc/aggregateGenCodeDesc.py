@@ -22,6 +22,7 @@ import sys
 import time as time_mod
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
 from pathlib import Path
@@ -1095,6 +1096,8 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
     commit_diff_sequence: list[RevisionCommitDiff],
     protocol_indexes: dict[str, dict[str, IndexedFileDetail]] | None = None,
     scope: str = "A",
+    *,
+    out_revision_file_states: dict | None = None,
 ) -> dict[str, list[LineState]]:
     if not commit_diff_sequence:
         raise ProtocolValidationError("Algorithm B replay requires at least one replayable commit diff patch")
@@ -1166,6 +1169,9 @@ def reconstruct_final_file_states_by_path_from_commit_diff_sequence(
 
     if not file_states:
         raise ProtocolValidationError("Algorithm B replay did not produce any final file state")
+
+    if out_revision_file_states is not None:
+        out_revision_file_states.update(revision_file_states)
 
     return file_states
 
@@ -1291,6 +1297,54 @@ def _log_algorithm_b_summary(logger: "RuntimeLogger", label: str, summary: dict,
         )
 
 
+def _make_revision_prev_map(commit_diff_sequence: list[RevisionCommitDiff]) -> dict[str, str | None]:
+    """Map each revision_id to its previous revision_id for best-effort TransitionHint detection."""
+    result: dict[str, str | None] = {}
+    for i, revision_diff in enumerate(commit_diff_sequence):
+        parent_revision_ids = revision_diff.parent_revision_ids or []
+        if parent_revision_ids:
+            result[revision_diff.revision_id] = parent_revision_ids[0]
+        elif i > 0:
+            result[revision_diff.revision_id] = commit_diff_sequence[i - 1].revision_id
+        else:
+            result[revision_diff.revision_id] = None
+    return result
+
+
+def _log_algorithm_b_per_line_states(
+    logger: RuntimeLogger,
+    file_states_by_path: dict[str, list[LineState]],
+    revision_file_states: dict[str, dict[str, list[LineState]]],
+    rev_to_prev_map: dict[str, str | None],
+    line_in_scope: Callable[[LineState], bool],
+    scope: str,
+) -> None:
+    """Emit LiveLine and TransitionHint log entries for all in-scope Algorithm B final line states."""
+    for file_path, line_states in file_states_by_path.items():
+        for line_num, line_state in enumerate(line_states, start=1):
+            if not line_in_scope(line_state):
+                continue
+            if not is_code_line(line_state.content, scope):
+                continue
+            origin_revision_id = line_state.origin_revision_id or ""
+            prev_rev = rev_to_prev_map.get(origin_revision_id)
+            if prev_rev is not None:
+                prev_file_lines = revision_file_states.get(prev_rev, {}).get(file_path, [])
+                if line_num - 1 < len(prev_file_lines):
+                    prev_gen_ratio = prev_file_lines[line_num - 1].gen_ratio
+                    if prev_gen_ratio != line_state.gen_ratio:
+                        logger.info(
+                            f"TransitionHint {file_path}:{line_num} "
+                            f"origin={file_path}:{line_num}@{origin_revision_id} "
+                            f"best_effort_transition={describe_ratio(prev_gen_ratio)}->{describe_ratio(line_state.gen_ratio)}"
+                        )
+            logger.info(
+                f"LiveLine {file_path}:{line_num} aggregate "
+                f"origin={file_path}:{line_num}@{origin_revision_id} "
+                f"classification={describe_ratio(line_state.gen_ratio)}"
+            )
+
+
 def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
     if not args.commitDiffSetDir:
         raise UnsupportedConfigurationError("Current Algorithm B offline slice requires --commitDiffSetDir")
@@ -1321,9 +1375,20 @@ def build_result_algorithm_b_offline(args: argparse.Namespace, logger: RuntimeLo
         )
         for revision_diff in commit_diff_sequence
     }
+    revision_file_states_offline: dict[str, dict[str, list[LineState]]] = {}
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
+        out_revision_file_states=revision_file_states_offline,
+    )
+    included_revision_id_set_offline = set(revision_ids)
+    _log_algorithm_b_per_line_states(
+        logger,
+        file_states_by_path,
+        revision_file_states_offline,
+        _make_revision_prev_map(commit_diff_sequence),
+        lambda ls: ls.origin_revision_id in included_revision_id_set_offline,
         args.scope,
     )
 
@@ -1356,12 +1421,23 @@ def build_result_algorithm_b_offline_local_git(args: argparse.Namespace, logger:
         )
         for revision_diff in commit_diff_sequence
     }
+    revision_file_states_local_git: dict[str, dict[str, list[LineState]]] = {}
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
         args.scope,
+        out_revision_file_states=revision_file_states_local_git,
     )
     replay_revision_ids = [revision_diff.revision_id for revision_diff in commit_diff_sequence]
+    included_revision_id_set_local_git = set(replay_revision_ids)
+    _log_algorithm_b_per_line_states(
+        logger,
+        file_states_by_path,
+        revision_file_states_local_git,
+        _make_revision_prev_map(commit_diff_sequence),
+        lambda ls: ls.origin_revision_id in included_revision_id_set_local_git,
+        args.scope,
+    )
     summary = summarize_live_changed_file_states_by_revision_ids(file_states_by_path, replay_revision_ids, args.scope)
 
     elapsed = time_mod.monotonic() - analysis_start
@@ -1399,9 +1475,20 @@ def build_result_algorithm_b_live_snapshot_offline(args: argparse.Namespace, log
         )
         for revision_diff in commit_diff_sequence
     }
+    revision_file_states_ls_offline: dict[str, dict[str, list[LineState]]] = {}
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
+        args.scope,
+        out_revision_file_states=revision_file_states_ls_offline,
+    )
+    included_revision_id_set_ls_offline = set(revision_ids)
+    _log_algorithm_b_per_line_states(
+        logger,
+        file_states_by_path,
+        revision_file_states_ls_offline,
+        _make_revision_prev_map(commit_diff_sequence),
+        lambda ls: ls.origin_revision_id in included_revision_id_set_ls_offline,
         args.scope,
     )
 
@@ -1435,20 +1522,36 @@ def build_result_algorithm_b_live_snapshot_local_git(args: argparse.Namespace, l
         )
         for revision_diff in commit_diff_sequence
     }
+    revision_file_states_ls_git: dict[str, dict[str, list[LineState]]] = {}
     file_states_by_path = reconstruct_final_file_states_by_path_from_commit_diff_sequence(
         commit_diff_sequence,
         protocol_indexes,
         args.scope,
+        out_revision_file_states=revision_file_states_ls_git,
     )
     revision_commit_times = collect_git_revision_commit_times(
         repo_dir,
         [revision_diff.revision_id for revision_diff in commit_diff_sequence],
     )
+    ls_git_start_bound = parse_day_start(args.startTime)
+    ls_git_end_bound = parse_day_end(args.endTime)
+    _log_algorithm_b_per_line_states(
+        logger,
+        file_states_by_path,
+        revision_file_states_ls_git,
+        _make_revision_prev_map(commit_diff_sequence),
+        lambda ls: (
+            ls.origin_revision_id is not None
+            and (ct := revision_commit_times.get(ls.origin_revision_id)) is not None
+            and ls_git_start_bound <= ct <= ls_git_end_bound
+        ),
+        args.scope,
+    )
     summary = summarize_live_snapshot_file_states(
         file_states_by_path,
         revision_commit_times,
-        parse_day_start(args.startTime),
-        parse_day_end(args.endTime),
+        ls_git_start_bound,
+        ls_git_end_bound,
         args.scope,
     )
 

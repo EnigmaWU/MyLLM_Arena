@@ -71,6 +71,23 @@ class TestUsngAlgbHistoryComplicatedScopeRuntime29Tdd(unittest.TestCase):
             self.assertIn("fullGeneratedCodeLines=", stderr, "Expected fullGeneratedCodeLines in final summary")
             self.assertIn("partialGeneratedCodeLines=", stderr, "Expected partialGeneratedCodeLines in final summary")
 
+    def test_info_log_emits_live_line_per_line_states(self) -> None:
+        """AC-OPS-02 per-line: Info log must emit LiveLine entries for each in-scope line with classification."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output_file = root / "out.json"
+            repo_dir, protocol_dir = self._build_repo(root)
+
+            returncode, stderr = self._run_cli_with_logging(repo_dir, protocol_dir, output_file, "info")
+
+            self.assertEqual(returncode, 0, f"Expected exit 0; stderr:\n{stderr}")
+            live_lines = [line for line in stderr.splitlines() if "LiveLine" in line]
+            self.assertGreater(len(live_lines), 0, f"Expected at least one LiveLine entry in stderr; got:\n{stderr}")
+            self.assertTrue(
+                all("classification=" in line for line in live_lines),
+                f"All LiveLine entries must contain classification=; got:\n{chr(10).join(live_lines)}",
+            )
+
     def test_info_log_emits_start_state_header(self) -> None:
         """AC-OPS-01: Stderr must contain a start-state header with repo=, branch=, window=, patchCount= at info level."""
         with tempfile.TemporaryDirectory() as temp_dir:
