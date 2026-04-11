@@ -7,5 +7,5 @@ diff --git a/trunk/src/report.py b/trunk/src/report.py
      result = ai_process(data)
      print(result)
      note = result
-+    summary = summarize(result)
-+    cache(summary)
++    summary = summarize(result)  # genRatio=100
++    cache(summary)  # genRatio=0

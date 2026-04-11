@@ -102,8 +102,8 @@ Notes for the local SVN AlgB row:
   - `--algorithm C`
   - `--genCodeDescSetDir` containing at least one `*_genCodeDesc.json`
   - every AlgC protocol file must declare `protocolVersion: "26.04"`
-  - Scope A only in the current CLI slice
-  - exhaustive surviving-line DETAIL for correctness in the current slice
+  - Scopes A, B, C, and D are supported in the current CLI slice
+  - incremental add/delete DETAIL following `genCodeDescProtoV26.04`, with authoritative embedded blame plus valid `REPOSITORY.revisionTimestamp`
   - optional `queryArgs.json` in `--genCodeDescSetDir`, or `--queryArgsFile`, to provide `endRevisionId` and/or repository identity
 - Use C when:
   - runtime must avoid both repository access and diff replay

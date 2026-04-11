@@ -5,5 +5,5 @@ diff --git a/trunk/src/report.py b/trunk/src/report.py
  def report():
      data = ai_fetch()
      draft = data
-+    result = ai_process(data)
-+    note = result
++    result = ai_process(data)  # genRatio=100
++    note = result  # genRatio=0

@@ -2,16 +2,14 @@
   "protocolName": "generatedTextDesc",
   "protocolVersion": "26.03",
   "SUMMARY": {
-    "totalCodeLines": 1,
-    "fullGeneratedCodeLines": 1,
+    "totalCodeLines": 0,
+    "fullGeneratedCodeLines": 0,
     "partialGeneratedCodeLines": 0
   },
   "DETAIL": [
     {
       "fileName": "src/calc.py",
-      "codeLines": [
-        {"lineLocation": 4, "genRatio": 100, "genMethod": "codeCompletion"}
-      ]
+      "codeLines": []
     }
   ],
   "REPOSITORY": {

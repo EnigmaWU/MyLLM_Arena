@@ -6,5 +6,5 @@ diff --git a/trunk/src/calc.py b/trunk/src/calc.py
      value = x + 1
      boosted = value * 2
      scratch = boosted - 1
-+    if scratch < 0:
-+        scratch = 0
++    if scratch < 0:  # genRatio=0
++        scratch = 0  # genRatio=0

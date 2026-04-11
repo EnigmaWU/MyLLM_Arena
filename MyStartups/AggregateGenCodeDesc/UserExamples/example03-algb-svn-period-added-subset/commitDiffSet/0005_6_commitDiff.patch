@@ -9,4 +9,4 @@ diff --git a/trunk/src/report.py b/trunk/src/report.py
 -    note = result
      summary = summarize(result)
 -    cache(summary)
-+    return summary
++    return summary  # genRatio=0

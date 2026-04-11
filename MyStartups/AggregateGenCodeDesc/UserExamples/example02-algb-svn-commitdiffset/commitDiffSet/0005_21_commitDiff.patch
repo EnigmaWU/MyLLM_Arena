@@ -5,4 +5,4 @@ diff --git a/trunk/src/calc.py b/trunk/src/calc.py
  def calc(x):
      value = x + 1
      boosted = value * 2
-+    return boosted
++    return boosted  # genRatio=100, codeCompletion

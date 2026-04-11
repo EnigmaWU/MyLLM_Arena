@@ -1755,7 +1755,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--failOnMissingProtocol", action="store_true")
     parser.add_argument("--warnOnMissingProtocol", action="store_true")
     parser.add_argument("--includeBreakdown", default="none")
-    parser.add_argument("--logLevel", choices=["quiet", "info", "debug"], default="quiet")
+    parser.add_argument("--logLevel", choices=["quiet", "info", "debug"], default="info")
     parser.add_argument("--timeout", type=int, default=COMMAND_TIMEOUT_SECONDS, help="Per-command timeout in seconds")
     parser.add_argument("--maxRuntime", type=int, default=DEFAULT_MAX_RUNTIME_SECONDS, help="Overall analysis timeout in seconds")
     return parser.parse_args()

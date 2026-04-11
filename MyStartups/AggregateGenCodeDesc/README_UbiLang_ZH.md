@@ -38,9 +38,9 @@
 
 | 字段 | 定义 |
 |---|---|
-| **totalCodeLines** | 作用域内可表示的代码行数（不包括已删除的历史行） |
-| **fullGeneratedCodeLines** | `genRatio` 为 100 的代码行子集 |
-| **partialGeneratedCodeLines** | `genRatio` 在 1 到 99 之间的代码行子集 |
+| **totalCodeLines** | 该提交 diff 中所有非空的新增（'+'）代码行数（不包括删除行和空行） |
+| **fullGeneratedCodeLines** | 新增代码行中 `genRatio` 为 100 的子集 |
+| **partialGeneratedCodeLines** | 新增代码行中 `genRatio` 在 1 到 99 之间的子集 |
 | **totalDocLines** | （Scope C）作用域内可表示的文档行数 |
 | **fullGeneratedDocLines** | （Scope C）`genRatio == 100` 的文档行 |
 | **partialGeneratedDocLines** | （Scope C）`0 < genRatio < 100` 的文档行 |

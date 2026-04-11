@@ -5,5 +5,5 @@ diff --git a/src/calc.py b/src/calc.py
  def calc(x):
      value = x + 1
 -    temp = value - 1
-+    boosted = value * 2
-+    scratch = boosted - 1
++    boosted = value * 2  # genRatio=100, codeCompletion
++    scratch = boosted - 1  # genRatio=0

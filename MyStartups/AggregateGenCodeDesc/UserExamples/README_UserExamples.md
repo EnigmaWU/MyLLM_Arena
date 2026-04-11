@@ -2,14 +2,15 @@
 
 ## Purpose
 
-Replayable user examples for running `aggregateGenCodeDesc.py`.
+Real runnable user examples for every supported row in `README_UserGuide.md`.
 
-Each example in this document is intended to be real rather than illustrative:
+This document is organized around the current support matrix, not around generic command shapes.
+Each primary example below is intended to be real rather than illustrative:
 
-- it uses concrete example data shipped under `UserExamples/`
-- it gives an exact command to run
-- it gives the expected result
-- it gives a diagnosis or check step so the user can verify the result exactly
+- it uses shipped user-example assets under `UserExamples/`
+- it gives an exact command to generate or run the example
+- it gives the expected result location
+- it gives an exact check step so the user can verify the result
 
 Use `README_UserGuide.md` for the full argument contract and support matrix.
 
@@ -21,127 +22,275 @@ Run all commands from the project root:
 cd /PATH/2/AggregateGenCodeDesc
 ```
 
-All examples write output under `/tmp/` so you can replay them without changing repository files.
-All example input data lives under `UserExamples/` so the examples do not depend on `testdata/` or the test harness.
+All generated examples write under `/tmp/` so you can replay them without changing repository files in this repo.
 
-## Example Index
+## Matrix Coverage Map
 
-1. Generic example: Git + Algorithm A (production)
-2. Generic example: Git + Algorithm A with logical URL
-3. Generic example: SVN + Algorithm A (production)
-4. Generic example: Algorithm B + local Git replay
-5. Generic example: Algorithm C + embedded blame offline analysis
-6. Real example: Algorithm B + Git commit diff set replay with shipped user example data
-7. Real example: Algorithm B + SVN commit diff set replay with shipped user example data
-8. Real example: Algorithm B + SVN period-added subset replay with shipped user example data
+- `A (live repository) / Git / Scope A-D` -> Example 1: Git support-matrix real example generated on demand
+- `A (live repository) / SVN / Scope A-D` -> Example 2: SVN support-matrix real example generated on demand
+- `B (replay, local Git) / Git / Scope A-D` -> Example 1, mode `algb-local`
+- `B (replay, local SVN) / SVN / Scope A-D` -> Example 2, mode `algb-svn-workflow`
+- `B (replay, commit diff set) / Git / Scope A-D` -> Example 1, mode `algb-offline`
+- `B (replay, commit diff set) / SVN / Scope A-D` -> Example 2, mode `algb-offline`
+- `C (embedded blame, v26.04) / Git-origin blame / Scope A-D` -> Example 1, mode `algc`
+- `C (embedded blame, v26.04) / SVN-origin blame / Scope A-D` -> Example 2, mode `algc`
 
-## Generic Operator Examples
+Supplementary real examples are also included later for focused Algorithm B practice:
 
-These examples show the standard command shapes operators use in production or production-like runs.
-They are intentionally generic patterns, while the later sections are replayable examples with shipped data.
+- Example 3: focused Git commit diff set replay with shipped data
+- Example 4: focused SVN commit diff set replay with shipped data
+- Example 5: focused SVN subset replay using `includedRevisionIds`
+- Example 6: heavy Git production-scale real example
 
-## 1. Generic Example: Git + Algorithm A (Production)
+## 1. Real Example: Git Support-Matrix Coverage
 
-The most common case: analyze a local Git repository.
+This example is the primary real example for all currently supported Git rows in the UserGuide matrix.
 
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL /path/to/local/git/repo \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
+Shipped generator:
 
-To count documentation lines instead of code lines, change `--scope A` to `--scope C`.
-To count everything (source + docs), use `--scope D`.
+- `UserExamples/matrix01-git-coverage/generate_example.py`
 
-## 2. Generic Example: Git + Algorithm A With Logical URL
+Generated example output:
 
-When metadata uses a logical URL but Git commands run against a local checkout:
+- `/tmp/agg-userexample-matrix01-git/repo`
+- `/tmp/agg-userexample-matrix01-git/genCodeDescSet`
+- `/tmp/agg-userexample-matrix01-git/algcGenCodeDescSet`
+- `/tmp/agg-userexample-matrix01-git/commitDiffSet`
+- `/tmp/agg-userexample-matrix01-git/manifest.json`
+- `/tmp/agg-userexample-matrix01-git/run_example.sh`
+- `/tmp/agg-userexample-matrix01-git/check_output.sh`
+- `/tmp/agg-userexample-matrix01-git/expected_<mode>_<scope>.json`
 
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL https://example.local/repo/demo.git \
-  --workingDir /path/to/local/git/checkout \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
-
-## 3. Generic Example: SVN + Algorithm A (Production)
+### Example 1 Generate The Dataset
 
 ```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType svn \
-  --repoURL file:///path/to/local/svn/repo \
-  --repoBranch trunk \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
+python3 UserExamples/matrix01-git-coverage/generate_example.py \
+  --outputDir /tmp/agg-userexample-matrix01-git \
+  --force
 ```
 
-You can also use an SVN server URL such as `svn://host/repo` instead of `file:///`.
+### Example 1 Supported Modes
 
-## 4. Generic Example: Algorithm B + Local Git Replay
+- `alga` -> `A (live repository) / Git / Scope A-D`
+- `algb-local` -> `B (replay, local Git) / Git / Scope A-D`
+- `algb-offline` -> `B (replay, commit diff set) / Git / Scope A-D`
+- `algc` -> `C (embedded blame, v26.04) / Git-origin blame / Scope A-D`
 
-Replay commit diffs from a live Git checkout.
+### Example 1 Supported Scopes
+
+- `A` -> source code only
+- `B` -> source code plus comments
+- `C` -> docs only
+- `D` -> source code plus docs
+
+### Example 1 Run Any Supported Git Cell
 
 ```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL /path/to/local/git/repo \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
+bash /tmp/agg-userexample-matrix01-git/run_example.sh <mode> <scope> /tmp/agg-userexample-matrix01-git-out.json
 ```
 
-Scopes B, C, and D are also supported. Change only `--scope`.
+Examples:
 
-## 5. Generic Example: Algorithm C + Embedded Blame Offline Analysis
-
-Run with only a v26.04 protocol set. In the current slice, Scope A is the supported path.
+Git + Algorithm A + Scope A:
 
 ```bash
-python3 aggregateGenCodeDesc.py \
-  --algorithm C \
-  --startTime 2026-03-10 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-c-out.json \
-  --genCodeDescSetDir /path/to/algc-v26.04-set
+bash /tmp/agg-userexample-matrix01-git/run_example.sh alga A /tmp/agg-userexample-matrix01-git-alga-a.json
 ```
 
-If `/path/to/algc-v26.04-set/queryArgs.json` is present, or `--queryArgsFile` is passed, Algorithm C can derive `endRevisionId`, `repoURL`, `repoBranch`, and `vcsType` from that file plus the selected end protocol.
+Git + Algorithm B local replay + Scope D:
 
-## Replayable Real Examples
+```bash
+bash /tmp/agg-userexample-matrix01-git/run_example.sh algb-local D /tmp/agg-userexample-matrix01-git-algb-local-d.json
+```
 
-Every replayable Algorithm B example below uses at least 5 serialized commits, so the replay chain is non-trivial and closer to real operator use.
+Git + Algorithm B commit diff set replay + Scope C:
 
-## 6. Real Example: Algorithm B + Git Commit Diff Set Replay
+```bash
+bash /tmp/agg-userexample-matrix01-git/run_example.sh algb-offline C /tmp/agg-userexample-matrix01-git-algb-offline-c.json
+```
 
-### Example 1 Data
+Git-origin + Algorithm C + Scope B:
 
-This example uses shipped user example data. The replay chain includes a multi-line add, a mixed delete-plus-add change, a multi-line code-range add, and a code-range delete before the final result.
+```bash
+bash /tmp/agg-userexample-matrix01-git/run_example.sh algc B /tmp/agg-userexample-matrix01-git-algc-b.json
+```
 
-- `UserExamples/example01-algb-git-commitdiffset/genCodeDescSet/ux1-r1_genCodeDesc.json` through `ux1-r5_genCodeDesc.json`
-- `UserExamples/example01-algb-git-commitdiffset/commitDiffSet/0001_ux1-r1_commitDiff.patch` through `0005_ux1-r5_commitDiff.patch`
+### Example 1 Expected Output
+
+Expected files follow this pattern:
+
+```bash
+/tmp/agg-userexample-matrix01-git/expected_<mode>_<scope>.json
+```
+
+Examples:
+
+- `/tmp/agg-userexample-matrix01-git/expected_alga_A.json`
+- `/tmp/agg-userexample-matrix01-git/expected_algb-local_D.json`
+- `/tmp/agg-userexample-matrix01-git/expected_algb-offline_C.json`
+- `/tmp/agg-userexample-matrix01-git/expected_algc_B.json`
+
+### Example 1 Diagnosis And Check
+
+Inspect the generated manifest:
+
+```bash
+cat /tmp/agg-userexample-matrix01-git/manifest.json
+```
+
+Exact comparison against the expected result:
+
+```bash
+bash /tmp/agg-userexample-matrix01-git/check_output.sh <mode> <scope> /tmp/agg-userexample-matrix01-git-out.json
+```
+
+Example:
+
+```bash
+bash /tmp/agg-userexample-matrix01-git/check_output.sh algb-offline C /tmp/agg-userexample-matrix01-git-algb-offline-c.json
+```
+
+What to check if it fails:
+
+- confirm the generator was run from the project root
+- confirm `/tmp/agg-userexample-matrix01-git/repo` exists
+- confirm `/tmp/agg-userexample-matrix01-git/commitDiffSet` exists for `algb-offline`
+- confirm `/tmp/agg-userexample-matrix01-git/algcGenCodeDescSet` exists for `algc`
+- confirm the requested `<mode>` and `<scope>` are spelled exactly as documented above
+
+## 2. Real Example: SVN Support-Matrix Coverage
+
+This example is the primary real example for all currently supported SVN rows in the UserGuide matrix.
+
+Shipped generator:
+
+- `UserExamples/matrix02-svn-coverage/generate_example.py`
+
+Generated example output:
+
+- `/tmp/agg-userexample-matrix02-svn/svnrepo`
+- `/tmp/agg-userexample-matrix02-svn/workingCopy`
+- `/tmp/agg-userexample-matrix02-svn/genCodeDescSet`
+- `/tmp/agg-userexample-matrix02-svn/algcGenCodeDescSet`
+- `/tmp/agg-userexample-matrix02-svn/commitDiffSet`
+- `/tmp/agg-userexample-matrix02-svn/manifest.json`
+- `/tmp/agg-userexample-matrix02-svn/run_example.sh`
+- `/tmp/agg-userexample-matrix02-svn/check_output.sh`
+- `/tmp/agg-userexample-matrix02-svn/expected_<mode>_<scope>.json`
+
+### Example 2 Generate The Dataset
+
+```bash
+python3 UserExamples/matrix02-svn-coverage/generate_example.py \
+  --outputDir /tmp/agg-userexample-matrix02-svn \
+  --force
+```
+
+### Example 2 Supported Modes
+
+- `alga` -> `A (live repository) / SVN / Scope A-D`
+- `algb-svn-workflow` -> `B (replay, local SVN) / SVN / Scope A-D`
+- `algb-offline` -> `B (replay, commit diff set) / SVN / Scope A-D`
+- `algc` -> `C (embedded blame, v26.04) / SVN-origin blame / Scope A-D`
+
+Notes for the two SVN Algorithm B modes:
+
+- `algb-svn-workflow` and `algb-offline` use the same runtime path.
+- The difference is instructional: `algb-svn-workflow` is the local-SVN operator workflow from the UserGuide, while `algb-offline` is the explicit commit-diff-set view of the same generated artifact set.
+
+### Example 2 Supported Scopes
+
+- `A` -> source code only
+- `B` -> source code plus comments
+- `C` -> docs only
+- `D` -> source code plus docs
+
+### Example 2 Run Any Supported SVN Cell
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/run_example.sh <mode> <scope> /tmp/agg-userexample-matrix02-svn-out.json
+```
+
+Examples:
+
+SVN + Algorithm A + Scope A:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/run_example.sh alga A /tmp/agg-userexample-matrix02-svn-alga-a.json
+```
+
+SVN + Algorithm B local workflow + Scope D:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/run_example.sh algb-svn-workflow D /tmp/agg-userexample-matrix02-svn-algb-workflow-d.json
+```
+
+SVN + Algorithm B commit diff set replay + Scope C:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/run_example.sh algb-offline C /tmp/agg-userexample-matrix02-svn-algb-offline-c.json
+```
+
+SVN-origin + Algorithm C + Scope B:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/run_example.sh algc B /tmp/agg-userexample-matrix02-svn-algc-b.json
+```
+
+### Example 2 Expected Output
+
+Expected files follow this pattern:
+
+```bash
+/tmp/agg-userexample-matrix02-svn/expected_<mode>_<scope>.json
+```
+
+Examples:
+
+- `/tmp/agg-userexample-matrix02-svn/expected_alga_A.json`
+- `/tmp/agg-userexample-matrix02-svn/expected_algb-svn-workflow_D.json`
+- `/tmp/agg-userexample-matrix02-svn/expected_algb-offline_C.json`
+- `/tmp/agg-userexample-matrix02-svn/expected_algc_B.json`
+
+### Example 2 Diagnosis And Check
+
+Inspect the generated manifest:
+
+```bash
+cat /tmp/agg-userexample-matrix02-svn/manifest.json
+```
+
+Exact comparison against the expected result:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/check_output.sh <mode> <scope> /tmp/agg-userexample-matrix02-svn-out.json
+```
+
+Example:
+
+```bash
+bash /tmp/agg-userexample-matrix02-svn/check_output.sh algb-offline C /tmp/agg-userexample-matrix02-svn-algb-offline-c.json
+```
+
+What to check if it fails:
+
+- confirm the generator was run from the project root
+- confirm `/tmp/agg-userexample-matrix02-svn/svnrepo` exists
+- confirm `/tmp/agg-userexample-matrix02-svn/commitDiffSet` exists for `algb-svn-workflow` and `algb-offline`
+- confirm `/tmp/agg-userexample-matrix02-svn/algcGenCodeDescSet` exists for `algc`
+- confirm the requested `<mode>` and `<scope>` are spelled exactly as documented above
+
+## 3. Real Example: Focused Git Commit Diff Set Replay
+
+This is a smaller shipped-data Algorithm B Git replay example. Use it when you want a compact commit-diff-set-only practice case instead of the full matrix generator.
+
+Shipped data:
+
+- `UserExamples/example01-algb-git-commitdiffset/genCodeDescSet/`
+- `UserExamples/example01-algb-git-commitdiffset/commitDiffSet/`
 - `UserExamples/example01-algb-git-commitdiffset/expected_result.json`
 
-### Example 1 Command
+Command:
 
 ```bash
 python3 aggregateGenCodeDesc.py \
@@ -157,39 +306,7 @@ python3 aggregateGenCodeDesc.py \
   --commitDiffSetDir UserExamples/example01-algb-git-commitdiffset/commitDiffSet
 ```
 
-### Example 1 Expected Output
-
-Expected file: `UserExamples/example01-algb-git-commitdiffset/expected_result.json`
-
-Expected JSON:
-
-```json
-{
-  "protocolName": "generatedTextDesc",
-  "protocolVersion": "26.03",
-  "SUMMARY": {
-    "totalCodeLines": 4,
-    "fullGeneratedCodeLines": 2,
-    "partialGeneratedCodeLines": 1
-  },
-  "REPOSITORY": {
-    "vcsType": "git",
-    "repoURL": "https://example.local/userexamples/git-basic",
-    "repoBranch": "main",
-    "revisionId": "ux1-r5"
-  }
-}
-```
-
-### Example 1 Diagnosis And Check
-
-Inspect output:
-
-```bash
-cat /tmp/agg-userexample-1-out.json
-```
-
-Exact comparison against the expected result:
+Check:
 
 ```bash
 python3 - <<'PY'
@@ -200,30 +317,23 @@ actual = json.loads(Path('/tmp/agg-userexample-1-out.json').read_text())
 expected = json.loads(Path('UserExamples/example01-algb-git-commitdiffset/expected_result.json').read_text())
 
 if actual != expected:
-    raise SystemExit('Example 1 mismatch')
+    raise SystemExit('Example 3 mismatch')
 
-print('Example 1 OK: actual output exactly matches expected_result.json')
+print('Example 3 OK: actual output exactly matches expected_result.json')
 PY
 ```
 
-What to check if it fails:
+## 4. Real Example: Focused SVN Commit Diff Set Replay
 
-- confirm the command was run from the project root
-- confirm `UserExamples/example01-algb-git-commitdiffset/commitDiffSet` exists
-- confirm the directory contains 5 `NN_..._commitDiff.patch` files
-- confirm the output file path is `/tmp/agg-userexample-1-out.json`
+This is a smaller shipped-data Algorithm B SVN replay example. Use it when you want a compact SVN-origin commit-diff-set-only practice case instead of the full matrix generator.
 
-## 7. Real Example: Algorithm B + SVN Commit Diff Set Replay
+Shipped data:
 
-### Example 2 Data
-
-This example uses shipped user example data. The replay chain includes a multi-line add, a mixed delete-plus-add change, a multi-line code-range add, and a code-range delete before the final result.
-
-- `UserExamples/example02-algb-svn-commitdiffset/genCodeDescSet/17_genCodeDesc.json` through `21_genCodeDesc.json`
-- `UserExamples/example02-algb-svn-commitdiffset/commitDiffSet/0001_17_commitDiff.patch` through `0005_21_commitDiff.patch`
+- `UserExamples/example02-algb-svn-commitdiffset/genCodeDescSet/`
+- `UserExamples/example02-algb-svn-commitdiffset/commitDiffSet/`
 - `UserExamples/example02-algb-svn-commitdiffset/expected_result.json`
 
-### Example 2 Command
+Command:
 
 ```bash
 python3 aggregateGenCodeDesc.py \
@@ -239,39 +349,7 @@ python3 aggregateGenCodeDesc.py \
   --commitDiffSetDir UserExamples/example02-algb-svn-commitdiffset/commitDiffSet
 ```
 
-### Example 2 Expected Output
-
-Expected file: `UserExamples/example02-algb-svn-commitdiffset/expected_result.json`
-
-Expected JSON:
-
-```json
-{
-  "protocolName": "generatedTextDesc",
-  "protocolVersion": "26.03",
-  "SUMMARY": {
-    "totalCodeLines": 4,
-    "fullGeneratedCodeLines": 2,
-    "partialGeneratedCodeLines": 1
-  },
-  "REPOSITORY": {
-    "vcsType": "svn",
-    "repoURL": "https://example.local/userexamples/svn-basic",
-    "repoBranch": "trunk",
-    "revisionId": "21"
-  }
-}
-```
-
-### Example 2 Diagnosis And Check
-
-Inspect output:
-
-```bash
-cat /tmp/agg-userexample-2-out.json
-```
-
-Exact comparison against the expected result:
+Check:
 
 ```bash
 python3 - <<'PY'
@@ -282,39 +360,23 @@ actual = json.loads(Path('/tmp/agg-userexample-2-out.json').read_text())
 expected = json.loads(Path('UserExamples/example02-algb-svn-commitdiffset/expected_result.json').read_text())
 
 if actual != expected:
-    raise SystemExit('Example 2 mismatch')
+    raise SystemExit('Example 4 mismatch')
 
-print('Example 2 OK: actual output exactly matches expected_result.json')
+print('Example 4 OK: actual output exactly matches expected_result.json')
 PY
 ```
 
-What to check if it fails:
+## 5. Real Example: Focused SVN Subset Replay With `includedRevisionIds`
 
-- confirm `--vcsType svn` was used
-- confirm the SVN example directory is `UserExamples/example02-algb-svn-commitdiffset`
-- confirm the directory contains 5 `NN_..._commitDiff.patch` files
-- confirm the output file path is `/tmp/agg-userexample-2-out.json`
+This is the focused real example for the special `includedRevisionIds` control.
 
-## 8. Real Example: Algorithm B + SVN Period-Added Subset Replay
+Shipped data:
 
-This example uses shipped user example data, replays 5 revisions, demonstrates the special use of `includedRevisionIds` through `queryArgs.json`, and includes multi-line adds plus both single-line and range deletions.
-
-### Example 3 Data
-
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/2_genCodeDesc.json`
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/3_genCodeDesc.json`
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/4_genCodeDesc.json`
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/5_genCodeDesc.json`
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/6_genCodeDesc.json`
-- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/queryArgs.json`
-- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/0001_2_commitDiff.patch`
-- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/0002_3_commitDiff.patch`
-- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/0003_4_commitDiff.patch`
-- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/0004_5_commitDiff.patch`
-- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/0005_6_commitDiff.patch`
+- `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/`
+- `UserExamples/example03-algb-svn-period-added-subset/commitDiffSet/`
 - `UserExamples/example03-algb-svn-period-added-subset/expected_result.json`
 
-### Example 3 Command
+Command:
 
 ```bash
 python3 aggregateGenCodeDesc.py \
@@ -329,37 +391,7 @@ python3 aggregateGenCodeDesc.py \
   --commitDiffSetDir UserExamples/example03-algb-svn-period-added-subset/commitDiffSet
 ```
 
-### Example 3 Expected Output
-
-Expected file: `UserExamples/example03-algb-svn-period-added-subset/expected_result.json`
-
-```json
-{
-  "protocolName": "generatedTextDesc",
-  "protocolVersion": "26.03",
-  "SUMMARY": {
-    "totalCodeLines": 6,
-    "fullGeneratedCodeLines": 3,
-    "partialGeneratedCodeLines": 0
-  },
-  "REPOSITORY": {
-    "vcsType": "svn",
-    "repoURL": "",
-    "repoBranch": "",
-    "revisionId": "6"
-  }
-}
-```
-
-### Example 3 Diagnosis And Check
-
-Inspect output:
-
-```bash
-cat /tmp/agg-userexample-3-out.json
-```
-
-Exact check:
+Check:
 
 ```bash
 python3 - <<'PY'
@@ -370,27 +402,52 @@ actual = json.loads(Path('/tmp/agg-userexample-3-out.json').read_text())
 expected = json.loads(Path('UserExamples/example03-algb-svn-period-added-subset/expected_result.json').read_text())
 
 if actual != expected:
-    raise SystemExit('Example 3 mismatch')
+    raise SystemExit('Example 5 mismatch')
 
-print('Example 3 OK: actual output exactly matches the expected JSON')
+print('Example 5 OK: actual output exactly matches expected_result.json')
 PY
 ```
 
-What to check if it fails:
+## 6. Real Example: Heavy Git Production-Scale Local Repository
 
-- confirm both patch files were created
-- confirm the directory contains 5 `NN_..._commitDiff.patch` files
-- confirm `UserExamples/example03-algb-svn-period-added-subset/genCodeDescSet/queryArgs.json` contains `includedRevisionIds` `["2", "3", "4", "5", "6"]`
-- confirm `--metric period_added_ai_ratio` was included
-- confirm the output file path is `/tmp/agg-userexample-3-out.json`
+This is the heavy real example for production-scale Git history.
+
+Shipped generator:
+
+- `UserExamples/heavy01-git-production-scale/generate_example.py`
+
+Generate the dataset:
+
+```bash
+python3 UserExamples/heavy01-git-production-scale/generate_example.py \
+  --outputDir /tmp/agg-userexample-heavy-01 \
+  --force
+```
+
+Run the generated helper:
+
+```bash
+bash /tmp/agg-userexample-heavy-01/run_aggregate.sh /tmp/agg-userexample-heavy-01-out.json
+```
+
+Check:
+
+```bash
+bash /tmp/agg-userexample-heavy-01/check_output.sh /tmp/agg-userexample-heavy-01-out.json
+```
+
+Use this example when the goal is production-scale Git practice rather than support-matrix coverage breadth.
 
 ## Data Layout
 
-The shipped user example data lives here:
+Current shipped real-example assets live here:
 
+- `UserExamples/matrix01-git-coverage`
+- `UserExamples/matrix02-svn-coverage`
 - `UserExamples/example01-algb-git-commitdiffset`
 - `UserExamples/example02-algb-svn-commitdiffset`
 - `UserExamples/example03-algb-svn-period-added-subset`
+- `UserExamples/heavy01-git-production-scale`
 
 ## Related Docs
 

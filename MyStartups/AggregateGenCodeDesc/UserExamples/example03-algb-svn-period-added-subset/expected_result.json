@@ -6,6 +6,16 @@
     "fullGeneratedCodeLines": 3,
     "partialGeneratedCodeLines": 0
   },
+  "DETAIL": [
+    {
+      "fileName": "trunk/src/report.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100},
+        {"lineLocation": 3, "genRatio": 100},
+        {"lineLocation": 5, "genRatio": 100}
+      ]
+    }
+  ],
   "REPOSITORY": {
     "vcsType": "svn",
     "repoURL": "",

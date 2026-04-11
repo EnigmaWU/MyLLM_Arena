@@ -38,9 +38,9 @@ All contributors and AI agents must use these terms consistently.
 
 | Field | Definition |
 |---|---|
-| **totalCodeLines** | Count of represented code lines in scope (excludes deleted historical lines) |
-| **fullGeneratedCodeLines** | Subset of represented code lines whose `genRatio` is 100 |
-| **partialGeneratedCodeLines** | Subset of represented code lines whose `genRatio` is between 1 and 99 |
+| **totalCodeLines** | Count of all non-blank added ('+') code lines in the commit diff (excludes deleted and blank lines) |
+| **fullGeneratedCodeLines** | Subset of added code lines whose `genRatio` is 100 |
+| **partialGeneratedCodeLines** | Subset of added code lines whose `genRatio` is between 1 and 99 |
 | **totalDocLines** | (Scope C) Count of represented documentation lines in scope |
 | **fullGeneratedDocLines** | (Scope C) Doc lines with `genRatio == 100` |
 | **partialGeneratedDocLines** | (Scope C) Doc lines with `0 < genRatio < 100` |

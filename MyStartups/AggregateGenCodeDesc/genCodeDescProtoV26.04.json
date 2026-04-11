@@ -1,7 +1,7 @@
 {
     "_description": "fromCodeAgent(such as HuayanCoder)_toCodeReviewSystem(such as BugLess)",
     "_summarySemantics": {
-        "totalCodeLines": "Count only the code lines ADDED by this commit (changeType=add). Do not count deleted lines.",
+        "totalCodeLines": "Count all non-blank added ('+') code lines in the commit diff. Do not include deleted or blank lines.",
         "fullGeneratedCodeLines": "Subset of added code lines whose genRatio is 100.",
         "partialGeneratedCodeLines": "Subset of added code lines whose genRatio is greater than 0 and less than 100."
     },
