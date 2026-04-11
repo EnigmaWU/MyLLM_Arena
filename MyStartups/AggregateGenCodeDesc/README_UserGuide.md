@@ -34,12 +34,12 @@ cd /path/to/AggregateGenCodeDesc
 |-----------|-----|---------|---------|---------|---------|
 | **A** (live repository) | Git | ✅ production | ✅ production | ✅ production | ✅ production |
 | **A** (live repository) | SVN | ✅ production | ✅ production | ✅ production | ✅ production |
-| **B** (replay, local Git) | Git | ✅ tested | ✅ tested | ✅ tested | ✅ tested |
-| **B** (replay, local SVN) | SVN | ✅ supported workflow | — | — | — |
-| **B** (replay, commit diff set) | Git | ✅ tested | ✅ tested | ✅ tested | ✅ tested |
-| **B** (replay, commit diff set) | SVN | ✅ tested | — | — | — |
-| **C** (embedded blame, v26.04) | Git-origin blame | ✅ current slice | — | — | — |
-| **C** (embedded blame, v26.04) | SVN-origin blame | ✅ current slice | — | — | — |
+| **B** (replay, local Git) | Git | ✅ production | ✅ production | ✅ production | ✅ production |
+| **B** (replay, local SVN) | SVN | ✅ supported workflow | ✅ supported workflow | ✅ supported workflow | ✅ supported workflow |
+| **B** (replay, commit diff set) | Git | ✅ production | ✅ production | ✅ production | ✅ production |
+| **B** (replay, commit diff set) | SVN | ✅ production | ✅ production | ✅ production | ✅ production |
+| **C** (embedded blame, v26.04) | Git-origin blame | ✅ production | ✅ production | ✅ production | ✅ production |
+| **C** (embedded blame, v26.04) | SVN-origin blame | ✅ production | ✅ production | ✅ production | ✅ production |
 
 Notes for the local SVN AlgB row:
 
@@ -53,9 +53,9 @@ Notes for the local SVN AlgB row:
 **Algorithm B** replays commit diffs to reconstruct line states. It is designed for two modes:
 
 - **Local Git replay**: reads diffs directly from a local Git checkout
-- **Commit diff set replay**: reads pre-exported patch files from `--commitDiffSetDir` (works with both Git-origin and SVN-origin patch sets for Scope A, and is the recommended path for SVN scenarios)
+- **Commit diff set replay**: reads pre-exported patch files from `--commitDiffSetDir` (works with both Git-origin and SVN-origin patch sets for all Scopes A–D, and is the recommended path for SVN scenarios)
 
-**Algorithm C** consumes embedded blame from `genCodeDescProtoV26.04` files. In the current CLI slice it supports Scope A, requires `--genCodeDescSetDir`, does not call Git or SVN at runtime, and can derive repository identity from explicit CLI arguments or optional `queryArgs.json` plus the selected end-revision protocol.
+**Algorithm C** consumes embedded blame from `genCodeDescProtoV26.04` files. It supports Scopes A–D, requires `--genCodeDescSetDir`, does not call Git or SVN at runtime, and can derive repository identity from explicit CLI arguments or optional `queryArgs.json` plus the selected end-revision protocol.
 
 ## Global Prerequisites
 
@@ -151,7 +151,7 @@ Algorithm B note: `repoURL` and `repoBranch` are not equally fundamental in ever
 | `--genCodeDescSetDir` | Required. Directory of AlgC `genCodeDescProtoV26.04` files. The current slice reads only embedded blame from these files. |
 | `queryArgs.json` inside `--genCodeDescSetDir` or `--queryArgsFile` | Optional but recommended. May provide `endRevisionId`, `vcsType`, `repoURL`, and `repoBranch`. If provided, these fields must match the selected end-revision protocol. |
 | `--repoURL`, `--repoBranch`, `--vcsType` | Optional for Algorithm C when `--genCodeDescSetDir` is present. Repository identity is derived from explicit CLI values or `queryArgs.json` and the end-revision protocol set. |
-| `--scope` | Current Algorithm C slice supports Scope A only. |
+| `--scope` | Algorithm C supports Scopes A, B, C, and D. Scopes A/B/D count `codeLines` entries and output `totalCodeLines`/`fullGeneratedCodeLines`/`partialGeneratedCodeLines`. Scope C counts `docLines` entries and outputs `totalDocLines`/`fullGeneratedDocLines`/`partialGeneratedDocLines`. Scope D counts both `codeLines` and `docLines` entries combined. |
 
 ### Git logical URL mode
 
@@ -264,118 +264,15 @@ python3 aggregateGenCodeDesc.py \
 
 This means `r102` is skipped intentionally. Use this only when that omission is part of the purpose of the run.
 
-## Usage Examples
+## User Examples
 
-### 1. Git + Algorithm A (production)
+All user-facing runnable examples now live in `UserExamples/README_UserExamples.md`.
 
-The most common case: analyze a local Git repository.
+Use that document for:
 
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL /path/to/local/git/repo \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
-
-To count documentation lines instead of code lines, change `--scope A` to `--scope C`.
-To count everything (source + docs), use `--scope D`.
-
-### 2. Git + Algorithm A with logical URL
-
-When metadata uses a logical URL but Git commands run against a local checkout:
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL https://example.local/repo/demo.git \
-  --workingDir /path/to/local/git/checkout \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
-
-### 3. SVN + Algorithm A (production)
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType svn \
-  --repoURL file:///path/to/local/svn/repo \
-  --repoBranch trunk \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
-
-You can also use an SVN server URL (e.g. `svn://host/repo`) instead of `file:///`.
-
-### 4. Algorithm B — local Git replay
-
-Replay commit diffs from a live Git checkout.
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL /path/to/local/git/repo \
-  --repoBranch main \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-out.json \
-  --genCodeDescSetDir /path/to/genCodeDescSet
-```
-
-Scopes B, C, and D are also supported — just change `--scope`.
-
-### 5. Algorithm B — commit diff set replay
-
-Replay from pre-exported patch files. No live repository access needed.
-
-Preferred fixture convention: make the replay order visible in the artifact names themselves, for example `0001_r1_commitDiff.patch`, `0002_r2_commitDiff.patch`, or `0001_<commitId>_commitDiff.patch`.
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType git \
-  --repoURL https://example.local/repo/demo \
-  --repoBranch main \
-  --startTime 2026-03-10 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --scope A \
-  --outputFile /tmp/agg-b-fixture-out.json \
-  --genCodeDescSetDir testdata/us1_live_changed_source_ratio \
-  --commitDiffSetDir testdata/us1_live_changed_source_ratio/commitDiffSet
-```
-
-SVN-sourced fixtures also work for Scope A — just change `--vcsType svn` and point to SVN fixture directories.
-
-For SVN in particular, the recommended flow is: export the `startTime~endTime` revision window into one serial commit diff set, then run Algorithm B from that set.
-
-### 6. Algorithm C — embedded blame offline analysis
-
-Run with only a v26.04 protocol set. In the current slice, Scope A is the supported path.
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --algorithm C \
-  --startTime 2026-03-10 \
-  --endTime 2026-03-31 \
-  --scope A \
-  --outputFile /tmp/agg-c-out.json \
-  --genCodeDescSetDir /path/to/algc-v26.04-set
-```
-
-If `/path/to/algc-v26.04-set/queryArgs.json` is present, or `--queryArgsFile` is passed, Algorithm C can derive `endRevisionId`, `repoURL`, `repoBranch`, and `vcsType` from that file plus the selected end protocol.
+- generic operator command patterns for Algorithm A, B, and C
+- replayable real examples with shipped data under `UserExamples/`
+- example-specific diagnosis and output checks
 
 ## Output Shape
 
@@ -510,8 +407,151 @@ A single file in the repository is larger than 100 MB. This is likely a binary o
 | Document | Content |
 |----------|---------|
 | `README.md` | Product scope and measurement definitions |
+| `UserExamples/README_UserExamples.md` | Example command patterns grouped for operators |
 | `README_UserStory.md` | Story-level acceptance criteria |
 | `README_SharedUS_Convergence.md` | Production convergence roadmap (completed) |
 | `README_RunTestCase.md` | Test commands |
 | `README_ArchDesign.md` | Architecture and design decisions |
 | `README_UbiLang.md` | Ubiquitous Language glossary |
+
+*** Add File: /Users/enigmawu/VSCode/MyLLM_Arena/MyStartups/AggregateGenCodeDesc/UserExamples/README_UserExamples.md
+# AggregateGenCodeDesc User Examples
+
+## Purpose
+
+Concrete operator-oriented command examples for running `aggregateGenCodeDesc.py`.
+
+Use this document when you want copyable command patterns.
+Use `README_UserGuide.md` when you want the full argument contract and support matrix.
+
+## Example Index
+
+1. Git + Algorithm A
+2. Git + Algorithm A with logical URL
+3. SVN + Algorithm A
+4. Algorithm B + local Git replay
+5. Algorithm B + commit diff set replay
+6. Algorithm B + local SVN workflow via exported commit diff set
+7. Algorithm C + embedded blame offline analysis
+
+## 1. Git + Algorithm A
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL /path/to/local/git/repo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+## 2. Git + Algorithm A with logical URL
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo.git \
+  --workingDir /path/to/local/git/checkout \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+## 3. SVN + Algorithm A
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL file:///path/to/local/svn/repo \
+  --repoBranch trunk \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+## 4. Algorithm B + local Git replay
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL /path/to/local/git/repo \
+  --repoBranch main \
+  --startTime 2026-03-01 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --scope A \
+  --outputFile /tmp/agg-b-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet
+```
+
+## 5. Algorithm B + commit diff set replay
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType git \
+  --repoURL https://example.local/repo/demo \
+  --repoBranch main \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --scope A \
+  --outputFile /tmp/agg-b-fixture-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet \
+  --commitDiffSetDir /path/to/commitDiffSet
+```
+
+Preferred patch naming:
+
+- `0001_r1_commitDiff.patch`
+- `0002_r2_commitDiff.patch`
+- `0003_r3_commitDiff.patch`
+
+## 6. Algorithm B + local SVN workflow via exported commit diff set
+
+This is the recommended practical SVN workflow today.
+
+1. Resolve the revisions inside `startTime~endTime`.
+2. Export one unified diff patch per revision.
+3. Name them in chronological order as `NN_<revisionId>_commitDiff.patch`.
+4. Keep matching `<revisionId>_genCodeDesc.json` files in `--genCodeDescSetDir`.
+5. Run Algorithm B from the exported patch set.
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --vcsType svn \
+  --repoURL file:///path/to/local/svn/repo \
+  --repoBranch trunk \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --algorithm B \
+  --scope A \
+  --outputFile /tmp/agg-b-svn-out.json \
+  --genCodeDescSetDir /path/to/genCodeDescSet \
+  --commitDiffSetDir /path/to/commitDiffSet
+```
+
+## 7. Algorithm C + embedded blame offline analysis
+
+```bash
+python3 aggregateGenCodeDesc.py \
+  --algorithm C \
+  --startTime 2026-03-10 \
+  --endTime 2026-03-31 \
+  --scope A \
+  --outputFile /tmp/agg-c-out.json \
+  --genCodeDescSetDir /path/to/algc-v26.04-set
+```
+
+## Related Docs
+
+- `README_UserGuide.md`: operator contract, argument meanings, and support matrix
+- `README_RunTestCase.md`: test commands
+- `README.md`: product scope and measurement definitions

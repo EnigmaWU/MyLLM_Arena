@@ -1,0 +1,21 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalCodeLines": 0,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/calc.py",
+      "codeLines": []
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/userexamples/git-basic",
+    "repoBranch": "main",
+    "revisionId": "ux1-r3"
+  }
+}

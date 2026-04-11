@@ -1,0 +1,7 @@
+diff --git a/trunk/src/report.py b/trunk/src/report.py
+--- /dev/null
++++ b/trunk/src/report.py
+@@ -0,0 +1,3 @@
++def report():
++    data = ai_fetch()
++    draft = data

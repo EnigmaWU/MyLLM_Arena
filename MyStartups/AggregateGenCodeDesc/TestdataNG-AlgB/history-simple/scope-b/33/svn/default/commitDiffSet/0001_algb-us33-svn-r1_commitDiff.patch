@@ -1,0 +1,10 @@
+diff --git a/src/calc.py b/src/calc.py
+new file mode 100644
+--- /dev/null
++++ b/src/calc.py
+@@ -0,0 +1,5 @@
++# calculation module
++def add(a, b):
++# helper comment
++    return a + b
++result = 0

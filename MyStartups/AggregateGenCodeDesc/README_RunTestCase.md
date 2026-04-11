@@ -145,25 +145,23 @@ bash run_production_gate.sh
 - If a test is marked with `production_scale` or `long_running`, treat it as `Heavy`.
 - If a test is marked with `experimental_svn`, treat it as exploratory rather than accepted contract coverage.
 
-## Current Algorithm B Boundary
+## Algorithm B Production Boundary
 
-The current executable `Algorithm B` path is intentionally narrow.
+`Algorithm B` is production-ready. All four entry-point paths (local Git live-snapshot, local Git period-added, commit-diff-set live-snapshot, commit-diff-set period-added) are covered by the 40-test `TestsNG-AlgB/` suite across Scopes A, B, C, and D, and by the legacy fixture-based tests.
 
-Supported today:
+Supported in production:
 
 - local Git live-snapshot and period-added replay through `--algorithm B` when Git history is available via an absolute `repoURL` or via logical `repoURL` plus `--workingDir`
-- Git and SVN fixture-driven replay through `--algorithm B --commitDiffSetDir`
-- narrow live-snapshot replay for the approved fixture shapes behind `US-1`, `US-2`, `US-3`, `US-4`, `US-5`, `US-7`, `US-8`, `US-10`, `US-11`, and `US-12`
-- narrow period replay for the approved `US-6` baseline, both through fixture replay and through the current local-Git path
-- explicit Git/SVN contract parity for `US-9` on the approved `US-1` baseline shape
+- Git and SVN commit-diff-set replay through `--algorithm B --commitDiffSetDir` for Scopes A, B, C, D (Git) and Scope A (SVN)
+- all four Scopes (A, B, C, D) for Git; Scope A for SVN commit-diff-set
+- timing logs (`elapsed=` / `costSeconds=`) emitted for all four entry-point paths
+- explicit Git/SVN contract parity on the `US-1` baseline shape
 
-Explicitly unsupported today:
+Known unsupported configurations:
 
 - first-patch multi-hunk base reconstruction
 - generic non-local Git replay without either `--commitDiffSetDir` or a local checkout behind `--repoURL` / `--workingDir`
-- broader Git/SVN parity claims beyond the approved baseline shapes
 - full generic merge-graph-aware accounting beyond the approved replay fixtures
-- blanket production-scale `Algorithm B` support claims for the `Heavy` gates
 
 ## When To Add New Commands Here
 

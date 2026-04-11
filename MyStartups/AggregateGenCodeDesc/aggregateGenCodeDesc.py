@@ -651,7 +651,7 @@ def apply_query_args(args: argparse.Namespace) -> argparse.Namespace:
         args.vcsType = "git"
     if not args.algorithm:
         args.algorithm = "A"
-    if not args.scope:
+    if args.scope is None:
         args.scope = "A"
     return args
 
@@ -1615,6 +1615,10 @@ def validate_inputs(args: argparse.Namespace) -> None:
         raise InputValidationError(
             "--workingDir is required for git when --repoURL is a logical repository URL rather than a local absolute path"
         )
+    elif args.vcsType == "git" and args.algorithm == "B" and not args.commitDiffSetDir and not is_local_repository_path(args.repoURL):
+        raise InputValidationError(
+            "Algorithm B local git replay requires a local repository via --workingDir or an absolute --repoURL when --commitDiffSetDir is not provided"
+        )
     if args.genCodeDescSetDir:
         validate_directory(args.genCodeDescSetDir, "--genCodeDescSetDir")
     if args.queryArgsFile:
@@ -1635,7 +1639,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vcsType", default="")
     parser.add_argument("--algorithm", default="")
     parser.add_argument("--metric")
-    parser.add_argument("--scope", default="")
+    parser.add_argument("--scope", default=None)
     parser.add_argument("--outputFile")
     parser.add_argument("--outputFormat", default="json")
     parser.add_argument("--metadataSource", default="genCodeDesc")
@@ -2221,8 +2225,6 @@ def resolve_algorithm_c_repository_identity(
 def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) -> dict:
     if args.outputFormat != "json":
         raise UnsupportedConfigurationError("Only JSON output is implemented in the current Algorithm C slice")
-    if args.scope != "A":
-        raise UnsupportedConfigurationError("Current Algorithm C slice only supports Scope A")
     if not args.genCodeDescSetDir:
         raise UnsupportedConfigurationError("Current Algorithm C slice requires --genCodeDescSetDir")
 
@@ -2277,55 +2279,62 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
             if not isinstance(file_name, str) or not file_name:
                 raise ProtocolValidationError("Protocol DETAIL entry missing fileName")
 
-            code_lines = file_entry.get("codeLines", [])
-            if code_lines is None:
-                continue
-            if not isinstance(code_lines, list):
-                raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-list codeLines")
+            line_field_names: list[str] = []
+            if args.scope in ("A", "B", "D"):
+                line_field_names.append("codeLines")
+            if args.scope in ("C", "D"):
+                line_field_names.append("docLines")
 
-            for code_line in code_lines:
-                if not isinstance(code_line, dict):
-                    raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} contains a non-object codeLines item")
-                change_type = code_line.get("changeType")
-                blame = code_line.get("blame")
-                if not isinstance(blame, dict):
-                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame object")
+            for line_field in line_field_names:
+                line_entries = file_entry.get(line_field, [])
+                if line_entries is None:
+                    continue
+                if not isinstance(line_entries, list):
+                    raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} has non-list {line_field}")
 
-                origin_revision_id = blame.get("revisionId")
-                origin_file_path = blame.get("originalFilePath")
-                if not isinstance(origin_revision_id, str) or not origin_revision_id:
-                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame.revisionId")
-                if not isinstance(origin_file_path, str) or not origin_file_path:
-                    raise ProtocolValidationError(f"Algorithm C codeLines entry for {file_name} missing blame.originalFilePath")
+                for line_entry in line_entries:
+                    if not isinstance(line_entry, dict):
+                        raise ProtocolValidationError(f"Protocol DETAIL entry for {file_name} contains a non-object {line_field} item")
+                    change_type = line_entry.get("changeType")
+                    blame = line_entry.get("blame")
+                    if not isinstance(blame, dict):
+                        raise ProtocolValidationError(f"Algorithm C {line_field} entry for {file_name} missing blame object")
 
-                if change_type == "delete":
+                    origin_revision_id = blame.get("revisionId")
+                    origin_file_path = blame.get("originalFilePath")
+                    if not isinstance(origin_revision_id, str) or not origin_revision_id:
+                        raise ProtocolValidationError(f"Algorithm C {line_field} entry for {file_name} missing blame.revisionId")
+                    if not isinstance(origin_file_path, str) or not origin_file_path:
+                        raise ProtocolValidationError(f"Algorithm C {line_field} entry for {file_name} missing blame.originalFilePath")
+
+                    if change_type == "delete":
+                        origin_line = require_int(
+                            blame.get("originalLine"),
+                            f"Algorithm C delete entry for {file_name} blame.originalLine",
+                        )
+                        surviving_lines.pop((origin_revision_id, origin_file_path, origin_line), None)
+                        continue
+
+                    if change_type != "add":
+                        raise ProtocolValidationError(
+                            f"Algorithm C {line_field} entry for {file_name} must declare changeType=add or changeType=delete"
+                        )
+
                     origin_line = require_int(
                         blame.get("originalLine"),
-                        f"Algorithm C delete entry for {file_name} blame.originalLine",
+                        f"Algorithm C add entry for {file_name} blame.originalLine",
                     )
-                    surviving_lines.pop((origin_revision_id, origin_file_path, origin_line), None)
-                    continue
-
-                if change_type != "add":
-                    raise ProtocolValidationError(
-                        f"Algorithm C codeLines entry for {file_name} must declare changeType=add or changeType=delete"
+                    gen_ratio = require_int(
+                        line_entry.get("genRatio"),
+                        f"Algorithm C add entry for {file_name} genRatio",
                     )
-
-                origin_line = require_int(
-                    blame.get("originalLine"),
-                    f"Algorithm C add entry for {file_name} blame.originalLine",
-                )
-                gen_ratio = require_int(
-                    code_line.get("genRatio"),
-                    f"Algorithm C add entry for {file_name} genRatio",
-                )
-                if not 0 <= gen_ratio <= 100:
-                    raise ProtocolValidationError(f"Algorithm C add entry for {file_name} has genRatio outside 0..100")
-                blame_timestamp = parse_protocol_timestamp(
-                    blame.get("timestamp"),
-                    f"Algorithm C add entry for {file_name} blame.timestamp",
-                )
-                surviving_lines[(origin_revision_id, origin_file_path, origin_line)] = (gen_ratio, blame_timestamp)
+                    if not 0 <= gen_ratio <= 100:
+                        raise ProtocolValidationError(f"Algorithm C add entry for {file_name} has genRatio outside 0..100")
+                    blame_timestamp = parse_protocol_timestamp(
+                        blame.get("timestamp"),
+                        f"Algorithm C add entry for {file_name} blame.timestamp",
+                    )
+                    surviving_lines[(origin_revision_id, origin_file_path, origin_line)] = (gen_ratio, blame_timestamp)
 
     total_code_lines = 0
     full_generated_code_lines = 0
@@ -2339,18 +2348,31 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         elif gen_ratio > 0:
             partial_generated_code_lines += 1
 
-    summary = {
-        "totalCodeLines": total_code_lines,
-        "fullGeneratedCodeLines": full_generated_code_lines,
-        "partialGeneratedCodeLines": partial_generated_code_lines,
-    }
     elapsed = time_mod.monotonic() - analysis_start
-    logger.info(
-        "Finished analysis with "
-        f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
-        f"partialGeneratedCodeLines={partial_generated_code_lines} "
-        f"elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s"
-    )
+    if args.scope == "C":
+        summary = {
+            "totalDocLines": total_code_lines,
+            "fullGeneratedDocLines": full_generated_code_lines,
+            "partialGeneratedDocLines": partial_generated_code_lines,
+        }
+        logger.info(
+            "Finished analysis with "
+            f"totalDocLines={total_code_lines} fullGeneratedDocLines={full_generated_code_lines} "
+            f"partialGeneratedDocLines={partial_generated_code_lines} "
+            f"elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s"
+        )
+    else:
+        summary = {
+            "totalCodeLines": total_code_lines,
+            "fullGeneratedCodeLines": full_generated_code_lines,
+            "partialGeneratedCodeLines": partial_generated_code_lines,
+        }
+        logger.info(
+            "Finished analysis with "
+            f"totalCodeLines={total_code_lines} fullGeneratedCodeLines={full_generated_code_lines} "
+            f"partialGeneratedCodeLines={partial_generated_code_lines} "
+            f"elapsed={elapsed:.2f}s costSeconds={elapsed:.2f}s"
+        )
     return build_result_document(
         args,
         summary,

@@ -1,0 +1,60 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.04",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalDocLines": 3,
+    "fullGeneratedDocLines": 1,
+    "partialGeneratedDocLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "docs/guide.md",
+      "docLines": [
+        {
+          "changeType": "add",
+          "lineLocation": 1,
+          "genRatio": 0,
+          "genMethod": "Manual",
+          "blame": {
+            "revisionId": "algc-us19-git-r1",
+            "originalFilePath": "docs/guide.md",
+            "originalLine": 1,
+            "timestamp": "2026-03-10T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 2,
+          "genRatio": 100,
+          "genMethod": "codeCompletion",
+          "blame": {
+            "revisionId": "algc-us19-git-r1",
+            "originalFilePath": "docs/guide.md",
+            "originalLine": 2,
+            "timestamp": "2026-03-10T09:00:00Z"
+          }
+        },
+        {
+          "changeType": "add",
+          "lineLocation": 3,
+          "genRatio": 50,
+          "genMethod": "vibeCoding",
+          "blame": {
+            "revisionId": "algc-us19-git-r1",
+            "originalFilePath": "docs/guide.md",
+            "originalLine": 3,
+            "timestamp": "2026-03-10T09:00:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "git",
+    "repoURL": "https://example.local/repo/algc-demo",
+    "repoBranch": "main",
+    "revisionId": "algc-us19-git-r1",
+    "revisionTimestamp": "2026-03-10T09:00:00Z"
+  }
+}

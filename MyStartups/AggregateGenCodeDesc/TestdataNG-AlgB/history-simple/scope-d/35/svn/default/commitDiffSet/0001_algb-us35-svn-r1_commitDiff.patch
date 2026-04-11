@@ -1,0 +1,14 @@
+diff --git a/src/app.py b/src/app.py
+new file mode 100644
+--- /dev/null
++++ b/src/app.py
+@@ -0,0 +1,2 @@
++def run():
++    return ai_result()
+diff --git a/docs/notes.md b/docs/notes.md
+new file mode 100644
+--- /dev/null
++++ b/docs/notes.md
+@@ -0,0 +1,2 @@
++Manual introduction.
++Human-written notes.

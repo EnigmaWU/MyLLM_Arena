@@ -1,0 +1,33 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "codeAgent": "ExampleAgent",
+  "SUMMARY": {
+    "totalCodeLines": 4,
+    "fullGeneratedCodeLines": 2,
+    "partialGeneratedCodeLines": 0
+  },
+  "DETAIL": [
+    {
+      "fileName": "src/app.py",
+      "codeLines": [
+        {"lineLocation": 1, "genRatio": 100, "genMethod": "codeCompletion"},
+        {"lineLocation": 2, "genRatio": 100, "genMethod": "codeCompletion"}
+      ]
+    },
+    {
+      "fileName": "docs/notes.md",
+      "docLines": [
+        {"lineLocation": 1, "genRatio": 0, "genMethod": "Manual"},
+        {"lineLocation": 2, "genRatio": 0, "genMethod": "Manual"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "https://example.local/repos/algb-demo",
+    "repoBranch": "main",
+    "revisionId": "algb-us20-svn-r1",
+    "revisionTimestamp": "2026-03-12T10:00:00Z"
+  }
+}

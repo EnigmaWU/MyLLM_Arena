@@ -27,6 +27,7 @@
 - Legacy user-story source during migration: `README_UserStory.md`
 - Authoritative next-generation user stories: `README_UserStoryNG.md`
 - User guide and typical usage examples: `README_UserGuide.md`
+- Dedicated operator examples: `UserExamples/README_UserExamples.md`
 - Shared-US convergence roadmap (completed): `README_SharedUS_Convergence.md`
 - Concrete Algorithm-B execution plan: `README_AlgorithmB_TDD.md`
 - Architecture design: `README_ArchDesign.md`

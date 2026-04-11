@@ -7,6 +7,7 @@ from tests.cli_test_support import PROJECT_ROOT, UTILITY_PATH, build_query_args_
 
 
 FIXTURE_GIT_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgB" / "history-simple" / "scope-d" / "35" / "git" / "default"
+FIXTURE_SVN_DIR = Path(__file__).resolve().parents[3] / "TestdataNG-AlgB" / "history-simple" / "scope-d" / "35" / "svn" / "default"
 
 
 class TestUsngAlgbHistorySimpleScopeD35Tdd(unittest.TestCase):
@@ -58,6 +59,11 @@ class TestUsngAlgbHistorySimpleScopeD35Tdd(unittest.TestCase):
         self.assertEqual(actual_result, expected_result)
         # Scope D uses totalCodeLines
         self.assertIn("totalCodeLines", actual_result["SUMMARY"])
+
+    def test_cli_matches_svn_expected_result(self) -> None:
+        expected_result = load_json(FIXTURE_SVN_DIR / "expected_result.json")
+        actual_result = self._run_cli(FIXTURE_SVN_DIR)
+        self.assertEqual(actual_result, expected_result)
 
 
 if __name__ == "__main__":
