@@ -1,0 +1,23 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 0,
+    "partialGeneratedCodeLines": 1
+  },
+  "DETAIL": [
+    {
+      "fileName": "trunk/src/calc.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 50, "genMethod": "codeCompletion"}
+      ]
+    }
+  ],
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "https://example.local/userexamples/svn-basic",
+    "repoBranch": "trunk",
+    "revisionId": "17"
+  }
+}

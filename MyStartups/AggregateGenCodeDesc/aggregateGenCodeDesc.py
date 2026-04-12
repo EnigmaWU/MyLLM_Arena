@@ -2375,6 +2375,9 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
         if not isinstance(detail_entries, list):
             raise ProtocolValidationError("Protocol DETAIL must be a list")
 
+        protocol_add_count = 0
+        protocol_delete_count = 0
+
         for file_entry in detail_entries:
             if not isinstance(file_entry, dict):
                 raise ProtocolValidationError("Each Protocol DETAIL entry must be an object")
@@ -2416,6 +2419,7 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
                             f"Algorithm C delete entry for {file_name} blame.originalLine",
                         )
                         surviving_lines.pop((origin_revision_id, origin_file_path, origin_line), None)
+                        protocol_delete_count += 1
                         continue
 
                     if change_type != "add":
@@ -2438,6 +2442,28 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
                         f"Algorithm C add entry for {file_name} blame.timestamp",
                     )
                     surviving_lines[(origin_revision_id, origin_file_path, origin_line)] = (gen_ratio, blame_timestamp)
+                    protocol_add_count += 1
+
+        protocol_summary = protocol.get("SUMMARY", {})
+        declared_total = 0
+        if args.scope in ("A", "B", "D"):
+            declared_total += protocol_summary.get("totalCodeLines", 0) or 0
+        if args.scope in ("C", "D"):
+            declared_total += protocol_summary.get("totalDocLines", 0) or 0
+        if isinstance(declared_total, int) and declared_total > protocol_add_count and protocol_delete_count == 0:
+            omitted_count = declared_total - protocol_add_count
+            protocol_repo = protocol.get("REPOSITORY", {})
+            omit_revision_id = protocol_repo.get("revisionId", _revision_id)
+            omit_ts_raw = protocol_repo.get("revisionTimestamp")
+            omit_timestamp = parse_protocol_timestamp(omit_ts_raw, f"Algorithm C omitted-line fallback for revision {omit_revision_id}") if omit_ts_raw else revision_timestamp
+            for i in range(omitted_count):
+                omitted_key = (omit_revision_id, f"__omitted_{omit_revision_id}_{i}__", 0)
+                surviving_lines[omitted_key] = (0, omit_timestamp)
+            logger.warn(
+                f"Protocol revision {omit_revision_id} declares {declared_total} lines in SUMMARY "
+                f"but DETAIL contains only {protocol_add_count}; "
+                f"{omitted_count} omitted line(s) treated as manual (genRatio=0)"
+            )
 
     total_code_lines = 0
     full_generated_code_lines = 0

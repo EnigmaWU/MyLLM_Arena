@@ -1,0 +1,23 @@
+{
+  "protocolName": "generatedTextDesc",
+  "protocolVersion": "26.03",
+  "SUMMARY": {
+    "totalCodeLines": 3,
+    "fullGeneratedCodeLines": 1,
+    "partialGeneratedCodeLines": 0
+  },
+  "REPOSITORY": {
+    "vcsType": "svn",
+    "repoURL": "file:///svn/userexamples",
+    "repoBranch": "trunk",
+    "revisionId": "2"
+  },
+  "DETAIL": [
+    {
+      "fileName": "trunk/src/report.py",
+      "codeLines": [
+        {"lineLocation": 2, "genRatio": 100}
+      ]
+    }
+  ]
+}

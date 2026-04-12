@@ -42,6 +42,8 @@ class TestUs10Us11AlgorithmBRegressionTdd(unittest.TestCase):
                     str(fixture_dir),
                     "--commitDiffSetDir",
                     str(fixture_dir / "commitDiffSet"),
+                    *(["--endRevisionId", query["endRevisionId"]] if "endRevisionId" in query else []),
+                    *(["--includedRevisionIds", *query["includedRevisionIds"]] if "includedRevisionIds" in query else []),
                 ],
                 cwd=PROJECT_ROOT,
                 text=True,
