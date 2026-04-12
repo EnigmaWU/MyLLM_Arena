@@ -2468,10 +2468,18 @@ def build_result_algorithm_c(args: argparse.Namespace, logger: RuntimeLogger) ->
     total_code_lines = 0
     full_generated_code_lines = 0
     partial_generated_code_lines = 0
-    for gen_ratio, blame_timestamp in surviving_lines.values():
+    for (origin_revision_id, origin_file_path, origin_line), (gen_ratio, blame_timestamp) in sorted(
+        surviving_lines.items(),
+        key=lambda item: (item[0][1], item[0][2], item[0][0]),
+    ):
         if not (start_bound <= blame_timestamp <= end_bound):
             continue
         total_code_lines += 1
+        logger.info(
+            f"LiveLine {origin_file_path}:{origin_line} aggregate "
+            f"origin={origin_file_path}:{origin_line}@{origin_revision_id} "
+            f"classification={describe_ratio(gen_ratio)}"
+        )
         if gen_ratio == 100:
             full_generated_code_lines += 1
         elif gen_ratio > 0:

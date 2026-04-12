@@ -89,7 +89,6 @@ The actual aggregate step should be an explicit `python3 aggregateGenCodeDesc.py
 | local SVN repository and you want replay behavior through exported patches | `example-AlgB-localSVN` | `UserExamplesNG/dataset-localSVN-fullCoverage` | generator materializes the patch set and matching metadata |
 | Git patch set plus v26.03 metadata only | `example-AlgB-offline-GIT-basic` | `UserExamplesNG/dataset-AlgB-offline-GIT-basic` | no live repository required |
 | SVN patch set plus v26.03 metadata only | `example-AlgB-offline-SVN-basic` | `UserExamplesNG/dataset-AlgB-offline-SVN-basic` | no live repository required |
-| SVN patch set plus an explicit `includedRevisionIds` subset flow | `example-AlgB-offline-SVN-includedRevisionIds` | `UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds` | demonstrates subset replay control |
 | v26.04 embedded blame from Git-origin history | `example-AlgC-embeddedBlame-GIT` | `UserExamplesNG/dataset-localGIT-fullCoverage` | generator materializes an AlgC-ready dataset with `queryArgs.json` |
 | v26.04 embedded blame from SVN-origin history | `example-AlgC-embeddedBlame-SVN` | `UserExamplesNG/dataset-localSVN-fullCoverage` | generator materializes an AlgC-ready SVN dataset with `queryArgs.json` |
 | large real Git history for production-scale practice | `example-AlgA-localGIT-productionScale` | `UserExamplesNG/dataset-localGIT-productionScale` | heavy real repository example |

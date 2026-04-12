@@ -37,7 +37,6 @@ cd /PATH/2/AggregateGenCodeDesc
 | `example-AlgC-embeddedBlame-SVN` | 你已经有，或者想生成一个 AlgC 可运行的 SVN 来源 embedded-blame 数据集 | `UserExamplesNG/dataset-localSVN-fullCoverage` |
 | `example-AlgB-offline-GIT-basic` | 你只有 Git patch 流和 v26.03 元数据 | `UserExamplesNG/dataset-AlgB-offline-GIT-basic` |
 | `example-AlgB-offline-SVN-basic` | 你只有 SVN patch 流和 v26.03 元数据 | `UserExamplesNG/dataset-AlgB-offline-SVN-basic` |
-| `example-AlgB-offline-SVN-includedRevisionIds` | 你想使用显式的 `includedRevisionIds` 子集回放 | `UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds` |
 | `example-AlgA-localGIT-productionScale` | 你想练习一个重型真实 Git 仓库示例 | `UserExamplesNG/dataset-localGIT-productionScale` |
 
 ## 先说几句，免得跑偏
@@ -48,11 +47,13 @@ cd /PATH/2/AggregateGenCodeDesc
 
 对于 Algorithm B 离线回放，`commitDiffSet/*.patch` 保存的必须是真实 unified diff 内容。
 
-如果 patch 行尾出现了 `genRatio` 注释，仅仅是为了方便人工阅读与检查，请把它视为人工提示。真正的 aggregate 输入仍然来自 `genCodeDescSet/` 中匹配的 `*_genCodeDesc.json` 文件。
+如果你确实想在 patch 里直观看到 `genRatio` 提示，建议生成一份旁路查看用的 `commitDiffSetAnnotated/`：`python3 UserExamplesNG/render_annotated_commit_diff_set.py <datasetDir>`。真正参与 aggregate 的仍然应该是干净的 `commitDiffSet/`，实际输入也仍然来自 `genCodeDescSet/` 中匹配的 `*_genCodeDesc.json` 文件。
 
 对于下面这些由生成器物化出来的数据集，`generate_example.py` 做的只是把必需输入先落到 `/tmp/` 下，方便你直接拿真实本地仓库和匹配元数据去跑 CLI。
 
 生成器只是辅助工具。真正执行 aggregate 时，下面每条命令我都会直接写成 `python3 aggregateGenCodeDesc.py ...`，不会再包一层 shell 脚本。
+
+如果你还想顺手核对 `stderr` 里的操作日志，就把示例命令显式加上 `--logLevel info`，把 `stderr` 重定向到日志文件，然后再跑 `python3 UserExamplesNG/check_info_log.py ...`。这个检查器就是专门看你要的三段：开始横幅、逐行 `LiveLine`、结束汇总。
 
 ## 数据集：`dataset-localGIT-fullCoverage`
 
@@ -118,7 +119,9 @@ python3 aggregateGenCodeDesc.py \
   --endTime 2026-03-31 \
   --scope A \
   --outputFile /tmp/agg-userexample-ng-alga-localgit-a.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/genCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/genCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-alga-localgit-a.info.log
 ```
 
 校验输出：
@@ -136,6 +139,16 @@ if actual != expected:
 
 print('example-AlgA-localGIT OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-alga-localgit-a.info.log \
+  --mode live \
+  --scope A \
+  --label example-AlgA-localGIT
 ```
 
 ### `example-AlgB-localGIT`
@@ -164,7 +177,9 @@ python3 aggregateGenCodeDesc.py \
   --algorithm B \
   --scope D \
   --outputFile /tmp/agg-userexample-ng-algb-localgit-d.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/genCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/genCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algb-localgit-d.info.log
 ```
 
 校验输出：
@@ -184,6 +199,16 @@ print('example-AlgB-localGIT OK')
 PY
 ```
 
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algb-localgit-d.info.log \
+  --mode algorithm-b \
+  --scope D \
+  --label example-AlgB-localGIT
+```
+
 ### `example-AlgC-embeddedBlame-GIT`
 
 你已经具备：
@@ -200,7 +225,9 @@ python3 aggregateGenCodeDesc.py \
   --endTime 2026-03-31 \
   --scope B \
   --outputFile /tmp/agg-userexample-ng-algc-localgit-b.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/algcGenCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit/algcGenCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algc-localgit-b.info.log
 ```
 
 校验输出：
@@ -218,6 +245,16 @@ if actual != expected:
 
 print('example-AlgC-embeddedBlame-GIT OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algc-localgit-b.info.log \
+  --mode live \
+  --scope B \
+  --label example-AlgC-embeddedBlame-GIT
 ```
 
 ## 数据集：`dataset-localSVN-fullCoverage`
@@ -279,7 +316,9 @@ PY
   --endTime 2026-03-31 \
   --scope A \
   --outputFile /tmp/agg-userexample-ng-alga-localsvn-a.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localsvn/genCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localsvn/genCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-alga-localsvn-a.info.log
 ```
 
 校验输出：
@@ -297,6 +336,16 @@ if actual != expected:
 
 print('example-AlgA-localSVN OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-alga-localsvn-a.info.log \
+  --mode live \
+  --scope A \
+  --label example-AlgA-localSVN
 ```
 
 ### `example-AlgB-localSVN`
@@ -326,7 +375,9 @@ PY
   --scope D \
   --outputFile /tmp/agg-userexample-ng-algb-localsvn-d.json \
   --genCodeDescSetDir /tmp/agg-userexample-ng-localsvn/genCodeDescSet \
-  --commitDiffSetDir /tmp/agg-userexample-ng-localsvn/commitDiffSet
+  --commitDiffSetDir /tmp/agg-userexample-ng-localsvn/commitDiffSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algb-localsvn-d.info.log
 ```
 
 校验输出：
@@ -346,6 +397,16 @@ print('example-AlgB-localSVN OK')
 PY
 ```
 
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algb-localsvn-d.info.log \
+  --mode algorithm-b \
+  --scope D \
+  --label example-AlgB-localSVN
+```
+
 ### `example-AlgC-embeddedBlame-SVN`
 
 你已经具备：
@@ -362,7 +423,9 @@ python3 aggregateGenCodeDesc.py \
   --endTime 2026-03-31 \
   --scope B \
   --outputFile /tmp/agg-userexample-ng-algc-localsvn-b.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localsvn/algcGenCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localsvn/algcGenCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algc-localsvn-b.info.log
 ```
 
 校验输出：
@@ -380,6 +443,16 @@ if actual != expected:
 
 print('example-AlgC-embeddedBlame-SVN OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algc-localsvn-b.info.log \
+  --mode live \
+  --scope B \
+  --label example-AlgC-embeddedBlame-SVN
 ```
 
 ## `example-AlgB-offline-GIT-basic`
@@ -420,7 +493,9 @@ python3 aggregateGenCodeDesc.py \
   --scope A \
   --outputFile /tmp/agg-userexample-ng-algb-offline-git-basic.json \
   --genCodeDescSetDir UserExamplesNG/dataset-AlgB-offline-GIT-basic/genCodeDescSet \
-  --commitDiffSetDir UserExamplesNG/dataset-AlgB-offline-GIT-basic/commitDiffSet
+  --commitDiffSetDir UserExamplesNG/dataset-AlgB-offline-GIT-basic/commitDiffSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algb-offline-git-basic.info.log
 ```
 
 校验输出：
@@ -438,6 +513,16 @@ if actual != expected:
 
 print('example-AlgB-offline-GIT-basic OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algb-offline-git-basic.info.log \
+  --mode algorithm-b \
+  --scope A \
+  --label example-AlgB-offline-GIT-basic
 ```
 
 ## `example-AlgB-offline-SVN-basic`
@@ -478,7 +563,9 @@ python3 aggregateGenCodeDesc.py \
   --scope A \
   --outputFile /tmp/agg-userexample-ng-algb-offline-svn-basic.json \
   --genCodeDescSetDir UserExamplesNG/dataset-AlgB-offline-SVN-basic/genCodeDescSet \
-  --commitDiffSetDir UserExamplesNG/dataset-AlgB-offline-SVN-basic/commitDiffSet
+  --commitDiffSetDir UserExamplesNG/dataset-AlgB-offline-SVN-basic/commitDiffSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-algb-offline-svn-basic.info.log
 ```
 
 校验输出：
@@ -498,60 +585,14 @@ print('example-AlgB-offline-SVN-basic OK')
 PY
 ```
 
-## `example-AlgB-offline-SVN-includedRevisionIds`
-
-你已经具备：
-
-- 一个 SVN 来源的 `commitDiffSet/`
-- 匹配的 v26.03 `genCodeDescSet/`
-- 一个声明了 `includedRevisionIds` 和 `endRevisionId` 的 `queryArgs.json`
-
-校验输入：
+校验 info 日志：
 
 ```bash
-python3 - <<'PY'
-from pathlib import Path
-
-base = Path('UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds')
-query_args = base / 'genCodeDescSet' / 'queryArgs.json'
-
-if not query_args.exists():
-    raise SystemExit(f'Missing required query args file: {query_args}')
-
-print('Input OK: subset replay dataset is ready')
-PY
-```
-
-运行：
-
-```bash
-python3 aggregateGenCodeDesc.py \
-  --vcsType svn \
-  --startTime 2026-03-01 \
-  --endTime 2026-03-31 \
-  --algorithm B \
-  --metric period_added_ai_ratio \
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-algb-offline-svn-basic.info.log \
+  --mode algorithm-b \
   --scope A \
-  --outputFile /tmp/agg-userexample-ng-algb-offline-svn-included.json \
-  --genCodeDescSetDir UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds/genCodeDescSet \
-  --commitDiffSetDir UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds/commitDiffSet
-```
-
-校验输出：
-
-```bash
-python3 - <<'PY'
-import json
-from pathlib import Path
-
-actual = json.loads(Path('/tmp/agg-userexample-ng-algb-offline-svn-included.json').read_text())
-expected = json.loads(Path('UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds/expected_result.json').read_text())
-
-if actual != expected:
-    raise SystemExit('example-AlgB-offline-SVN-includedRevisionIds mismatch')
-
-print('example-AlgB-offline-SVN-includedRevisionIds OK')
-PY
+  --label example-AlgB-offline-SVN-basic
 ```
 
 ## 数据集：`dataset-localGIT-productionScale`
@@ -612,7 +653,9 @@ python3 aggregateGenCodeDesc.py \
   --endTime 2026-03-31 \
   --scope A \
   --outputFile /tmp/agg-userexample-ng-alga-localgit-heavy.json \
-  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit-heavy/genCodeDescSet
+  --genCodeDescSetDir /tmp/agg-userexample-ng-localgit-heavy/genCodeDescSet \
+  --logLevel info \
+  2> /tmp/agg-userexample-ng-alga-localgit-heavy.info.log
 ```
 
 校验输出：
@@ -630,6 +673,16 @@ if actual != expected:
 
 print('example-AlgA-localGIT-productionScale OK')
 PY
+```
+
+校验 info 日志：
+
+```bash
+python3 UserExamplesNG/check_info_log.py \
+  --logFile /tmp/agg-userexample-ng-alga-localgit-heavy.info.log \
+  --mode live \
+  --scope A \
+  --label example-AlgA-localGIT-productionScale
 ```
 
 ## 相关文档

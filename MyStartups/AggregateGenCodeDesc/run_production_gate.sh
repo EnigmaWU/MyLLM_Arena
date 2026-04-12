@@ -18,6 +18,20 @@ command -v svnadmin >/dev/null 2>&1 || {
   exit 1
 }
 
-python3 -m pytest -q -m "production_scale" \
-  tests/test_us13_git_production_scale_local_repo_tdd.py \
-  tests/test_us14_svn_production_scale_local_repo_tdd.py
+echo "=== Stage 1: Full test suite (AlgA + AlgB legacy) ==="
+python3 -m pytest -q tests/
+
+echo ""
+echo "=== Stage 2: AlgB NG (all scopes, all history tiers) ==="
+python3 -m pytest -q TestsNG-AlgB/
+
+echo ""
+echo "=== Stage 3: AlgC NG (all scopes, all history tiers) ==="
+python3 -m pytest -q TestsNG-AlgC/
+
+echo ""
+echo "=== Stage 4: Operator scenario NG ==="
+python3 -m pytest -q TestsNG/
+
+echo ""
+echo "=== Production gate PASSED ==="

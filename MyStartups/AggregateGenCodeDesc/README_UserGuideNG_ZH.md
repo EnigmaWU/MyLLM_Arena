@@ -97,7 +97,6 @@
 | 本地 SVN 仓库，并且你希望通过导出的 patch 观察回放行为 | `example-AlgB-localSVN` | `UserExamplesNG/dataset-localSVN-fullCoverage` | 生成器会同时物化 patch 集和匹配元数据 |
 | 只有 Git patch 集和 v26.03 元数据 | `example-AlgB-offline-GIT-basic` | `UserExamplesNG/dataset-AlgB-offline-GIT-basic` | 运行时不需要活跃仓库 |
 | 只有 SVN patch 集和 v26.03 元数据 | `example-AlgB-offline-SVN-basic` | `UserExamplesNG/dataset-AlgB-offline-SVN-basic` | 运行时不需要活跃仓库 |
-| SVN patch 集，并且需要显式 `includedRevisionIds` 子集流程 | `example-AlgB-offline-SVN-includedRevisionIds` | `UserExamplesNG/dataset-AlgB-offline-SVN-includedRevisionIds` | 演示子集回放控制 |
 | 来自 Git 历史的 v26.04 embedded blame | `example-AlgC-embeddedBlame-GIT` | `UserExamplesNG/dataset-localGIT-fullCoverage` | 生成器会物化带 `queryArgs.json` 的 AlgC 可运行数据集 |
 | 来自 SVN 历史的 v26.04 embedded blame | `example-AlgC-embeddedBlame-SVN` | `UserExamplesNG/dataset-localSVN-fullCoverage` | 生成器会物化带 `queryArgs.json` 的 AlgC 可运行 SVN 数据集 |
 | 用于生产级练习的大型真实 Git 历史 | `example-AlgA-localGIT-productionScale` | `UserExamplesNG/dataset-localGIT-productionScale` | 重型真实仓库示例 |

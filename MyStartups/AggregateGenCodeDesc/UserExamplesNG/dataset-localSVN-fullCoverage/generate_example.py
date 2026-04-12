@@ -7,7 +7,15 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+
+USER_EXAMPLES_NG_DIR = Path(__file__).resolve().parents[1]
+if str(USER_EXAMPLES_NG_DIR) not in sys.path:
+    sys.path.insert(0, str(USER_EXAMPLES_NG_DIR))
+
+from render_annotated_commit_diff_set import render_annotated_commit_diff_set
 
 
 START_TIME = "2026-03-01"
@@ -531,6 +539,8 @@ def main() -> None:
         write_json(output_dir / f"expected_algb-svn-workflow_{scope}.json", build_expected_output(repo_url, scope, end_revision_id, "26.03"))
         write_json(output_dir / f"expected_algb-offline_{scope}.json", build_expected_output(repo_url, scope, end_revision_id, "26.03"))
         write_json(output_dir / f"expected_algc_{scope}.json", build_expected_output(repo_url, scope, end_revision_id, "26.04"))
+
+    render_annotated_commit_diff_set(output_dir, output_dir / "commitDiffSetAnnotated")
 
     write_json(
         output_dir / "manifest.json",

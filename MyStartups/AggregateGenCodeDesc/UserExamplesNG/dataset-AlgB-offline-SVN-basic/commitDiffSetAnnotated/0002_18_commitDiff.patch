@@ -1,0 +1,9 @@
+diff --git a/trunk/src/calc.py b/trunk/src/calc.py
+--- a/trunk/src/calc.py
++++ b/trunk/src/calc.py
+@@ -1,3 +1,4 @@
+ def calc(x):
+     value = x + 1
+-    temp = value - 1
++    boosted = value * 2  # genRatio=100, genMethod=codeCompletion
++    scratch = boosted - 1
