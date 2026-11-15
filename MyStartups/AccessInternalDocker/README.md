@@ -1,545 +1,203 @@
-# SSH Access to an Internal Docker Container Through a Public Relay
+# SSH Access to an Internal Docker Container through a Public Relay
 
 ## Objective
 
-I need to use an OpenSSH client on laptop **LapC** to connect to an SSH service inside a Docker container on server **SrvA**. The container’s `sshd` listens on TCP port `5395` inside the container.
+Use OpenSSH on laptop **LapC** to log in to a container on internal server
+**SrvA**. The container's custom `sshd` listens on TCP `5395`.
 
-I want the connection to be stable and usable as a normal SSH session through a saved SSH configuration alias, without exposing port `5395` publicly on the relay server.
+The connection must use SrvB as a public relay, keep public ports `22022` and
+`5395` closed, and avoid exposing LapC to SrvA. LapC authenticates directly to
+the container through a nested SSH connection.
+
+## Roles
+
+| Role | Responsibility |
+|---|---|
+| **AdmX** | Central key-generation and key-custody authority. Holds the complete solution-managed private/public key inventory, performs tests, rotates credentials, and securely delivers only the minimum material required by each host. |
+| **DskA** | Internal administrative bridge. Uses its existing normal SSH account/key to reach SrvA and runs the outer `ssh -N` forward plus the Chisel client. |
+| **SrvB** | Public relay. Terminates TLS, runs the authenticated Chisel server, and exposes only a loopback reverse listener. It knows no SrvA address or credential. |
+| **SrvA** | Hosts the existing Docker image and authorizes DskA's normal SSH account. It sees only DskA at the outer SSH layer. |
+| **LapC** | User SSH client. Holds only the `lapc_srvb_auth` and `lapc_container_auth` private keys. |
+| **Container** | Runs the final SSH daemon and authorizes only the `lapc_container_auth.pub` matching LapC's private key. |
+
+AdmX is a role, not necessarily a separate machine. It may be an approved
+offline workstation, central vault, or dedicated administrative service.
+Because AdmX holds every solution-managed private key, it can impersonate any
+role for testing.
+
+Existing SrvA/SrvB host private keys remain under their server administrators'
+control unless those administrators explicitly delegate custody or rotation to
+AdmX. Without SrvA `sshd` or host-root access, AdmX cannot take custody of or
+rotate SrvA's existing host key.
 
 ## Environment
 
-| Host | Location and connectivity |
+| Host | Role and connectivity |
 |---|---|
-| **SrvA** | Internal organization server. It has no access outside the organization’s internal network. It hosts a Docker container whose custom `sshd` listens on TCP `5395` inside the container; access to the container must go through an SSH daemon on SrvA, forwarding to `127.0.0.1:5395` on SrvA. |
-| **DskA** | Internal desktop powered on 24/7, with full administrative control of SrvA. It can access SrvA over the internal network and may configure the existing `sshd` on TCP `22` or run a separate `sshd` on TCP `2022`. It does not need direct access to the container. It can reach SrvB only through HTTPS; raw SSH or arbitrary TCP connections to SrvB are not permitted. WebSockets work through the organization's network. |
-| **SrvB** | Internet-accessible server currently accessed by public IPv4 address only. It has a TLS certificate for that address that DskA can validate and trust. Inbound ports `22`, `80`, and `443` are reachable from the internet; ports `80` and `443` are unused and available for relay software. |
-| **LapC** | Laptop in a private network. It can reach SrvB's SSH port `22`. The preferred client is OpenSSH, ideally without additional local helper software. No direct route to SrvA or DskA should be assumed. |
+| **SrvA** | Internal server with no public outbound access. Hosts the existing Docker image. The container SSH daemon listens on `5395`; Docker publishes it only as `127.0.0.1:5395:5395`. |
+| **DskA** | Internal administrative desktop. Has normal-user SSH access to SrvA on TCP `22`. It may reach SrvB only over HTTPS/WebSocket on TCP `443`. |
+| **SrvB** | Public server with a TLS certificate valid for its IPv4 address. Inbound `22`, `80`, and `443` are available; `80` is unused and `443` is used by Chisel. |
+| **LapC** | Internal laptop that can route to SrvB. It has OpenSSH and uses the alias `container-via-srvb`. |
 
-## Required Connection Path
+DskA does not use SSH, SCP, SFTP, plain HTTP, or raw TCP to SrvB.
 
-The desired SSH traffic path is:
+## Selected connection path
 
 ```mermaid
 flowchart LR
     LapC["LapC<br/>OpenSSH client"]
-    SrvB["SrvB<br/>Public relay<br/>IPv4 only; ports 80/443 available"]
+    SrvB["SrvB<br/>OpenSSH relay + Chisel TLS server"]
     SrvBLoopback["SrvB loopback<br/>127.0.0.1:22022"]
 
-    subgraph Internal["Organization's internal network"]
-        DskA["DskA<br/>Internal bridge"]
-        subgraph SrvA["SrvA<br/>Internal server"]
-            SrvAHost["SrvA host<br/>sshd: TCP 22 or 2022"]
-            SrvALoopback["SrvA host loopback<br/>127.0.0.1:5395"]
-            Container["Docker container<br/>sshd: TCP 5395 internally"]
+    subgraph Internal["Organization internal network"]
+        DskA["DskA<br/>Chisel client + SSH bridge"]
+        DskALoopback["DskA loopback<br/>127.0.0.1:22023"]
+
+        subgraph SrvA["SrvA"]
+            SrvAHost["Existing sshd<br/>TCP 22"]
+            SrvALoopback["SrvA loopback<br/>127.0.0.1:5395"]
+            Container["Container sshd<br/>TCP 5395"]
         end
     end
 
-    LapC -->|"SSH to SrvB: TCP 22"| SrvB
-    SrvB -->|"OpenSSH TCP forwarding"| SrvBLoopback
-    SrvBLoopback -->|"Reverse tunnel stream"| DskA
-    DskA -->|"Internal SSH: TCP 22 or 2022"| SrvAHost
-    SrvAHost -->|"SSH TCP forwarding"| SrvALoopback
-    SrvALoopback -->|"Host-to-container route"| Container
-    DskA -.->|"Initiates WSS over HTTPS: TCP 443"| SrvB
+    LapC -->|"SSH: TCP 22"| SrvB
+    SrvB -->|"OpenSSH direct-tcpip"| SrvBLoopback
+    SrvBLoopback -->|"Chisel reverse stream"| DskALoopback
+    DskALoopback -->|"DskA existing SSH key"| SrvAHost
+    SrvAHost -->|"Local TCP forward"| SrvALoopback
+    SrvALoopback -->|"Docker loopback publishing"| Container
+    DskA -.->|"Outbound HTTPS/WSS only: TCP 443"| SrvB
 ```
 
-Solid arrows show the logical SSH traffic path; the session carries traffic in both directions. The dashed arrow shows that DskA initiates a secure WebSocket (WSS) connection to SrvB over HTTPS. This reverse tunnel makes SrvA's SSH daemon reachable through a listener on SrvB's loopback interface; it does not expose that listener publicly.
+The traffic has two SSH layers:
 
-For example, Docker can publish the container port as `127.0.0.1:5395:5395` on SrvA. The container's `sshd` must also listen on an interface reachable by that forwarding; the container's own `127.0.0.1` is not the same as SrvA's loopback address.
+1. DskA authenticates to SrvA using its existing normal account and key.
+2. LapC's original SSH connection to the container remains encrypted inside
+   that outer DskA-to-SrvA SSH transport.
 
-LapC does not need direct network access to SrvA or DskA. DskA provides the bridge because it can reach SrvA and establish an outbound HTTPS connection to SrvB.
+The container authenticates LapC directly with `lapc_container_auth`. SrvA sees
+DskA's SSH identity and an encrypted forwarded stream, not LapC's SSH key or
+source address.
 
-## Constraints
+## Key and authority model
 
-1. SrvA cannot initiate a connection to the public internet.
-2. LapC must ultimately communicate with the container’s custom SSH service on port `5395`.
-3. SrvB must not expose TCP `5395` directly to the internet.
-4. DskA’s connection to SrvB must use genuine HTTPS, not raw SSH or another unrestricted TCP protocol over port `443`.
-5. LapC can use OpenSSH to connect to SrvB on TCP `22`.
-6. Manual startup or restart of the relay/tunnel is sufficient. Automatic startup, automatic reconnection, and preservation of an existing SSH session after an interruption are not required.
-7. Administrative access to DskA, SrvA, and SrvB is available for configuring SSH and running relay or proxy software, if required.
-8. SrvA's `sshd` must permit the forwarding needed to reach the container's SSH service.
-9. `127.0.0.1:5395` on SrvA must route to the container's SSH service on TCP `5395`.
-10. The reverse listener on SrvB's `127.0.0.1:22022` must not be exposed publicly.
+| Credential | AdmX vault | Runtime holder |
+|---|---|---|
+| `lapc_srvb_auth` / `.pub` | Complete pair | LapC private; SrvB jump-account public authorization |
+| `lapc_container_auth` / `.pub` | Complete pair | LapC private; container public authorization |
+| DskA-to-SrvA pair | Full copy when custody is authorized | DskA private; SrvA public authorization |
+| Container host pair | Complete pair | Container host-key volume |
+| Chisel server identity | Private key and fingerprint | SrvB private; DskA fingerprint |
+| SrvB TLS key/certificate | Protected key and certificate inventory | SrvB key/certificate; DskA certificate trust |
 
-## Definition of Success
+Every other host receives only the keys and public trust material required for
+its role. DskA receives no LapC private key. SrvA receives no LapC
+authentication key.
 
-After manually starting the required relay/tunnel components, the following command on LapC must open a normal SSH session authenticated by the container's SSH service:
+The container is configured with:
 
-```bash
-ssh SrvA-at5395-viaSrvB
-```
+- Public-key authentication only.
+- `PasswordAuthentication no`.
+- `KbdInteractiveAuthentication no`.
+- Exactly one `lapc_container_auth.pub` authorization.
+- No alternate trust source.
 
-The saved SSH configuration may use a jump host, proxy, or tunnel internally.
+This allows any client holding the matching `lapc_container_auth` private key to
+authenticate. Under the chosen design, that is LapC and AdmX's master vault.
 
-Successful connections must satisfy all of the following:
+## Key delivery
 
-- Traffic reaches the container’s SSH service on TCP port `5395`.
-- SrvA requires no outbound internet access.
-- DskA uses only HTTPS to communicate with SrvB.
-- Port `5395` remains inaccessible as a public port on SrvB.
-- SSH authentication succeeds directly against the container’s SSH service.
-
-## Solution
-
-Use an authenticated reverse TCP tunnel over WSS for DskA's connection to SrvB, and OpenSSH jump hosts for LapC's connection to the container. The relay listener on SrvB is restricted to loopback; the container remains reachable only through SrvA's SSH daemon.
-
-> **Policy check:** This design carries the SSH connection through an authenticated, destination-restricted WSS tunnel; it is not intended as a general-purpose TCP proxy. WebSocket availability alone does not confirm that this use is permitted by the organization's HTTPS policy. Confirm that SSH-only forwarding through WSS is allowed; otherwise, this design does not satisfy Constraint 4 and must be replaced with an approved application-layer relay.
-
-### SrvA
-
-The examples use the existing Docker image and a separate host-side SSH daemon on `2022`, leaving the existing SSH service on `22` unchanged. SrvA may be Ubuntu or macOS with Docker Desktop; the container itself must contain a Linux OpenSSH server.
-
-#### 1. Prepare the existing image and SSH credentials
-
-- The image must already include `/usr/sbin/sshd`, `ssh-keygen`, and a usable non-root account. The examples call that account `container-user`; replace it with the actual account throughout.
-- If those components are missing, prepare the image using an approved internal package repository or build system. Do not assume SrvA can download packages from the internet.
-- Generate the LapC keys described below and transfer **only their public keys** through an approved administrative channel. SrvA needs `arena_srva.pub` and `arena_container.pub`; private keys remain on LapC.
-- Docker commands must target SrvA's Docker Engine or its local Docker Desktop, not a different machine's Docker context.
-
-#### 2. Publish the container port on host loopback
-
-Add these options to the container's original `docker run` command, preserving its image, entrypoint, application command, environment, networks, and data mounts:
+AdmX securely delivers:
 
 ```text
---publish 127.0.0.1:5395:5395/tcp
---mount type=volume,source=arena_container_hostkeys,target=/etc/ssh/arena_hostkeys
+LapC:
+  lapc_srvb_auth
+  lapc_srvb_auth.pub
+  lapc_container_auth
+  lapc_container_auth.pub
+
+DskA:
+  its own SrvA bridge key
+  public trust material and required fingerprints
+
+SrvB:
+  lapc_srvb_auth.pub
+  Chisel server private key
+  TLS private key and certificate chain
+
+SrvA/container:
+  container host private/public pair
+  lapc_container_auth.pub
 ```
 
-For an image whose normal entrypoint already keeps the container running, a minimal example is:
+Private keys use approved encrypted delivery channels. AdmX retains the master
+inventory for verification, testing, recovery, and rotation.
+
+## Constraints and required permission
+
+1. SrvA cannot initiate public Internet connections.
+2. LapC routes to SrvB only; it has no SrvA or DskA address.
+3. DskA accesses SrvB only through HTTPS/WebSocket on TCP `443`.
+4. SrvB never learns or receives an SrvA address or credential.
+5. SrvB's reverse listener is loopback-only on `127.0.0.1:22022`.
+6. SrvA's Docker mapping is loopback-only on `127.0.0.1:5395`.
+7. SrvA requires no LapC SSH key.
+8. No second SrvA `sshd` daemon is started.
+9. DskA's existing normal SrvA account must already permit local TCP
+   forwarding to `127.0.0.1:5395`.
+10. No Docker image build or Compose conversion is required.
+
+If the existing normal DskA account cannot forward to `127.0.0.1:5395`, the
+deployment stops. A SrvA administrator must approve the required restricted
+forwarding policy; the policy must not be bypassed.
+
+## Definition of success
+
+After the required manual components are started, this command on LapC:
 
 ```bash
-docker run -d --name arena-container \
-  --publish 127.0.0.1:5395:5395/tcp \
-  --mount type=volume,source=arena_container_hostkeys,target=/etc/ssh/arena_hostkeys \
-  YOUR_EXISTING_IMAGE
+ssh container-via-srvb
 ```
 
-Alternatively, merge this into the **existing service** in its Docker Compose configuration:
+must open a shell authenticated by the container's `sshd`, with:
 
-```yaml
-services:
-  existing-service:
-    ports:
-      - "127.0.0.1:5395:5395/tcp"
-    volumes:
-      - arena_container_hostkeys:/etc/ssh/arena_hostkeys
+- `whoami` returning the configured container account.
+- The container hostname matching the intended Docker container.
+- LapC's `lapc_container_auth` private key authenticating to the container.
+- SrvA logging DskA's normal account, not LapC.
+- SrvB never receiving SrvA's address or credentials.
+- No public exposure of `22022` or `5395`.
 
-volumes:
-  arena_container_hostkeys:
-```
+`container-via-srvb` is the primary alias. The deployment runbook also preserves
+`SrvA-at5395-viaSrvB` as a compatibility alias.
 
-Preserve existing Compose ports and volumes when merging. Apply the change with `docker compose up -d existing-service`.
+## Deployment
 
-The mapping means:
+Follow the canonical, step-by-step deployment runbook:
 
-```text
-127.0.0.1 on SrvA : 5395  ->  container network interface : 5395
-```
+[DEPLOYMENT-chiselOpenSSH.md](DEPLOYMENT-chiselOpenSSH.md)
 
-`EXPOSE 5395` alone does not publish a port. Docker cannot add this publishing rule to an already-running container in place: recreate it using the original settings, after preserving any data stored only in its writable layer. Do not delete the existing container or its volumes blindly.
+It contains the ordered operations, verification gates, exact Chisel version
+and checksums, key-delivery commands, Docker startup procedure, container SSH
+configuration, SrvB relay configuration, LapC aliases, manual access revocation,
+and restart/rotation policy.
 
-Use Docker Engine 28 or newer and ordinary bridge/NAT networking without enabled direct routing. Docker documents that older versions can expose localhost-published ports to peers on the same L2 network. Local processes on SrvA and peers on the container's Docker network may still reach the service; loopback publishing is not isolation from those local peers.
+## Operational security
 
-#### 3. Configure the SSH daemon inside the container
+- Keep AdmX's vault private keys encrypted and access-controlled.
+- Do not put private keys in repositories, shell profiles, command history, or
+  chat.
+- Verify all public-key and host-key fingerprints out of band.
+- Keep Chisel's TLS verification and full server fingerprint enabled.
+- Do not expose `22022` or `5395` publicly.
+- Keep an existing SrvB administrative SSH session open while changing its
+  `sshd` configuration.
+- If DskA's forwarding permission changes, re-run the Step 9 permission gate
+  before retrying the tunnel.
 
-On SrvA, save the following as `sshd_config_5395`:
+## References
 
-```text
-Port 5395
-ListenAddress 0.0.0.0
-HostKey /etc/ssh/arena_hostkeys/ssh_host_ed25519_key
-PidFile /run/sshd_arena_5395.pid
-PubkeyAuthentication yes
-AuthorizedKeysFile /etc/ssh/arena_authorized_keys/%u
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PermitRootLogin no
-UsePAM yes
-AllowUsers container-user
-```
-
-`ListenAddress 0.0.0.0` is **inside the container**. It lets Docker deliver traffic to the container's network interface. Listening only on the container's `127.0.0.1` would not accept this bridge-network forwarding.
-
-This sample uses PAM-enabled OpenSSH, as in Ubuntu-based images. If the existing image uses a different account/PAM setup, retain its known-working settings rather than assuming `UsePAM yes` applies. The selected account must not be expired or denied by that policy.
-
-Prepare the configuration and key inside the container:
-
-```bash
-CONTAINER="arena-container" # Use the actual container name.
-
-docker exec --user 0 "$CONTAINER" id container-user
-docker cp ./sshd_config_5395 "$CONTAINER:/etc/ssh/sshd_config_5395"
-docker cp ./arena_container.pub "$CONTAINER:/tmp/arena_container.pub"
-
-docker exec --user 0 "$CONTAINER" sh -c '
-  set -eu
-  mkdir -p /run/sshd /etc/ssh/arena_hostkeys /etc/ssh/arena_authorized_keys
-  chmod 755 /run/sshd /etc/ssh/arena_authorized_keys
-  chmod 700 /etc/ssh/arena_hostkeys
-  if [ ! -f /etc/ssh/arena_hostkeys/ssh_host_ed25519_key ]; then
-    ssh-keygen -t ed25519 -N "" -f /etc/ssh/arena_hostkeys/ssh_host_ed25519_key
-  fi
-  cat /tmp/arena_container.pub >> /etc/ssh/arena_authorized_keys/container-user
-  chown root:root /etc/ssh/sshd_config_5395 \
-    /etc/ssh/arena_authorized_keys /etc/ssh/arena_authorized_keys/container-user \
-    /etc/ssh/arena_hostkeys /etc/ssh/arena_hostkeys/ssh_host_ed25519_key
-  chmod 644 /etc/ssh/sshd_config_5395 /etc/ssh/arena_authorized_keys/container-user
-  chmod 600 /etc/ssh/arena_hostkeys/ssh_host_ed25519_key
-  rm /tmp/arena_container.pub
-'
-
-docker exec --user 0 "$CONTAINER" \
-  /usr/sbin/sshd -t -f /etc/ssh/sshd_config_5395
-```
-
-If validation fails, fix the reported configuration, account, or host-key error before proceeding. Manually start the daemon in a terminal:
-
-```bash
-docker exec --user 0 -it "$CONTAINER" \
-  /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config_5395
-```
-
-Keep that terminal open; `-D -e` keeps the daemon in the foreground and sends errors to the terminal. If the image already starts a daemon on `5395`, configure that service instead of starting a second daemon on the same port.
-
-The named volume preserves the SSH host key across container recreation. The copied configuration and authorized key must be reapplied after recreation, or included in a deliberately prepared image/persistent configuration.
-
-From another terminal on SrvA, check:
-
-```bash
-docker port "$CONTAINER" 5395/tcp
-ssh-keyscan -T 5 -p 5395 127.0.0.1
-docker exec --user 0 "$CONTAINER" \
-  ssh-keygen -lf /etc/ssh/arena_hostkeys/ssh_host_ed25519_key.pub
-```
-
-The port command must show `127.0.0.1:5395`, not `0.0.0.0:5395`. `ssh-keyscan` should receive the container's host key; it is a connectivity check, not a substitute for verifying the fingerprint.
-
-#### 4. Configure the host-side SSH forwarding daemon
-
-Choose an existing non-root account on SrvA and authorize LapC's `arena_srva.pub` key for it. For standard Ubuntu/macOS home directories:
-
-```bash
-SRVA_USER="YOUR_EXISTING_SRVA_USER"
-SRVA_GROUP="$(id -gn "$SRVA_USER")"
-SRVA_HOME="/home/$SRVA_USER" # On macOS use /Users/$SRVA_USER.
-
-sudo mkdir -p "$SRVA_HOME/.ssh"
-sudo tee -a "$SRVA_HOME/.ssh/authorized_keys" < ./arena_srva.pub
-sudo chown "$SRVA_USER:$SRVA_GROUP" \
-  "$SRVA_HOME/.ssh" "$SRVA_HOME/.ssh/authorized_keys"
-sudo chmod 700 "$SRVA_HOME/.ssh"
-sudo chmod 600 "$SRVA_HOME/.ssh/authorized_keys"
-sudo ssh-keygen -A
-```
-
-Create `/etc/ssh/sshd_config_arena_2022`, replacing the address and account placeholders:
-
-```text
-Port 2022
-ListenAddress <SrvA-internal-IP>
-HostKey /etc/ssh/ssh_host_ed25519_key
-PidFile /var/run/sshd_arena_2022.pid
-PubkeyAuthentication yes
-AuthorizedKeysFile .ssh/authorized_keys
-AuthenticationMethods publickey
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-PermitRootLogin no
-UsePAM yes
-AllowUsers <SrvA-user>
-AllowTcpForwarding local
-PermitOpen 127.0.0.1:5395
-PermitListen none
-AllowStreamLocalForwarding no
-AllowAgentForwarding no
-X11Forwarding no
-PermitTTY no
-MaxSessions 0
-```
-
-`MaxSessions 0` disables shell/session channels on this dedicated daemon while retaining TCP forwarding. It does not restrict the final interactive session inside the container.
-
-On Ubuntu, ensure `/run/sshd` exists with root ownership and mode `755`. Make the custom configuration root-owned and non-writable by other users, then validate and start the separate daemon manually:
-
-```bash
-sudo chown root /etc/ssh/sshd_config_arena_2022
-sudo chmod 644 /etc/ssh/sshd_config_arena_2022
-sudo /usr/sbin/sshd -t -f /etc/ssh/sshd_config_arena_2022 &&
-  sudo /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config_arena_2022
-```
-
-Permit DskA's internal address to reach SrvA on `2022` through the host and network firewalls. Full control of SrvA does not override a separate organization's network firewall. If only port `22` is allowed, use the existing host daemon instead, configure a dedicated account with the forwarding restrictions above, and select port `22` in DskA's tunnel command. Validate any existing-daemon changes before an administrator-approved reload; retain the current administrative SSH session.
-
-### DskA
-
-Use [Chisel](https://github.com/jpillora/chisel) as the concrete reverse-tunnel implementation. Install an approved release matching DskA's OS/architecture; use the same release on SrvB. Chisel accepts an `https://` server URL and performs a WebSocket upgrade over TLS. Do not use plain `http://` or disable TLS verification.
-
-Start SrvB's server first, following the next subsection. Obtain its Chisel SSH fingerprint and the tunnel password through a trusted administrative channel. The Chisel fingerprint is separate from the HTTPS certificate and the OpenSSH host keys.
-
-#### macOS
-
-Put the approved `chisel` executable on your `PATH`, then use:
-
-```bash
-SRVB_IP="YOUR_SRVB_PUBLIC_IPV4"
-SRVA_IP="YOUR_SRVA_INTERNAL_IP"
-SRVA_SSH_PORT="2022" # Use 22 if forwarding through the existing host daemon.
-CHISEL_FINGERPRINT="YOUR_VERIFIED_CHISEL_FINGERPRINT"
-
-nc -vz "$SRVA_IP" "$SRVA_SSH_PORT" &&
-  curl --show-error --verbose --output /dev/null "https://${SRVB_IP}:443/"
-```
-
-Only after both checks succeed, start the client in the same terminal:
-
-```bash
-read -r -s -p "Tunnel password: " TUNNEL_PASSWORD
-printf '\n'
-export AUTH="arena-tunnel:${TUNNEL_PASSWORD}"
-unset TUNNEL_PASSWORD
-chisel client \
-  --fingerprint "$CHISEL_FINGERPRINT" \
-  "https://${SRVB_IP}:443" \
-  "R:127.0.0.1:22022:${SRVA_IP}:${SRVA_SSH_PORT}"
-unset AUTH
-```
-
-The password is entered without echoing and is not written into the command history. Keep the client running in that terminal.
-
-#### Windows (PowerShell)
-
-Use the approved `chisel.exe` binary:
-
-```powershell
-$SrvBIP = "YOUR_SRVB_PUBLIC_IPV4"
-$SrvAIP = "YOUR_SRVA_INTERNAL_IP"
-$SrvASshPort = 2022 # Use 22 for the existing host daemon.
-$ChiselFingerprint = "YOUR_VERIFIED_CHISEL_FINGERPRINT"
-
-if (-not (Test-NetConnection -ComputerName $SrvAIP -Port $SrvASshPort -InformationLevel Quiet)) {
-    throw "DskA cannot reach SrvA's selected SSH port"
-}
-curl.exe --show-error --verbose --output NUL "https://${SrvBIP}:443/"
-if ($LASTEXITCODE -ne 0) {
-    throw "HTTPS verification failed with curl exit code $LASTEXITCODE"
-}
-
-$TunnelPassword = Read-Host "Tunnel password" -AsSecureString
-$env:AUTH = "arena-tunnel:" + [System.Net.NetworkCredential]::new("", $TunnelPassword).Password
-try {
-    & .\chisel.exe client `
-        --fingerprint $ChiselFingerprint `
-        "https://${SrvBIP}:443" `
-        "R:127.0.0.1:22022:${SrvAIP}:${SrvASshPort}"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Chisel exited with code $LASTEXITCODE"
-    }
-}
-finally {
-    Remove-Item Env:AUTH
-    $TunnelPassword.Dispose()
-}
-```
-
-Proceed only when the internal TCP check succeeds and curl verifies TLS. A normal HTTP error response from Chisel's non-WebSocket endpoint can be expected; a TLS validation error is not acceptable. If a proxy or policy blocks the connection, obtain the approved configuration rather than bypassing the policy.
-
-The remote specification means:
-
-```text
-R:127.0.0.1:22022:<SrvA-internal-IP>:2022
-  |________________| |_____________________|
-    SrvB listener       destination opened by DskA
-```
-
-DskA connects to SrvA internally. SrvB uses the established WSS tunnel to carry those connections; it does not initiate an inbound connection to DskA. Chisel can retry automatically, but that is not required for success and does not restore a dropped interactive SSH session.
-
-### SrvB
-
-These commands assume Ubuntu. Install the same approved Chisel release as DskA at `/usr/local/bin/chisel`. Use the existing certificate valid for SrvB's IPv4 address; no DNS name or automatic domain certificate issuance is needed.
-
-#### 1. Prepare the authenticated TLS relay
-
-Create a root-only configuration directory:
-
-```bash
-sudo install -d -m 700 /etc/chisel-arena
-```
-
-Place the existing certificate chain at `/etc/chisel-arena/fullchain.pem` and its matching private key at `/etc/chisel-arena/privkey.pem`. Keep the private key readable only by the server administrator.
-
-Create `/etc/chisel-arena/users.json`, substituting a long random password generated and stored using your approved credential-management process. A random hexadecimal or base64url password avoids JSON quoting problems; otherwise, correctly escape the password as JSON:
-
-```json
-{
-  "arena-tunnel:REPLACE_WITH_A_LONG_RANDOM_PASSWORD": [
-    "^R:127\\.0\\.0\\.1:22022$"
-  ]
-}
-```
-
-The anchored expression permits only the reverse listener `127.0.0.1:22022`; it does not authorize other reverse listeners or SOCKS access. It restricts the **server-side listener**, not the destination that the DskA administrator selects. Keep DskA's client configured for the approved SrvA SSH endpoint.
-
-Generate Chisel's persistent SSH key once, not on every startup:
-
-```bash
-sudo chisel server --keygen /etc/chisel-arena/chisel.key
-sudo chmod 600 /etc/chisel-arena/users.json \
-  /etc/chisel-arena/privkey.pem /etc/chisel-arena/chisel.key
-```
-
-Start the relay manually in a terminal:
-
-```bash
-sudo chisel server \
-  --host 0.0.0.0 \
-  --port 443 \
-  --reverse \
-  --authfile /etc/chisel-arena/users.json \
-  --keyfile /etc/chisel-arena/chisel.key \
-  --tls-cert /etc/chisel-arena/fullchain.pem \
-  --tls-key /etc/chisel-arena/privkey.pem
-```
-
-Read the server's Chisel fingerprint from its startup log and provide it to DskA through a trusted administrative channel. Keep port `443` available for this service and leave TLS verification enabled on DskA.
-
-#### 2. Configure the OpenSSH jump account
-
-Create a dedicated account if it does not already exist, and install LapC's `arena_srvb.pub` public key:
-
-```bash
-sudo adduser --disabled-password --gecos "" srvb-relay
-sudo install -d -m 700 -o srvb-relay -g srvb-relay /home/srvb-relay/.ssh
-sudo tee -a /home/srvb-relay/.ssh/authorized_keys < ./arena_srvb.pub
-sudo chown srvb-relay:srvb-relay /home/srvb-relay/.ssh/authorized_keys
-sudo chmod 600 /home/srvb-relay/.ssh/authorized_keys
-```
-
-Add this account-specific block to the effective OpenSSH server configuration, without replacing unrelated global settings or other accounts' rules:
-
-```text
-Match User srvb-relay
-    PubkeyAuthentication yes
-    AuthenticationMethods publickey
-    PasswordAuthentication no
-    KbdInteractiveAuthentication no
-    AllowTcpForwarding local
-    PermitOpen 127.0.0.1:22022
-    PermitListen none
-    AllowStreamLocalForwarding no
-    AllowAgentForwarding no
-    X11Forwarding no
-    PermitTTY no
-    MaxSessions 0
-Match all
-```
-
-Check syntax and the effective forwarding policy, replacing the connection address with LapC's actual source address as seen by SrvB:
-
-```bash
-sudo /usr/sbin/sshd -t
-sudo /usr/sbin/sshd -T \
-  -C user=srvb-relay,host=lapc,addr=YOUR_LAPC_SOURCE_IP
-```
-
-Do not reload if validation fails. Confirm the effective settings include local TCP forwarding and `PermitOpen 127.0.0.1:22022`, with no overriding `DisableForwarding yes` or authorized-key restrictions denying the necessary channel. Keep an existing administrator session open while changing SSH configuration. Only after those checks succeed, reload:
-
-```bash
-sudo systemctl reload ssh
-```
-
-#### 3. Check the reverse listener
-
-After DskA connects, run:
-
-```bash
-sudo ss -ltnp 'sport = :22022'
-ssh-keyscan -T 5 -p 22022 127.0.0.1
-```
-
-The listener must be `127.0.0.1:22022`, not a wildcard/public address. The returned SSH host key must be SrvA's host key, not the container's key. Confirm access to SrvB's public port `22022` fails from another host.
-
-Only SrvB's ports `22` and `443` are used publicly. Do not open `22022` or `5395` in its firewall.
-
-### LapC
-
-#### 1. Prepare separate SSH keys
-
-Using OpenSSH on LapC, generate keys for the SrvB jump account, SrvA host account, and container account:
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/arena_srvb -C arena-srvb
-ssh-keygen -t ed25519 -f ~/.ssh/arena_srva -C arena-srva
-ssh-keygen -t ed25519 -f ~/.ssh/arena_container -C arena-container
-```
-
-Use passphrases and your normal SSH agent if desired. If a named key already exists, do not overwrite it. On Windows, run the same commands from an OpenSSH-enabled terminal using paths under `$HOME/.ssh`.
-
-Transfer the `.pub` files through approved administrative channels to the corresponding hosts. Do not copy these private keys to DskA, SrvA, SrvB, or the container.
-
-#### 2. Save the OpenSSH aliases
-
-Add these entries to `~/.ssh/config` (`$HOME/.ssh/config` on Windows), replacing the angle-bracketed values:
-
-```sshconfig
-Host SrvB-relay
-    HostName <SrvB-public-IPv4>
-    Port 22
-    User srvb-relay
-    IdentityFile ~/.ssh/arena_srvb
-    IdentitiesOnly yes
-
-Host SrvA-viaSrvB
-    HostName 127.0.0.1
-    Port 22022
-    User <SrvA-user>
-    IdentityFile ~/.ssh/arena_srva
-    IdentitiesOnly yes
-    HostKeyAlias arena-SrvA-host
-    ProxyJump SrvB-relay
-
-Host SrvA-at5395-viaSrvB
-    HostName 127.0.0.1
-    Port 5395
-    User container-user
-    IdentityFile ~/.ssh/arena_container
-    IdentitiesOnly yes
-    HostKeyAlias arena-SrvA-container
-    ProxyJump SrvA-viaSrvB
-```
-
-`127.0.0.1:22022` is resolved at the **SrvB jump host**, while `127.0.0.1:5395` is reached from the **SrvA jump host**. Neither refers to a local listener on LapC. The separate host-key aliases distinguish the SrvA host from its container.
-
-Verify all three SSH host fingerprints through a trusted administrative channel before accepting new host keys. SrvA/SrvB administrators can run `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`; the container fingerprint command is shown in the SrvA subsection. Do not disable host-key checking.
-
-#### 3. Start and verify the connection
-
-Startup order:
-
-1. On SrvA, ensure the container daemon and selected host daemon are running.
-2. On SrvB, start the Chisel TLS server.
-3. On DskA, start its authenticated Chisel client and verify SrvB's loopback listener.
-4. On LapC, connect with:
-
-```bash
-ssh SrvA-at5395-viaSrvB
-```
-
-Inside the session, `whoami` must identify the container account. Compare `hostname` and the session's environment with `docker exec` on SrvA to confirm that the shell is in the intended container, not merely on the SrvA host.
-
-For connection diagnostics, use:
-
-```bash
-ssh -vvv SrvA-at5395-viaSrvB
-```
-
-Keep diagnostic logs private and do not share credentials or unrelated host information. A failure must be fixed at the stage reported: SrvB authentication/forwarding, WSS relay, SrvA authentication/forwarding, host-loopback mapping, or final container authentication.
-
-No Chisel binary or other tunnel helper is required on LapC. After an interruption, manually restart the affected components and run the same SSH alias again.
-
-### References
-
-- [Chisel usage: TLS, authentication, fingerprints, and reverse remotes](https://github.com/jpillora/chisel#usage)
-- [Docker port publishing and localhost-binding limitations](https://docs.docker.com/engine/network/port-publishing/)
+- [Chisel releases, usage, TLS, authentication, and fingerprints](https://github.com/jpillora/chisel)
+- [Docker port publishing and localhost binding](https://docs.docker.com/engine/network/port-publishing/)
 - [OpenSSH server configuration](https://man.openbsd.org/sshd_config)
 - [OpenSSH client configuration and ProxyJump](https://man.openbsd.org/ssh_config)
